@@ -67,7 +67,7 @@ endinterface
 
 
 import "BVI" nand_phy =
-module vMkNandPhy#(/*NAND_Phy_Configure cfg,*/Clock clk0, Clock clk90, Reset rst0, Reset rst90)(VNANDPhy);
+module vMkNandPhy#(/*NAND_Phy_Configure cfg,*/Clock clk0, Clock clk90, Reset rstn0, Reset rstn90)(VNANDPhy);
 
 //no default clock and reset
 default_clock no_clock; 
@@ -78,8 +78,8 @@ default_reset no_reset;
 
 input_clock clk0(v_clk0, (*unused*)vclk0_GATE) = clk0;
 input_clock clk90(v_clk90, (*unused*)vclk90_GATE) = clk90;
-input_reset rst0(v_rst0) clocked_by (clk0) = rst0;
-input_reset rst90(v_rst90) clocked_by (clk90) = rst90;
+input_reset rstn0(v_rstn0) clocked_by (clk0) = rstn0;
+input_reset rstn90(v_rstn90) clocked_by (clk90) = rstn90;
 
 interface NANDPins nandPins;
 	ifc_inout dq(v_dq)             clocked_by(no_clock) reset_by(no_reset);
@@ -95,29 +95,29 @@ endinterface
 
 
 interface VPhyUser vphyUser;
-	method setCLE (v_ctrl_cle) enable((*inhigh*)en0) clocked_by(clk0) reset_by(rst0);
-	method setALE (v_ctrl_ale) enable((*inhigh*)en1) clocked_by(clk0) reset_by(rst0);
-	method setWRN (v_ctrl_wrn) enable((*inhigh*)en2) clocked_by(clk0) reset_by(rst0);
-	method setWPN (v_ctrl_wpn) enable((*inhigh*)en3) clocked_by(clk0) reset_by(rst0);
-	method setCEN (v_ctrl_cen) enable((*inhigh*)en4) clocked_by(clk0) reset_by(rst0);
+	method setCLE (v_ctrl_cle) enable((*inhigh*)en0) clocked_by(clk0) reset_by(rstn0);
+	method setALE (v_ctrl_ale) enable((*inhigh*)en1) clocked_by(clk0) reset_by(rstn0);
+	method setWRN (v_ctrl_wrn) enable((*inhigh*)en2) clocked_by(clk0) reset_by(rstn0);
+	method setWPN (v_ctrl_wpn) enable((*inhigh*)en3) clocked_by(clk0) reset_by(rstn0);
+	method setCEN (v_ctrl_cen) enable((*inhigh*)en4) clocked_by(clk0) reset_by(rstn0);
 	
 	//DQS delay control; clk90 domain
-	method dlyIncDQS (v_dlyinc_dqs) enable((*inhigh*) en5) clocked_by(clk90) reset_by(rst90);
-	method dlyCeDQS (v_dlyce_dqs) enable((*inhigh*) en6) clocked_by(clk90) reset_by(rst90);
+	method dlyIncDQS (v_dlyinc_dqs) enable((*inhigh*) en5) clocked_by(clk90) reset_by(rstn90);
+	method dlyCeDQS (v_dlyce_dqs) enable((*inhigh*) en6) clocked_by(clk90) reset_by(rstn90);
 
 	//DQS output; clk0 domain
-	method oenDQS (v_dqs_oe_n) enable((*inhigh*) en7) clocked_by(clk0) reset_by(rst0); //active low
-	method rstnDQS (v_dqs_rst_n) enable((*inhigh*) en8) clocked_by(clk0) reset_by(rst0);
+	method oenDQS (v_dqs_oe_n) enable((*inhigh*) en7) clocked_by(clk0) reset_by(rstn0); //active low
+	method rstnDQS (v_dqs_rst_n) enable((*inhigh*) en8) clocked_by(clk0) reset_by(rstn0);
 
 	//DQ delay control; clk90 domain
-	method dlyIncDQ (v_dlyinc_dq) enable((*inhigh*) en9) clocked_by(clk90) reset_by(rst90);
-	method dlyCeDQ (v_dlyce_dq) enable((*inhigh*) en10) clocked_by(clk90) reset_by(rst90);
-	method oenDQ (v_dq_oe_n) enable((*inhigh*) en11) clocked_by(clk90) reset_by(rst90); //active low
+	method dlyIncDQ (v_dlyinc_dq) enable((*inhigh*) en9) clocked_by(clk90) reset_by(rstn90);
+	method dlyCeDQ (v_dlyce_dq) enable((*inhigh*) en10) clocked_by(clk90) reset_by(rstn90);
+	method oenDQ (v_dq_oe_n) enable((*inhigh*) en11) clocked_by(clk90) reset_by(rstn90); //active low
 	
-	method wrDataRiseDQ (v_wr_data_rise) enable((*inhigh*) en12) clocked_by(clk90) reset_by(rst90);
-	method wrDataFallDQ (v_wr_data_fall) enable((*inhigh*) en13) clocked_by(clk90) reset_by(rst90);
-	method v_rd_data_rise rdDataRiseDQ() clocked_by(clk90) reset_by(rst90);
-	method v_rd_data_fall rdDataFallDQ() clocked_by(clk90) reset_by(rst90);
+	method wrDataRiseDQ (v_wr_data_rise) enable((*inhigh*) en12) clocked_by(clk90) reset_by(rstn90);
+	method wrDataFallDQ (v_wr_data_fall) enable((*inhigh*) en13) clocked_by(clk90) reset_by(rstn90);
+	method v_rd_data_rise rdDataRiseDQ() clocked_by(clk90) reset_by(rstn90);
+	method v_rd_data_fall rdDataFallDQ() clocked_by(clk90) reset_by(rstn90);
 endinterface
 
 //NAND pins are CF
@@ -138,14 +138,50 @@ schedule
 CF
 (vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN);
 
+schedule
+(vphyUser_oenDQS, vphyUser_rstnDQS) 
+CF 
+(vphyUser_oenDQ, vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN);
+
+schedule
+(vphyUser_oenDQ)
+CF
+(vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
+vphyUser_dlyIncDQS,vphyUser_dlyCeDQS,vphyUser_dlyIncDQ,vphyUser_dlyCeDQ,vphyUser_wrDataRiseDQ,vphyUser_wrDataFallDQ);
+
+
+schedule 
+(vphyUser_oenDQ) C (vphyUser_oenDQ);
+
+schedule
+(vphyUser_oenDQS) C (vphyUser_rstnDQS);
+
+schedule
+(vphyUser_rstnDQS) C (vphyUser_rstnDQS);
+
+schedule
+(vphyUser_oenDQS) C (vphyUser_oenDQS);
 
 //read and writes are conflicting
-/*
 schedule
-(wrDataRiseDQ, wrDataFallDQ)
+(vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ)
 C 
-(rdDataRiseDQ, rdDataFallDQ);
-*/
+(vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ);
+
+//unrelated
+schedule
+(vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ, vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ)
+CF
+(vphyUser_dlyIncDQS,vphyUser_dlyCeDQS,vphyUser_dlyIncDQ,vphyUser_dlyCeDQ,vphyUser_oenDQ);
+
+//can read CF
+schedule
+(vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ)
+CF
+(vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ);
+
+
+
 //TODO: what other schedule constraints?
 
 

@@ -115,12 +115,12 @@ initial begin
 	
 	//reset for a bit
 	sys_resetn = 0;
-	#20
+	#200
 	sys_resetn = 1;
 	
 	//for now just wait a long time before ending simulation
-	#100000
-	$finish;
+	//#100000000000000
+	//$finish;
 end
 
 //100MHz differential clock

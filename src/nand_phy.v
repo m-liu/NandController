@@ -57,8 +57,8 @@ module nand_phy #
 		//clocks and resets
 		input v_clk0,
 		input v_clk90,
-		input v_rst0,
-		input v_rst90
+		input v_rstn0,
+		input v_rstn90
 		
 
 		
@@ -78,6 +78,9 @@ localparam HIGH_PERFORMANCE_MODE = "TRUE";
 
 wire delayed_dqs;
 
+//invert reset. BSV weirdness...
+wire v_rst0 = ~v_rstn0;
+wire v_rst90 = ~v_rstn90;
 
 
 /*

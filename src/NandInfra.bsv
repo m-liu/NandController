@@ -15,8 +15,8 @@ interface NandInfraIfc;
 	interface Clock clk0;
 	interface Clock clk90;
 	
-	interface Reset rst0;
-	interface Reset rst90;
+	interface Reset rstn0;
+	interface Reset rstn90;
 endinterface
 
 (* no_default_clock, no_default_reset *)
@@ -31,7 +31,7 @@ module mkNandInfra#(	Clock sysClkP,
 	Clock sysClkIn <- mkClockIBUFDS(sysClkP, sysClkN);
    Clock sysClkIn_buf <- mkClockBUFG(clocked_by sysClkIn);
 	// Invert reset
-	Reset sysRst <- mkResetInverter(sysRstn, clocked_by sysClkIn_buf);
+	//Reset sysRst <- mkResetInverter(sysRstn, clocked_by sysClkIn_buf);
 
 	// *************************************************************************
 	// Setup and instantiate MMCME2_ADV primitive; Use 7 series clock generator
@@ -72,7 +72,7 @@ module mkNandInfra#(	Clock sysClkP,
 	clkParams.clkout5_buffer		= False;
 	clkParams.clkout6_buffer		= False;
 	// Instantiate clock generator
-	ClockGenerator7 clkGen <- mkClockGenerator7(clkParams, clocked_by sysClkIn_buf, reset_by sysRst);
+	ClockGenerator7 clkGen <- mkClockGenerator7(clkParams, clocked_by sysClkIn_buf, reset_by sysRstn);
 
 
 	//**************************************************************
@@ -81,16 +81,16 @@ module mkNandInfra#(	Clock sysClkP,
 	//	and external reset is released
 	//**************************************************************
 	
-	Reset sysRstSync0 <- mkAsyncReset(2, sysRst, clkGen.clkout0);
-	Reset sysRstSync90 <- mkAsyncReset(2, sysRst, clkGen.clkout1);
-	Reset sysRstSync200 <- mkAsyncReset(2, sysRst, clkGen.clkout2);
-	MakeResetIfc newRst0 <- mkReset(3, True, clkGen.clkout0, clocked_by clkGen.clkout0, reset_by sysRstSync0);
-	MakeResetIfc newRst90 <- mkReset(3, True, clkGen.clkout1, clocked_by clkGen.clkout1, reset_by sysRstSync90);
-	MakeResetIfc newRst200 <- mkReset(3, True, clkGen.clkout2, clocked_by clkGen.clkout2, reset_by sysRstSync200);
+	Reset sysRstnSync0 <- mkAsyncReset(2, sysRstn, clkGen.clkout0);
+	Reset sysRstnSync90 <- mkAsyncReset(2, sysRstn, clkGen.clkout1);
+	Reset sysRstnSync200 <- mkAsyncReset(2, sysRstn, clkGen.clkout2);
+	MakeResetIfc newRstn0 <- mkReset(3, True, clkGen.clkout0, clocked_by clkGen.clkout0, reset_by sysRstnSync0);
+	MakeResetIfc newRstn90 <- mkReset(3, True, clkGen.clkout1, clocked_by clkGen.clkout1, reset_by sysRstnSync90);
+	MakeResetIfc newRstn200 <- mkReset(3, True, clkGen.clkout2, clocked_by clkGen.clkout2, reset_by sysRstnSync200);
 
-	Reset rst0_ = newRst0.new_rst;
-	Reset rst90_ = newRst90.new_rst;
-	Reset rst200_ = newRst200.new_rst;
+	Reset rstn0_ = newRstn0.new_rst;
+	Reset rstn90_ = newRstn90.new_rst;
+	Reset rstn200_ = newRstn200.new_rst;
 	
 
 	//**************************************************************
@@ -98,26 +98,26 @@ module mkNandInfra#(	Clock sysClkP,
 	// MMCM has to lock first, and then this is reset
 	//TODO idelaygroup should be specified in constraint file
 	//**************************************************************
-	IDELAYCTRL idelayCtrl <- mkIDELAYCTRL(3, clocked_by clkGen.clkout2, reset_by rst200_); //3 stage sync reset
+	IDELAYCTRL idelayCtrl <- mkIDELAYCTRL(3, clocked_by clkGen.clkout2, reset_by rstn200_); //3 stage sync reset
 	//need synchronizer for idelayctrlrdy because it doesn't say clocked_by(no_clock)
 	// note that clkGen.locked does say that. Therefore no sync regs needed
-	SyncBitIfc#(Bool) syncRdy0 <- mkSyncBit(clkGen.clkout2, rst200_, clkGen.clkout0);
-	SyncBitIfc#(Bool) syncRdy90 <- mkSyncBit(clkGen.clkout2, rst200_, clkGen.clkout1);
+	SyncBitIfc#(Bool) syncRdy0 <- mkSyncBit(clkGen.clkout2, rstn200_, clkGen.clkout0);
+	SyncBitIfc#(Bool) syncRdy90 <- mkSyncBit(clkGen.clkout2, rstn200_, clkGen.clkout1);
 
 
 	//**************************************************************
 	// Reset rules
 	//**************************************************************
-	rule doRst0 if ( (!clkGen.locked) && (!syncRdy0.read) );
-		newRst0.assertReset;
+	rule doRstn0 if ( (!clkGen.locked) ||  (!syncRdy0.read) );
+		newRstn0.assertReset;
 	endrule
 
-	rule doRst90 if ( (!clkGen.locked) && (!syncRdy90.read) );
-		newRst90.assertReset;
+	rule doRstn90 if ( (!clkGen.locked) || (!syncRdy90.read) );
+		newRstn90.assertReset;
 	endrule
 
-	rule doRst200 if (!clkGen.locked);
-		newRst200.assertReset;
+	rule doRstn200 if (!clkGen.locked);
+		newRstn200.assertReset;
 	endrule
 
 	//**************************************************************
@@ -137,8 +137,8 @@ module mkNandInfra#(	Clock sysClkP,
 	//**************************************************************
 	interface clk0 = clkGen.clkout0;
 	interface clk90 = clkGen.clkout1;
-	interface rst0 = rst0_;
-	interface rst90 = rst90_;
+	interface rstn0 = rstn0_;
+	interface rstn90 = rstn90_;
 	
 	
 

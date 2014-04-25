@@ -25,11 +25,11 @@ module mkNandPhy#(
 	)(NANDPhyIfc);
 
 	NandInfraIfc nandInfra <- mkNandInfra(sysClkP, sysClkN, sysRstn);
-	VNANDPhy vnandPhy <- vMkNandPhy(nandInfra.clk0, nandInfra.clk90, nandInfra.rst0, nandInfra.rst90
-				/*clocked_by nandInfra.clk0, reset_by nandInfra.rst0*/);
+	VNANDPhy vnandPhy <- vMkNandPhy(nandInfra.clk0, nandInfra.clk90, nandInfra.rstn0, nandInfra.rstn90
+				/*clocked_by nandInfra.clk0, reset_by nandInfra.rstn0*/);
 
-	Reg#(Bit#(8)) rdFall <- mkReg(0, clocked_by nandInfra.clk90, reset_by nandInfra.rst90);
-	Reg#(Bit#(8)) rdRise <- mkReg(0, clocked_by nandInfra.clk90, reset_by nandInfra.rst90);
+	Reg#(Bit#(8)) rdFall <- mkReg(0, clocked_by nandInfra.clk90, reset_by nandInfra.rstn90);
+	Reg#(Bit#(8)) rdRise <- mkReg(0, clocked_by nandInfra.clk90, reset_by nandInfra.rstn90);
 	rule doReadData;
 		rdFall <= vnandPhy.vphyUser.rdDataFallDQ();
 		rdRise <= vnandPhy.vphyUser.rdDataRiseDQ();
