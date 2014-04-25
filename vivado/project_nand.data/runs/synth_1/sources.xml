@@ -2,16 +2,6 @@
 <DARoots Version="1" Minor="30">
   <FileSet Name="sources" Type="DesignSrcs" RelSrcDir="$PSRCDIR/sources_1">
     <Filter Type="Srcs"/>
-    <File Path="$PPRDIR/../../../../../../afs/csail.mit.edu/group/csg/tools/tools_lx86/bluespec/Bluespec-2013.04.beta2/lib/Verilog/SyncResetA.v">
-      <FileInfo>
-        <Attr Name="UsedInSynthesis" Val="1"/>
-        <Attr Name="UsedInImplementation" Val="1"/>
-        <Attr Name="UsedInSimulation" Val="1"/>
-        <Attr Name="UsedIn" Val="synthesis"/>
-        <Attr Name="UsedIn" Val="implementation"/>
-        <Attr Name="UsedIn" Val="simulation"/>
-      </FileInfo>
-    </File>
     <File Path="$PPRDIR/../src/nand_phy_dq_iob.v">
       <FileInfo>
         <Attr Name="UsedInSynthesis" Val="1"/>
@@ -33,6 +23,46 @@
       </FileInfo>
     </File>
     <File Path="$PPRDIR/../src/nand_phy_ctl_io.v">
+      <FileInfo>
+        <Attr Name="UsedInSynthesis" Val="1"/>
+        <Attr Name="UsedInImplementation" Val="1"/>
+        <Attr Name="UsedInSimulation" Val="1"/>
+        <Attr Name="UsedIn" Val="synthesis"/>
+        <Attr Name="UsedIn" Val="implementation"/>
+        <Attr Name="UsedIn" Val="simulation"/>
+      </FileInfo>
+    </File>
+    <File Path="$PPRDIR/../../../../../../afs/csail.mit.edu/group/csg/tools/tools_lx86/bluespec/Bluespec-2013.04.beta2/lib/Verilog/SyncResetA.v">
+      <FileInfo>
+        <Attr Name="UsedInSynthesis" Val="1"/>
+        <Attr Name="UsedInImplementation" Val="1"/>
+        <Attr Name="UsedInSimulation" Val="1"/>
+        <Attr Name="UsedIn" Val="synthesis"/>
+        <Attr Name="UsedIn" Val="implementation"/>
+        <Attr Name="UsedIn" Val="simulation"/>
+      </FileInfo>
+    </File>
+    <File Path="$PPRDIR/../../../../../../afs/csail.mit.edu/group/csg/tools/tools_lx86/bluespec/Bluespec-2013.04.beta2/lib/Verilog/SyncHandshake.v">
+      <FileInfo>
+        <Attr Name="UsedInSynthesis" Val="1"/>
+        <Attr Name="UsedInImplementation" Val="1"/>
+        <Attr Name="UsedInSimulation" Val="1"/>
+        <Attr Name="UsedIn" Val="synthesis"/>
+        <Attr Name="UsedIn" Val="implementation"/>
+        <Attr Name="UsedIn" Val="simulation"/>
+      </FileInfo>
+    </File>
+    <File Path="$PPRDIR/../src/nand_phy.v">
+      <FileInfo>
+        <Attr Name="UsedInSynthesis" Val="1"/>
+        <Attr Name="UsedInImplementation" Val="1"/>
+        <Attr Name="UsedInSimulation" Val="1"/>
+        <Attr Name="UsedIn" Val="synthesis"/>
+        <Attr Name="UsedIn" Val="implementation"/>
+        <Attr Name="UsedIn" Val="simulation"/>
+      </FileInfo>
+    </File>
+    <File Path="$PPRDIR/../../../../../../afs/csail.mit.edu/group/csg/tools/tools_lx86/bluespec/Bluespec-2013.04.beta2/lib/Verilog/SyncRegister.v">
       <FileInfo>
         <Attr Name="UsedInSynthesis" Val="1"/>
         <Attr Name="UsedInImplementation" Val="1"/>
@@ -72,6 +102,16 @@
         <Attr Name="UsedIn" Val="simulation"/>
       </FileInfo>
     </File>
+    <File Path="$PPRDIR/../verilog/mkNandPhy.v">
+      <FileInfo>
+        <Attr Name="UsedInSynthesis" Val="1"/>
+        <Attr Name="UsedInImplementation" Val="1"/>
+        <Attr Name="UsedInSimulation" Val="1"/>
+        <Attr Name="UsedIn" Val="synthesis"/>
+        <Attr Name="UsedIn" Val="implementation"/>
+        <Attr Name="UsedIn" Val="simulation"/>
+      </FileInfo>
+    </File>
     <File Path="$PPRDIR/../verilog/mkNandInfra.v">
       <FileInfo>
         <Attr Name="UsedInSynthesis" Val="1"/>
@@ -82,7 +122,7 @@
         <Attr Name="UsedIn" Val="simulation"/>
       </FileInfo>
     </File>
-    <File Path="$PPRDIR/../src/nand_phy.v">
+    <File Path="$PPRDIR/../verilog/mkNandController.v">
       <FileInfo>
         <Attr Name="UsedInSynthesis" Val="1"/>
         <Attr Name="UsedInImplementation" Val="1"/>
@@ -92,7 +132,7 @@
         <Attr Name="UsedIn" Val="simulation"/>
       </FileInfo>
     </File>
-    <File Path="$PPRDIR/../verilog/mkNandPhy.v">
+    <File Path="$PPRDIR/../../../../../../afs/csail.mit.edu/group/csg/tools/tools_lx86/bluespec/Bluespec-2013.04.beta2/lib/Verilog/SyncFIFOLevel.v">
       <FileInfo>
         <Attr Name="UsedInSynthesis" Val="1"/>
         <Attr Name="UsedInImplementation" Val="1"/>
@@ -243,16 +283,6 @@
       </FileInfo>
     </File>
     <File Path="$PPRDIR/../../../../../../afs/csail.mit.edu/group/csg/tools/tools_lx86/bluespec/Bluespec-2013.04.beta2/lib/Verilog/GatedClockInverter.v">
-      <FileInfo>
-        <Attr Name="UsedInSynthesis" Val="1"/>
-        <Attr Name="UsedInImplementation" Val="1"/>
-        <Attr Name="UsedInSimulation" Val="1"/>
-        <Attr Name="UsedIn" Val="synthesis"/>
-        <Attr Name="UsedIn" Val="implementation"/>
-        <Attr Name="UsedIn" Val="simulation"/>
-      </FileInfo>
-    </File>
-    <File Path="$PPRDIR/../../../../../../afs/csail.mit.edu/group/csg/tools/tools_lx86/bluespec/Bluespec-2013.04.beta2/lib/Verilog/SyncHandshake.v">
       <FileInfo>
         <Attr Name="UsedInSynthesis" Val="1"/>
         <Attr Name="UsedInImplementation" Val="1"/>
@@ -622,16 +652,6 @@
         <Attr Name="UsedIn" Val="simulation"/>
       </FileInfo>
     </File>
-    <File Path="$PPRDIR/../../../../../../afs/csail.mit.edu/group/csg/tools/tools_lx86/bluespec/Bluespec-2013.04.beta2/lib/Verilog/SyncFIFOLevel.v">
-      <FileInfo>
-        <Attr Name="UsedInSynthesis" Val="1"/>
-        <Attr Name="UsedInImplementation" Val="1"/>
-        <Attr Name="UsedInSimulation" Val="1"/>
-        <Attr Name="UsedIn" Val="synthesis"/>
-        <Attr Name="UsedIn" Val="implementation"/>
-        <Attr Name="UsedIn" Val="simulation"/>
-      </FileInfo>
-    </File>
     <File Path="$PPRDIR/../../../../../../afs/csail.mit.edu/group/csg/tools/tools_lx86/bluespec/Bluespec-2013.04.beta2/lib/Verilog/SizedFIFO0.v">
       <FileInfo>
         <Attr Name="UsedInSynthesis" Val="1"/>
@@ -892,16 +912,6 @@
         <Attr Name="UsedIn" Val="simulation"/>
       </FileInfo>
     </File>
-    <File Path="$PPRDIR/../../../../../../afs/csail.mit.edu/group/csg/tools/tools_lx86/bluespec/Bluespec-2013.04.beta2/lib/Verilog/SyncRegister.v">
-      <FileInfo>
-        <Attr Name="UsedInSynthesis" Val="1"/>
-        <Attr Name="UsedInImplementation" Val="1"/>
-        <Attr Name="UsedInSimulation" Val="1"/>
-        <Attr Name="UsedIn" Val="synthesis"/>
-        <Attr Name="UsedIn" Val="implementation"/>
-        <Attr Name="UsedIn" Val="simulation"/>
-      </FileInfo>
-    </File>
     <File Path="$PPRDIR/../../../../../../afs/csail.mit.edu/group/csg/tools/tools_lx86/bluespec/Bluespec-2013.04.beta2/lib/Verilog/SyncReset.v">
       <FileInfo>
         <Attr Name="UsedInSynthesis" Val="1"/>
@@ -1004,8 +1014,7 @@
     </File>
     <Config>
       <Option Name="DesignMode" Val="RTL"/>
-      <Option Name="TopModule" Val="mkNandPhy"/>
-      <Option Name="TopAutoSet" Val="TRUE"/>
+      <Option Name="TopModule" Val="mkNandController"/>
     </Config>
   </FileSet>
 </DARoots>

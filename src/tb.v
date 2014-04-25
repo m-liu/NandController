@@ -67,7 +67,7 @@ nand_model nand_model (
 );
 */
 
-mkNandPhy u_nand_phy(
+mkNandController u_nand_controller(
 		.CLK_sysClkP(clk_in_p),
 		 .CLK_sysClkN(clk_in_n),
 		 .RST_N_sysRstn(sys_resetn),
