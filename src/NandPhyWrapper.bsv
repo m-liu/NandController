@@ -27,6 +27,11 @@ interface NANDPins;
 	interface Inout#(Bit#(8))  dq;
 	(* prefix = "DQS" *)
 	interface Inout#(Bit#(1))   dqs;
+	
+	(* prefix = "", result = "DEBUG" *)
+	method	Bit#(8)				debug;
+	(* prefix = "", result = "DEBUG90" *)
+	method	Bit#(8)				debug90;
 endinterface 
 
 (* always_ready, always_enabled *)
@@ -54,6 +59,9 @@ interface VPhyUser;
 	method Action wrDataFallDQ (Bit#(8) d);
 	method Bit#(8) rdDataRiseDQ();
 	method Bit#(8) rdDataFallDQ();
+
+	method Action setDebug (Bit#(8) i);
+	method Action setDebug90 (Bit#(8) i);
 endinterface
 
 
@@ -91,6 +99,9 @@ interface NANDPins nandPins;
 	method    v_wrn 	wrn         clocked_by(no_clock) reset_by(no_reset);
 	method    v_wpn 	wpn         clocked_by(no_clock) reset_by(no_reset);
 	method    v_cen 	cen         clocked_by(no_clock) reset_by(no_reset);
+	//debug ports are really just old R/B signals
+	method	 v_debug debug			clocked_by(no_clock) reset_by(no_reset);
+	method	 v_debug90 debug90	clocked_by(no_clock) reset_by(no_reset);
 endinterface
 
 
@@ -118,72 +129,96 @@ interface VPhyUser vphyUser;
 	method wrDataFallDQ (v_wr_data_fall) enable((*inhigh*) en13) clocked_by(clk90) reset_by(rstn90);
 	method v_rd_data_rise rdDataRiseDQ() clocked_by(clk90) reset_by(rstn90);
 	method v_rd_data_fall rdDataFallDQ() clocked_by(clk90) reset_by(rstn90);
+
+	//Debug signals
+	method setDebug (v_ctrl_debug) enable((*inhigh*)en14) clocked_by(clk0) reset_by(rstn0);
+	method setDebug90 (v_ctrl_debug90) enable((*inhigh*)en15) clocked_by(clk90) reset_by(rstn90);
+
 endinterface
 
 //NAND pins are CF
 schedule 
-(nandPins_nand_clk, nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen) 
+(nandPins_nand_clk, nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen, nandPins_debug, nandPins_debug90) 
 CF
-(nandPins_nand_clk, nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen);
+(nandPins_nand_clk, nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen, nandPins_debug, nandPins_debug90);
 
-//Delay controls areCF
+//Just set all other signals as CF
 schedule
-(vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ)
+(vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ, 
+vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
+vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDQ,
+vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
+vphyUser_setDebug, vphyUser_setDebug90)
 CF
-(vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ);
+(vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ, 
+vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
+vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDQ,
+vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
+vphyUser_setDebug, vphyUser_setDebug90);
 
-//Control signals are CF
-schedule
-(vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN)
-CF
-(vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN);
-
-schedule
-(vphyUser_oenDQS, vphyUser_rstnDQS) 
-CF 
-(vphyUser_oenDQ, vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN);
-
-schedule
-(vphyUser_oenDQ)
-CF
-(vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
-vphyUser_dlyIncDQS,vphyUser_dlyCeDQS,vphyUser_dlyIncDQ,vphyUser_dlyCeDQ,vphyUser_wrDataRiseDQ,vphyUser_wrDataFallDQ);
-
-
-schedule 
-(vphyUser_oenDQ) C (vphyUser_oenDQ);
-
-schedule
-(vphyUser_oenDQS) C (vphyUser_rstnDQS);
-
-schedule
-(vphyUser_rstnDQS) C (vphyUser_rstnDQS);
-
-schedule
-(vphyUser_oenDQS) C (vphyUser_oenDQS);
-
-//read and writes are conflicting
-schedule
-(vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ)
-C 
-(vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ);
-
-//unrelated
-schedule
-(vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ, vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ)
-CF
-(vphyUser_dlyIncDQS,vphyUser_dlyCeDQS,vphyUser_dlyIncDQ,vphyUser_dlyCeDQ,vphyUser_oenDQ);
-
-//can read CF
-schedule
-(vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ)
-CF
-(vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ);
-
-
-
-//TODO: what other schedule constraints?
-
+//
+////Delay controls areCF
+//schedule
+//(vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ)
+//CF
+//(vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ);
+//
+////Control signals are CF
+//schedule
+//(vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN)
+//CF
+//(vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN);
+//
+//schedule
+//(vphyUser_oenDQS, vphyUser_rstnDQS) 
+//CF 
+//(vphyUser_oenDQ, vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN);
+//
+//schedule
+//(vphyUser_oenDQ)
+//CF
+//(vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
+//vphyUser_dlyIncDQS,vphyUser_dlyCeDQS,vphyUser_dlyIncDQ,vphyUser_dlyCeDQ,vphyUser_wrDataRiseDQ,vphyUser_wrDataFallDQ);
+//
+//
+//schedule 
+//(vphyUser_oenDQ) C (vphyUser_oenDQ);
+//
+//schedule
+//(vphyUser_oenDQS) C (vphyUser_rstnDQS);
+//
+//schedule
+//(vphyUser_rstnDQS) C (vphyUser_rstnDQS);
+//
+//schedule
+//(vphyUser_oenDQS) C (vphyUser_oenDQS);
+//
+////read and writes are conflicting
+//schedule
+//(vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ)
+//C 
+//(vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ);
+//
+////unrelated
+//schedule
+//(vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ, vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ)
+//CF
+//(vphyUser_dlyIncDQS,vphyUser_dlyCeDQS,vphyUser_dlyIncDQ,vphyUser_dlyCeDQ,vphyUser_oenDQ);
+//
+////can read CF
+//schedule
+//(vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ)
+//CF
+//(vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ);
+//
+////FIXME testing
+//schedule
+//(vphyUser_setALE)
+//CF
+//(vphyUser_dlyIncDQS,vphyUser_dlyCeDQS,vphyUser_dlyIncDQ,vphyUser_dlyCeDQ,vphyUser_oenDQ,vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ, vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ);
+//
+////TODO: what other schedule constraints?
+//
 
 endmodule
 

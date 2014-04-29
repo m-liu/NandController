@@ -26,6 +26,8 @@ module nand_phy #
 		output v_wpn,
 		output [1:0] v_cen,
 		//input  [3:0] rb,
+		output [7:0] v_debug,
+		output [7:0] v_debug90,
 		
 		//****************************
 		//Controller facing interface 
@@ -36,6 +38,8 @@ module nand_phy #
 		input v_ctrl_wpn,
 		input [1:0] v_ctrl_cen,
 		//output [3:0] ctrl_rb,
+		input [7:0] v_ctrl_debug,
+		input [7:0] v_ctrl_debug90,
 		
 		//DQS iob control and data signals
 		input v_dlyinc_dqs,
@@ -82,6 +86,8 @@ wire delayed_dqs;
 wire v_rst0 = ~v_rstn0;
 wire v_rst90 = ~v_rstn90;
 
+assign v_debug = v_ctrl_debug;
+assign v_debug90 = v_ctrl_debug90;
 
 /*
 //system clock generator

@@ -8,6 +8,7 @@ import Vector            ::*;
 import Counter           ::*;
 import DefaultValue      ::*;
 
+
 import NandPhyWrapper::*;
 import NandInfra::*;
 
@@ -53,60 +54,99 @@ module mkNandPhy#(
 	Reg#(State) currState <- mkReg(IDLE);
 
 	Reg#(State) state_90 <- mkReg(INIT, clocked_by clk90, reset_by rst90);
-	Reg#(Bool) initDoneSync <- mkSyncRegToCC(False, clk90, rst90);
+	//Reg#(Bool) initDoneSync <- mkSyncRegToCC(False, clk90, rst90);
 	Reg#(Bool) initDone_90 <- mkReg(False, clocked_by clk90, reset_by rst90);
 
-	Reg#(Bit#(5)) incIdelayDQS_Sync <- mkSyncRegFromCC(0, clk90);
+	//SyncFIFOIfc#(Bit#(5)) incIdelayDQS_Sync <- mkSyncFIFOFromCC(2, clk90);
 	Reg#(Bit#(5)) incIdelayDQS_90 <- mkReg(0, clocked_by clk90, reset_by rst90);
 
 	Reg#(Bit#(1)) dlyIncDQSr <- mkReg(0, clocked_by clk90, reset_by rst90);
 	Reg#(Bit#(1)) dlyCeDQSr <- mkReg(0, clocked_by clk90, reset_by rst90);
 
+	Reg#(Bit#(32)) idleCnt <- mkReg(0, clocked_by clk90, reset_by rst90);
+	
+	Reg#(Bit#(8)) rdFall <- mkReg(0, clocked_by clk90, reset_by rst90);
+	Reg#(Bit#(8)) rdRise <- mkReg(0, clocked_by clk90, reset_by rst90);
+
+	Reg#(Bit#(8)) debugR90 <- mkReg(0, clocked_by clk90, reset_by rst90);
+
 	rule regBufs;
 		vnandPhy.vphyUser.dlyCeDQS(dlyCeDQSr);
 		vnandPhy.vphyUser.dlyIncDQS(dlyIncDQSr);
+
+		vnandPhy.vphyUser.setDebug90(debugR90);
 	endrule
 
+	rule adjIdelay if (state_90==INIT);
+		if (incIdelayDQS_90 != 10) begin
+			$display("NandPhy: incremented dqs idelay");
+			dlyIncDQSr <= 1;
+			dlyCeDQSr <= 1;
+			incIdelayDQS_90 <= incIdelayDQS_90 + 1;
+		end
+		else begin
+			dlyIncDQSr <= 0;
+			dlyCeDQSr <= 0;
+			//incIdelayDQS_90 <= 0;
+			//initDoneSync <= True;
+			//incIdelayDQS_Sync.deq();
+			state_90 <= IDLE;
+		end
+		
+	endrule
+
+	/*
+	rule doCnt if (state_90==IDLE);
+		idleCnt <= idleCnt+1;
+		$display("NandPhy: idle");
+	endrule
+	*/
+	
+	/*
 	rule syncIdelay if (state_90==INIT);
-		incIdelayDQS_90 <= incIdelayDQS_Sync;
-		if (incIdelayDQS_Sync>0) begin
+		if (incIdelayDQS_Sync.first()>0) begin
 			state_90 <= ADJ_IDELAY_DQS;
 		end
 	endrule
 
 	rule doAdjDQS if (state_90==ADJ_IDELAY_DQS);
-		if (incIdelayDQS_90>0) begin
+		if (incIdelayDQS_90 != incIdelayDQS_Sync.first()) begin
 			$display("NandPhy: incremented dqs idelay");
 			dlyIncDQSr <= 1;
 			dlyCeDQSr <= 1;
-			incIdelayDQS_90 <= incIdelayDQS_90 - 1;
+			incIdelayDQS_90 <= incIdelayDQS_90 + 1;
 		end
 		else begin
 			dlyIncDQSr <= 0;
 			dlyCeDQSr <= 0;
+			incIdelayDQS_90 <= 0;
 			initDoneSync <= True;
+			incIdelayDQS_Sync.deq();
 		end
 	endrule
+	
 
 	rule doIdle if (initDoneSync==True && currState==IDLE);
 		$display("idle");
 	endrule
+	*/
 
-	interface PhyUser phyUser;
-		method Action incDelayDQS (Bit#(5) val);
-			incIdelayDQS_Sync <= val;
-		endmethod
-	endinterface
 
-	interface nandPins = vnandPhy.nandPins;
-
-/*
-	Reg#(Bit#(8)) rdFall <- mkReg(0, clocked_by nandInfra.clk90, reset_by nandInfra.rstn90);
-	Reg#(Bit#(8)) rdRise <- mkReg(0, clocked_by nandInfra.clk90, reset_by nandInfra.rstn90);
-	rule doReadData;
+	rule doReadData if (state_90==IDLE);
+	//hacks...
+	//		dlyIncDQSr <= 0;
+	//		dlyCeDQSr <= 0;
 		rdFall <= vnandPhy.vphyUser.rdDataFallDQ();
 		rdRise <= vnandPhy.vphyUser.rdDataRiseDQ();
 		$display("rdRise=%x, rdFall=%x", rdRise, rdFall);
+
+		//prevent optimizing everything away
+		if (rdFall==rdRise) begin
+			debugR90 <= 1;
+		end
+		else begin
+			debugR90 <= 0;
+		end
 	endrule
 
 	rule doSetCLE;
@@ -116,14 +156,26 @@ module mkNandPhy#(
 		vnandPhy.vphyUser.setWPN(0);
 		vnandPhy.vphyUser.setCEN(0);
 	endrule
-
+	
 	rule doDisableDQS;
 		vnandPhy.vphyUser.oenDQS(1);
 	endrule
 	rule doDisableDQDQS;
 		vnandPhy.vphyUser.oenDQ(1);
 	endrule
-*/	
+
+
+	//*****************************************************
+	// Interface
+	//*****************************************************
+	
+	interface PhyUser phyUser;
+		method Action incDelayDQS (Bit#(5) val);
+			//incIdelayDQS_Sync.enq(val);
+		endmethod
+	endinterface
+
+	interface nandPins = vnandPhy.nandPins;
 
 
 endmodule

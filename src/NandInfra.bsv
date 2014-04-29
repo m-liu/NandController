@@ -65,9 +65,13 @@ module mkNandInfra#(	Clock sysClkP,
 	clkParams.clkout2_phase      = 0.000;
 	// Buffer 3 clocks globally to BUFG; disable other buffers
 	clkParams.clkout0_buffer		= True;
+	clkParams.clkout0n_buffer		= False;
 	clkParams.clkout1_buffer		= True;
+	clkParams.clkout1n_buffer		= False;
 	clkParams.clkout2_buffer		= True;
+	clkParams.clkout2n_buffer		= False;
 	clkParams.clkout3_buffer		= False;
+	clkParams.clkout3n_buffer		= False;
 	clkParams.clkout4_buffer		= False;
 	clkParams.clkout5_buffer		= False;
 	clkParams.clkout6_buffer		= False;

@@ -21,7 +21,8 @@ module tb;
 	wire b0_wpn;
 	wire [1:0] b0_cen;
 	//wire  [3:0] b0_rb;
-	
+	wire [7:0] b0_debug;
+	wire [7:0] b0_debug90;
 	reg sys_resetn;
 	
 	//debug
@@ -85,7 +86,9 @@ mkNandController u_nand_controller(
 
 		 .WPN(b0_wpn),
 
-		 .CEN(b0_cen)
+		 .CEN(b0_cen),
+		 .DEBUG(b0_debug),
+		 .DEBUG90(b0_debug90)
 	 );
 	 /*
 		.sys_resetn(sys_resetn), //from FMC
@@ -135,11 +138,16 @@ end
 reg [7:0] b0_dq_out;
 reg b0_dqs_out;
 
-assign b0_dq = (b0_ale==0) ? b0_dq_out : 8'hZZ;
-assign b0_dqs = (b0_ale==0) ? b0_dqs_out : 1'bZ;
+//assign b0_dq = (b0_ale==0) ? b0_dq_out : 8'hZZ;
+assign b0_dq = b0_dq_out;
+//assign b0_dqs = (b0_ale==0) ? b0_dqs_out : 1'bZ;
+assign b0_dqs = b0_dqs_out;
 
 always begin
-		#5
+		#1000
+		b0_dq_out = 8'h0;
+		b0_dqs_out = 1'b0;
+		#503
 		b0_dq_out = 8'hDE;
 		b0_dqs_out = 1'b1;
 		#5
@@ -150,6 +158,9 @@ always begin
 		b0_dqs_out = 1'b1;
 		#5
 		b0_dq_out = 8'hEF;
+		b0_dqs_out = 1'b0;
+		#5
+		b0_dq_out = 8'h0;
 		b0_dqs_out = 1'b0;
 		end
 

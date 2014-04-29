@@ -3,7 +3,7 @@ import FIFOF             ::*;
 import Vector            ::*;
 
 import NandPhyWrapper::*;
-import NandInfra::*;
+import NandInfraWrapper::*;
 import NandPhy::*;
 
 
@@ -21,9 +21,11 @@ module mkNandController#(
 	Reset sysRstn
 	)(NandControllerIfc);
 	
-	NandInfraIfc nandInfra <- mkNandInfra(sysClkP, sysClkN, sysRstn);
-	NandPhyIfc phy <- mkNandPhy(nandInfra.clk90, nandInfra.rstn90, clocked_by nandInfra.clk0, reset_by nandInfra.rstn0);
+	//NandInfraIfc nandInfra <- mkNandInfra(sysClkP, sysClkN, sysRstn);
+	VNandInfra nandInfra <- vMkNandInfra(sysClkP, sysClkN, sysRstn);
+	NandPhyIfc phy <- mkNandPhy(nandInfra.clk90, nandInfra.rst90, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 
+	/*
 	//testing
 	Reg#(Bit#(32)) nCmds <- mkReg(1, clocked_by nandInfra.clk0, reset_by nandInfra.rstn0);
 
@@ -31,7 +33,7 @@ module mkNandController#(
 		phy.phyUser.incDelayDQS(10);
 		nCmds <= nCmds-1;
 	endrule
-
+	*/
 	interface nandPins = phy.nandPins;
 
 endmodule

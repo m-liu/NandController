@@ -31,7 +31,7 @@ module nand_phy_ctl_io #
 	input rst0
 	);
 
-//ce
+//ce. Active low. 
 genvar ce_i;
   generate
     for(ce_i = 0; ce_i < CENS_PER_IO; ce_i = ce_i + 1) begin: gen_ce_n
@@ -47,15 +47,15 @@ genvar ce_i;
     end
   endgenerate
   
-//ale
+//ale. active high
   (* IOB = "FORCE" *) FDCPE u_ff_ale
     (
      .Q   (ale),
      .C   (clk0),
      .CE  (1'b1),
-     .CLR (1'b0),
+     .CLR (~rst0),
      .D   (ctrl_ale),
-     .PRE (rst0)
+     .PRE (1'b0)
      ) /* synthesis syn_useioff = 1 */;
 
 
@@ -65,9 +65,9 @@ genvar ce_i;
      .Q   (cle),
      .C   (clk0),
      .CE  (1'b1),
-     .CLR (1'b0),
+     .CLR (~rst0),
      .D   (ctrl_cle),
-     .PRE (rst0)
+     .PRE (1'b0)
      ) /* synthesis syn_useioff = 1 */;
 
 
@@ -88,9 +88,9 @@ genvar ce_i;
      .Q   (wpn),
      .C   (clk0),
      .CE  (1'b1),
-     .CLR (1'b0),
+     .CLR (~rst0),
      .D   (ctrl_wpn),
-     .PRE (rst0)
+     .PRE (1'b0)
      ) /* synthesis syn_useioff = 1 */;
 	  
 	  
