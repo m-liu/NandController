@@ -26,6 +26,7 @@ module nand_phy #
 		output v_wpn,
 		output [1:0] v_cen,
 		//input  [3:0] rb,
+
 		output [7:0] v_debug,
 		output [7:0] v_debug90,
 		
@@ -38,6 +39,8 @@ module nand_phy #
 		input v_ctrl_wpn,
 		input [1:0] v_ctrl_cen,
 		//output [3:0] ctrl_rb,
+		input v_ctrl_wen, 
+		input v_ctrl_wen_sel,
 		input [7:0] v_ctrl_debug,
 		input [7:0] v_ctrl_debug90,
 		
@@ -52,12 +55,22 @@ module nand_phy #
 		input [DQ_WIDTH-1:0] v_dlyinc_dq,
 		input [DQ_WIDTH-1:0] v_dlyce_dq,
 		//input [DQ_WIDTH-1:0] dlyrst_dq,
-		input v_dq_oe_n,
+		input v_dq_data_oe_n,
 		input [DQ_WIDTH-1:0] v_wr_data_rise,
 		input [DQ_WIDTH-1:0] v_wr_data_fall,
 		output [DQ_WIDTH-1:0] v_rd_data_rise,
 		output [DQ_WIDTH-1:0] v_rd_data_fall,
+		output [DQ_WIDTH-1:0] v_rd_data_comb,
 		
+		//A bit of a hack
+		//clk0 DQ lines for commands only. Beware of timing!
+		//BSV thinks these are clocked by clk0, but actually 
+		//clocked by ODDR clk90. 
+		input v_dq_cmd_oe_n,
+		input [DQ_WIDTH-1:0] v_wr_cmd,
+		input v_dq_cmd_sel,
+
+
 		//clocks and resets
 		input v_clk0,
 		input v_clk90,
@@ -82,37 +95,20 @@ localparam HIGH_PERFORMANCE_MODE = "TRUE";
 
 wire delayed_dqs;
 
-//invert reset. BSV weirdness...
+//invert reset.
 wire v_rst0 = ~v_rstn0;
 wire v_rst90 = ~v_rstn90;
 
 assign v_debug = v_ctrl_debug;
 assign v_debug90 = v_ctrl_debug90;
 
-/*
-//system clock generator
-nand_infrastructure #
-	(
-		.IODELAY_GRP (IODELAY_GRP)
-	)	
-	u_nand_infrastructure (
-   .sys_clk_p(sys_clk_p),
-   .sys_clk_n(sys_clk_n),
-
-   .clk0(clk0),
-   .clk90(clk90),
-	
-   .sys_rst_n(sys_resetn),
-   
-   .rst0(rst0),
-   .rst90(rst90)
-
-);
-*/
-
   //***************************************************************************
-  // NAND clock generation
+  // NAND_CLK (sync) or WE# (async) 
   //***************************************************************************
+   wire nand_clk_we_d1;
+   wire nand_clk_we_d2;
+	assign nand_clk_we_d1 = (v_ctrl_wen_sel) ? (v_ctrl_wen) : (1'b0);
+	assign nand_clk_we_d2 = (v_ctrl_wen_sel) ? (v_ctrl_wen) : (1'b1);
 
       ODDR #
         (
@@ -124,13 +120,25 @@ nand_infrastructure #
            .Q   (v_nand_clk),
            .C   (v_clk0),
            .CE  (1'b1),
-           .D1  (1'b0),
-           .D2  (1'b1),
+           .D1  (nand_clk_we_d1),
+           .D2  (nand_clk_we_d2),
            .R   (1'b0),
            .S   (1'b0)
            );
 
  
+	//**********************************************************************
+	// Create muxes to select between DQ data (clk90) or DQ commands (clk0)
+	//**********************************************************************
+	wire [DQ_WIDTH-1:0] dq_wr_rise;
+	wire [DQ_WIDTH-1:0] dq_wr_fall;
+	wire dq_oe_n;
+
+	assign dq_wr_rise = (v_dq_cmd_sel) ? (v_wr_cmd) : (v_wr_data_rise);
+	assign dq_wr_fall = (v_dq_cmd_sel) ? (v_wr_cmd) : (v_wr_data_fall);
+	assign dq_oe_n = (v_dq_cmd_sel) ? (v_dq_cmd_oe_n) : (v_dq_data_oe_n);
+	
+
 
 
 
@@ -176,12 +184,13 @@ nand_phy_dqs_iob #
            .dlyinc       (v_dlyinc_dq[dq_i]),
            .dlyce        (v_dlyce_dq[dq_i]),
            .dlyrst       (/*dlyrst_dq[dq_i]*/), //not sure if needed
-           .dq_oe_n      (v_dq_oe_n),
+           .dq_oe_n      (dq_oe_n), //(v_dq_oe_n),
            .dqs          (delayed_dqs),
-           .wr_data_rise (v_wr_data_rise[dq_i]),
-           .wr_data_fall (v_wr_data_fall[dq_i]),
+           .wr_data_rise (dq_wr_rise[dq_i]), //(v_wr_data_rise[dq_i]),
+           .wr_data_fall (dq_wr_fall[dq_i]), //(v_wr_data_fall[dq_i]),
            .rd_data_rise (v_rd_data_rise[dq_i]),
            .rd_data_fall (v_rd_data_fall[dq_i]),
+			  .rd_data_comb (v_rd_data_comb[dq_i]),
            .ddr_dq       (v_dq[dq_i])
            );
     end

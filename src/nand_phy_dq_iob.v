@@ -22,6 +22,7 @@ module nand_phy_dq_iob #
    input  wr_data_fall,
    output rd_data_rise,
    output rd_data_fall,
+	output rd_data_comb, 
    inout  ddr_dq
    );
 
@@ -138,7 +139,7 @@ ISERDESE2 #(
    .INIT_Q3(1'b0),
    .INIT_Q4(1'b0),
    .INTERFACE_TYPE("MEMORY"),   // MEMORY, MEMORY_DDR3, MEMORY_QDR, NETWORKING, OVERSAMPLE
-   .IOBDELAY("IFD"),           // NONE, BOTH, IBUF, IFD
+   .IOBDELAY("BOTH"),           // NONE, BOTH, IBUF, IFD
    .NUM_CE(2),                  // Number of clock enables (1,2)
    .OFB_USED("FALSE"),          // Select OFB path (FALSE, TRUE)
    .SERDES_MODE("MASTER"),      // MASTER, SLAVE
@@ -149,7 +150,7 @@ ISERDESE2 #(
    .SRVAL_Q4(1'b0) 
 )
 ISERDESE2_inst (
-   .O(),                       // 1-bit output: Combinatorial output
+   .O(rd_data_comb),                       // 1-bit output: Combinatorial output
    // Q1 - Q8: 1-bit (each) output: Registered data outputs
    .Q1(rd_data_fall),
    .Q2(rd_data_rise),

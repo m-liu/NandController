@@ -20,7 +20,7 @@ module tb;
 	wire b0_wrn;
 	wire b0_wpn;
 	wire [1:0] b0_cen;
-	//wire  [3:0] b0_rb;
+	wire  [3:0] b0_rb;
 	wire [7:0] b0_debug;
 	wire [7:0] b0_debug90;
 	reg sys_resetn;
@@ -32,17 +32,16 @@ module tb;
 //---------------------------------------------
 // Module instantiation
 //---------------------------------------------
-/*
 nand_model nand_model (
 	//clocks
 	.Clk_We_n(b0_nand_clk0),
-	.Clk_We2_n(b0_nand_clk0),
+	.Clk_We2_n(/*b0_nand_clk0*/),
 	
 	//CE
 	.Ce_n(b0_cen[0]),
-	.Ce2_n(b0_cen[1]),
-	.Ce3_n(b0_cen[2]),
-	.Ce4_n(b0_cen[3]),
+	.Ce2_n(/*b0_cen[1]*/),
+	.Ce3_n(/*b0_cen[2]*/),
+	.Ce4_n(/*b0_cen[3]*/),
 	
 	//Ready/busy
 	.Rb_n(b0_rb[0]),
@@ -51,22 +50,21 @@ nand_model nand_model (
 	.Rb4_n(b0_rb[3]),
 	 
 	//DQ DQS
-	.Dqs(b0_dqs[0]), 
+	.Dqs(b0_dqs), 
 	.Dq_Io(b0_dq[7:0]), 
-	.Dqs2(b0_dqs[1]),
-	.Dq_Io2(b0_dq[15:8]),
+	.Dqs2(/*b0_dqs[1]*/),
+	.Dq_Io2(/*b0_dq[15:8]*/),
 	 
 	//ALE CLE WR WP
-	.Cle(b0_cle[0]), 
-	.Cle2(b0_cle[1]),
-   .Ale(b0_ale[0]), 
-	.Ale2(b0_ale[1]),
-	.Wr_Re_n(b0_wrn[0]), 
-	.Wr_Re2_n(b0_wrn[1]),
-	.Wp_n(b0_wpn[0]), 
-	.Wp2_n(b0_wpn[1])
+	.Cle(b0_cle), 
+	.Cle2(/*b0_cle[1]*/),
+   .Ale(b0_ale), 
+	.Ale2(/*b0_ale[1]*/),
+	.Wr_Re_n(b0_wrn), 
+	.Wr_Re2_n(/*b0_wrn[1]*/),
+	.Wp_n(b0_wpn), 
+	.Wp2_n(/*b0_wpn[1]*/)
 );
-*/
 
 mkNandController u_nand_controller(
 		.CLK_sysClkP(clk_in_p),
@@ -117,8 +115,8 @@ initial begin
 	clk_in_n = 1;
 	
 	//reset for a bit
-	sys_resetn = 0;
-	#200
+	//sys_resetn = 0;
+	//#200
 	sys_resetn = 1;
 	
 	//for now just wait a long time before ending simulation
@@ -135,14 +133,15 @@ always begin
 	#5 clk_in_n=~clk_in_n;
 end
 
-reg [7:0] b0_dq_out;
-reg b0_dqs_out;
+//reg [7:0] b0_dq_out;
+//reg b0_dqs_out;
 
 //assign b0_dq = (b0_ale==0) ? b0_dq_out : 8'hZZ;
 //assign b0_dq = b0_dq_out;
 //assign b0_dqs = (b0_ale==0) ? b0_dqs_out : 1'bZ;
 //assign b0_dqs = b0_dqs_out;
 
+/*
 always begin
 		#1000
 		b0_dq_out = 8'h0;
@@ -163,7 +162,7 @@ always begin
 		b0_dq_out = 8'h0;
 		b0_dqs_out = 1'b0;
 		end
-
+*/
 
 
 /*

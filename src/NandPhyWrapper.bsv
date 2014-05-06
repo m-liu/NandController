@@ -36,11 +36,13 @@ endinterface
 
 (* always_ready, always_enabled *)
 interface VPhyUser;
-	method Action setCLE (Bit#(1) cleVal);
-	method Action setALE (Bit#(1) aleVal);
-	method Action setWRN (Bit#(1) wrnVal);
-	method Action setWPN (Bit#(1) wpnVal);
-	method Action setCEN (Bit#(2) cenVal);
+	method Action setCLE (Bit#(1) i);
+	method Action setALE (Bit#(1) i);
+	method Action setWRN (Bit#(1) i);
+	method Action setWPN (Bit#(1) i);
+	method Action setCEN (Bit#(2) i);
+	method Action setWEN (Bit#(1) i);
+	method Action setWENSel (Bit#(1) i);
 	
 	//DQS delay control; clk90 domain
 	method Action dlyIncDQS (Bit#(1) i);
@@ -53,12 +55,18 @@ interface VPhyUser;
 	//DQ delay control; clk90 domain
 	method Action dlyIncDQ (Bit#(8) i);
 	method Action dlyCeDQ (Bit#(8) i);
-	method Action oenDQ (Bit#(1) i);
+	method Action oenDataDQ (Bit#(1) i);
 	
 	method Action wrDataRiseDQ (Bit#(8) d);
 	method Action wrDataFallDQ (Bit#(8) d);
 	method Bit#(8) rdDataRiseDQ();
 	method Bit#(8) rdDataFallDQ();
+	method Bit#(8) rdDataCombDQ();
+	
+
+	method Action oenCmdDQ (Bit#(1) i);
+	method Action wrCmdDQ (Bit#(8) d);
+	method Action cmdSelDQ (Bit#(1) i);
 
 	method Action setDebug (Bit#(8) i);
 	method Action setDebug90 (Bit#(8) i);
@@ -111,6 +119,9 @@ interface VPhyUser vphyUser;
 	method setWRN (v_ctrl_wrn) enable((*inhigh*)en2) clocked_by(clk0) reset_by(rstn0);
 	method setWPN (v_ctrl_wpn) enable((*inhigh*)en3) clocked_by(clk0) reset_by(rstn0);
 	method setCEN (v_ctrl_cen) enable((*inhigh*)en4) clocked_by(clk0) reset_by(rstn0);
+	method setWEN (v_ctrl_wen) enable((*inhigh*)en16) clocked_by(clk0) reset_by(rstn0);
+	method setWENSel (v_ctrl_wen_sel) enable((*inhigh*)en17) clocked_by(clk0) reset_by(rstn0);
+	
 	
 	//DQS delay control; clk90 domain
 	method dlyIncDQS (v_dlyinc_dqs) enable((*inhigh*) en5) clocked_by(clk90) reset_by(rstn90);
@@ -123,12 +134,24 @@ interface VPhyUser vphyUser;
 	//DQ delay control; clk90 domain
 	method dlyIncDQ (v_dlyinc_dq) enable((*inhigh*) en9) clocked_by(clk90) reset_by(rstn90);
 	method dlyCeDQ (v_dlyce_dq) enable((*inhigh*) en10) clocked_by(clk90) reset_by(rstn90);
-	method oenDQ (v_dq_oe_n) enable((*inhigh*) en11) clocked_by(clk90) reset_by(rstn90); //active low
 	
+	//DQ data; clk90
+	method oenDataDQ (v_dq_data_oe_n) enable((*inhigh*) en11) clocked_by(clk90) reset_by(rstn90);
 	method wrDataRiseDQ (v_wr_data_rise) enable((*inhigh*) en12) clocked_by(clk90) reset_by(rstn90);
 	method wrDataFallDQ (v_wr_data_fall) enable((*inhigh*) en13) clocked_by(clk90) reset_by(rstn90);
 	method v_rd_data_rise rdDataRiseDQ() clocked_by(clk90) reset_by(rstn90);
 	method v_rd_data_fall rdDataFallDQ() clocked_by(clk90) reset_by(rstn90);
+	//DQ combinational data for async mode; clk0
+	method v_rd_data_comb rdDataCombDQ() clocked_by(clk0) reset_by(rstn0);
+
+	//DQ commands; clk0
+	// create two path to DQ, one clocked by clk0 and other by clk90
+	// feed into mux, then ODDR (clocked by clk90). For commands, we hold DQ
+	// for a long time, therefore we don't care of ODDR goes metastable briefly if
+	// the clk0 path input violates setup 
+	method oenCmdDQ (v_dq_cmd_oe_n) enable((*inhigh*) en20) clocked_by(clk0) reset_by(rstn0);
+	method wrCmdDQ (v_wr_cmd) enable((*inhigh*) en21) clocked_by(clk0) reset_by(rstn0);
+	method cmdSelDQ (v_dq_cmd_sel) enable((*inhigh*) en22) clocked_by(clk0) reset_by(rstn0);
 
 	//Debug signals
 	method setDebug (v_ctrl_debug) enable((*inhigh*)en14) clocked_by(clk0) reset_by(rstn0);
@@ -146,14 +169,18 @@ CF
 schedule
 (vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ, 
 vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
-vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDQ,
-vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
+vphyUser_setWEN, vphyUser_setWENSel,
+vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDataDQ,
+vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
+vphyUser_oenCmdDQ, vphyUser_wrCmdDQ, vphyUser_cmdSelDQ,
 vphyUser_setDebug, vphyUser_setDebug90)
 CF
 (vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ, 
 vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
-vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDQ,
-vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
+vphyUser_setWEN, vphyUser_setWENSel,
+vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDataDQ,
+vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
+vphyUser_oenCmdDQ, vphyUser_wrCmdDQ, vphyUser_cmdSelDQ,
 vphyUser_setDebug, vphyUser_setDebug90);
 
 //
