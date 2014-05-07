@@ -10,7 +10,7 @@
 //TODO try setting method as clocked_by(no_clock);
 //TODOOK change reset routine to use a single state and to use wait rule
 //TODOOK go bus idle after each command
-//TODO separate CEs!
+//TODO separate CEs! For now just select one of the targets
 
 import Connectable       ::*;
 import Clocks            ::*;
@@ -28,6 +28,8 @@ import NandInfra::*;
 
 interface PhyUser;
 	method Action sendCmd (ControllerCmd cmd);
+	method Action sendAddr (Bit#(8) addr);
+	method Action asyncWrByte (Bit#(8) data);
 	method ActionValue#(Bit#(8)) asyncRdByte();
 endinterface
 
@@ -52,11 +54,18 @@ typedef enum {
 	ASYNC_READ_RE_LOW		= 10,
 	ASYNC_READ_CAPTURE	= 11,
 	ASYNC_READ_RE_HIGH	= 12,
+	ASYNC_ADDR_WE_LOW		= 13,
+	ASYNC_ADDR_WE_HIGH	= 14,
+	ASYNC_WRITE_WE_LOW	= 15,
+	ASYNC_WRITE_WE_HIGH	= 16,
 
-	SYNC_CMD					= 13,
-	SYNC_BUS_IDLE			= 14,
+
+	SYNC_CMD					= 30,
+	SYNC_BUS_IDLE			= 31,
 	
-	DONE						= 100
+	DONE						= 100,
+	DESELECT_ALL			= 101,
+	ENABLE_NAND_CLK		= 102
 
 
 } PhyState deriving (Bits, Eq);
@@ -64,7 +73,11 @@ typedef enum {
 typedef enum {
 	PHY_ASYNC_BUS_IDLE,
 	PHY_ASYNC_SEND_NAND_CMD,
-	PHY_ASYNC_READ
+	PHY_ASYNC_READ,
+	PHY_ASYNC_WRITE,
+	PHY_ASYNC_SEND_ADDR, 
+	PHY_DESELECT_ALL,
+	PHY_ENABLE_NAND_CLK
 } PhyCmd deriving (Bits, Eq);
 
 typedef enum {
@@ -93,8 +106,12 @@ module mkNandPhy#(
 	Integer t_SYS_RESET = 1000; //System reset wait
 	Integer t_POWER_UP = 10000; //100us. TODO: Reduced to 1us for sim. 
 	Integer t_WW = 20; //100ns. Write protect wait time.
-	Integer t_ASYNC_CMD_SETUP = 8; //Async reset setup time before WE# latch
-	Integer t_ASYNC_CMD_HOLD = 5; //Async reset hold time after WE# latch
+	Integer t_ASYNC_CMD_SETUP = 8; //Max async cmd/data setup time before WE# latch
+	Integer t_ASYNC_CMD_HOLD = 5; //Max async cmd/data hold time after WE# latch
+	Integer t_ASYNC_ADDR_SETUP = 8; //Max async addr setup time before WE# latch
+	Integer t_ASYNC_ADDR_HOLD = 5; //Max async addr hold time after WE# latch
+	Integer t_ASYNC_WRITE_SETUP = 8; //Max async wr data setup time before WE# latch
+	Integer t_ASYNC_WRITE_HOLD = 5; //Max async wr data hold time after WE# latch
 	Integer t_RP = 7; //50ns. Async RE# pulse width. Mode 0.
 	Integer t_REH = 5; //30ns. Async RE# High hold time. Note: tRC=tRP+tREH >100ns
 
@@ -149,13 +166,15 @@ module mkNandPhy#(
 	Reg#(Bit#(8)) rdRise <- mkReg(0, clocked_by clk90, reset_by rst90);
 	Reg#(Bit#(8)) debugR90 <- mkReg(0, clocked_by clk90, reset_by rst90);
 
-	//Command FIFO
+	//Command and address FIFO
 	FIFOF#(ControllerCmd) ctrlCmdQ <- mkFIFOF();
 	Reg#(Bit#(16)) numBurstCnt <- mkReg(0);
 	Reg#(Bit#(32)) postCmdWaitCnt <- mkReg(0);
+	FIFO#(Bit#(8)) addrQ <- mkFIFO();
 
 	//Read data FIFO
 	FIFO#(Bit#(8)) asyncRdQ <- mkSizedFIFO(256); //TODO adjust size
+	FIFO#(Bit#(8)) asyncWrQ <- mkSizedFIFO(256); //TODO adjust size
 
 	//**********************************************
 	// Buffer phy signals using registers in front
@@ -201,7 +220,7 @@ module mkNandPhy#(
 		ale <= 0;
 		wrn <= 1;
 		wpn <= 0;
-		cen <= 2'b11;
+		cen <= 2'b10;
 		wen <= 1;
 		wenSel <= 1; //disable nand_clk
 		waitCnt <= fromInteger(t_SYS_RESET);
@@ -243,6 +262,10 @@ module mkNandPhy#(
 			PHY_ASYNC_BUS_IDLE: currState <= ASYNC_BUS_IDLE;
 			PHY_ASYNC_SEND_NAND_CMD: currState <= ASYNC_CMD_SET_CMD;
 			PHY_ASYNC_READ: currState <= ASYNC_READ_RE_LOW;
+			PHY_ASYNC_SEND_ADDR: currState <= ASYNC_ADDR_WE_LOW;
+			PHY_ASYNC_WRITE: currState <= ASYNC_WRITE_WE_LOW;
+			PHY_DESELECT_ALL: currState <= DESELECT_ALL;
+			PHY_ENABLE_NAND_CLK: currState <= ENABLE_NAND_CLK;
 			default: currState <= IDLE;
 		endcase
 		numBurstCnt <= cmd.numBurst;
@@ -254,7 +277,7 @@ module mkNandPhy#(
 	// Async bus idle
 	//****************************************
 	rule doAsyncCmdBusIdle if (currState==ASYNC_BUS_IDLE);
-		cen <= 2'b00; //CE# low
+		cen <= 2'b10; //CE# low
 		cle <= 0; //DC
 		ale <= 0; //DC
 		wrn <= 1; //RE# high
@@ -268,10 +291,10 @@ module mkNandPhy#(
 	endrule
 
 	//****************************************
-	// Async command execution
+	// Async command
 	//****************************************
 	rule doAsyncCmdSetup if (currState==ASYNC_CMD_SET_CMD);
-		cen <= 2'b00;
+		cen <= 2'b10;
 		cle <= 1;
 		ale <= 0;
 		wen <= 0; 
@@ -295,8 +318,85 @@ module mkNandPhy#(
 	endrule
 
 	//****************************************
-	// Async read; Assume bus idle
+	// Async address cycle; assume bus idle
 	//****************************************
+	rule doAsyncAddrWeLow if (currState==ASYNC_ADDR_WE_LOW);
+		//cen <= 2'b10; //CE# low
+		cle <= 0; //Low
+		ale <= 1; //High
+		//wrn <= 1; //RE# high
+		wen <= 0;//select and set WE# low
+		wenSel <= 1; 
+		cmdSelDQ <= 1; //default
+		oenCmdDQ <= 0; //enable output. Note this signal needs 2 cycles to propogate
+		wrCmdDQ <= addrQ.first(); //set address output
+		addrQ.deq();
+		//wait for setup
+		waitCnt <= fromInteger(t_ASYNC_ADDR_SETUP);
+		currState <= WAIT_CYCLES;
+		returnState <= ASYNC_ADDR_WE_HIGH;
+		$display("@%t\t NandPhy: ASYNC_ADDR_WE_LOW set addr: %x", addrQ.first, $time);
+	endrule
+
+	rule doAsyncAddrWeHigh if (currState==ASYNC_ADDR_WE_HIGH);
+		wen <= 1; //set WE# high to latch addr
+		//wait for hold
+		waitCnt <= fromInteger(t_ASYNC_ADDR_HOLD);
+		currState <= WAIT_CYCLES;
+		if (numBurstCnt==1) begin
+			returnState <= DONE;
+		end
+		else begin
+			returnState <= ASYNC_ADDR_WE_LOW;
+			numBurstCnt <= numBurstCnt - 1;
+		end
+		$display("@%t\t NandPhy: ASYNC_ADDR_WE_HIGH", $time);
+	endrule
+
+
+
+	//*************************************************************
+	// Async data input cycle (write to NAND); assume bus idle
+	//*************************************************************
+	rule doAsyncWriteWeLow if (currState==ASYNC_WRITE_WE_LOW);
+		//cle <= 0; //Low
+		//ale <= 0; //Low
+		//wrn <= 1; //RE# high
+		wen <= 0;//select and set WE# low
+		wenSel <= 1; 
+		cmdSelDQ <= 1; 
+		oenCmdDQ <= 0; //enable output. Note this signal needs 2 cycles to propogate
+		wrCmdDQ <= asyncWrQ.first(); //set data output
+		asyncWrQ.deq();
+		//wait for setup
+		waitCnt <= fromInteger(t_ASYNC_WRITE_SETUP);
+		currState <= WAIT_CYCLES;
+		returnState <= ASYNC_WRITE_WE_HIGH;
+		$display("@%t\t NandPhy: ASYNC_WRITE_WE_LOW set data: %x", $time, asyncWrQ.first);
+	endrule
+
+	rule doAsyncWriteWeHigh if (currState==ASYNC_WRITE_WE_HIGH);
+		wen <= 1; //set WE# high to latch write data
+		//wait for hold
+		waitCnt <= fromInteger(t_ASYNC_WRITE_HOLD);
+		currState <= WAIT_CYCLES;
+		if (numBurstCnt==1) begin
+			returnState <= DONE;
+		end
+		else if (numBurstCnt>0) begin
+			returnState <= ASYNC_WRITE_WE_LOW;
+			numBurstCnt <= numBurstCnt - 1;
+		end
+		else begin
+			$display("NandPhy: ERROR: num bursts is incorrect. Must be >1");
+		end
+		$display("@%t\t NandPhy: ASYNC_WRITE_WE_HIGH", $time);
+	endrule
+
+
+	//*************************************************************
+	// Async data output cycle (read from NAND); Assume bus idle
+	//*************************************************************
 	rule doAsyncReadReLow if (currState==ASYNC_READ_RE_LOW);
 		cle <= 0;
 		ale <= 0;
@@ -328,12 +428,15 @@ module mkNandPhy#(
 		waitCnt <= fromInteger(t_REH);
 		currState <= WAIT_CYCLES;
 		//if done bursting, go idle. otherwise keep toggling RE#
-		if (numBurstCnt==0) begin
+		if (numBurstCnt==1) begin
 			returnState <= DONE;
 		end
-		else begin
+		else if (numBurstCnt > 1) begin
 			returnState <= ASYNC_READ_RE_LOW;
 			numBurstCnt <= numBurstCnt - 1;
+		end
+		else begin
+			$display("NandPhy: ERROR: num bursts is incorrect. Must be >1");
 		end
 		$display("@%t\t NandPhy: ASYNC_READ_RE_HIGH", $time);
 	endrule
@@ -343,7 +446,7 @@ module mkNandPhy#(
 	// Go bus idle if done
 	//**************************
 	rule doDone if (currState==DONE);
-		cen <= 2'b00; //CE# low
+		cen <= 2'b10; //CE# low
 		cle <= 0; //DC
 		ale <= 0; //DC
 		wrn <= 1; //RE# high
@@ -365,6 +468,43 @@ module mkNandPhy#(
 		$display("@%t\t NandPhy: DONE", $time);
 	endrule
 
+	//TODO: code a bit verbose here
+	//******************************************************
+	// Deselect all targets. Should be in bus idle already
+	//******************************************************
+	rule doDeselect if (currState==DESELECT_ALL);
+		cen <= 2'b11;
+		//post command wait
+		if (postCmdWaitCnt > 0) begin
+			currState <= WAIT_CYCLES;
+			waitCnt <= postCmdWaitCnt;
+			returnState <= IDLE;
+		end
+		else begin
+			currState <= IDLE;
+		end
+		ctrlCmdQ.deq();
+		$display("@%t\t NandPhy: DESELECT_ALL", $time);
+	endrule
+
+
+	//******************************************************
+	// Enable clock for sync mode
+	//******************************************************
+	rule doEnNandClock if (currState==ENABLE_NAND_CLK);
+		wenSel <= 0;
+		//post command wait
+		if (postCmdWaitCnt > 0) begin
+			currState <= WAIT_CYCLES;
+			waitCnt <= postCmdWaitCnt;
+			returnState <= IDLE;
+		end
+		else begin
+			currState <= IDLE;
+		end
+		ctrlCmdQ.deq();
+		$display("@%t\t NandPhy: ENABLE_NAND_CLK", $time);
+	endrule
 
 
 	//**************************
@@ -429,6 +569,14 @@ module mkNandPhy#(
 			ctrlCmdQ.enq(cmd);
 		endmethod
 
+		method Action sendAddr (Bit#(8) addr);
+			addrQ.enq(addr);
+		endmethod
+
+		method Action asyncWrByte (Bit#(8) data);
+			asyncWrQ.enq(data);
+		endmethod
+
 		method ActionValue#(Bit#(8)) asyncRdByte();
 			asyncRdQ.deq();
 			return asyncRdQ.first();
@@ -440,66 +588,3 @@ module mkNandPhy#(
 
 endmodule
 
-
-/*
-	rule doNandResetIdle if (currState==INIT_RESET && nandRstSt==BUS_IDLE);
-		wen <= 1;//select and set WE# high (NAND_CLK)
-		wenSel <= 1;
-		cen <= 2'b00; //CE# low
-		wrn <= 1; //RE# high
-		cle <= 0; //DC
-		ale <= 0; //ALE low
-		nandRstSt<= SET_RST_CMD;
-	endrule
-
-	//setup the command lines for reset command (>5 cycles setup)
-	rule doNandResetSetCmd if (currState==INIT_RESET && nandRstSt==SET_RST_CMD);
-		cen <= 2'b00; //CE# low, redundant
-		ale <= 0;	//ALE low, redundant
-		cle <= 1; 	//CLE high
-		wrn <= 1; 	//RE# high, redundant
-		wen <= 0;	//WE# low
-		wenSel <= 1; 
-		cmdSelDQ <= 1; //Select and set DQ=8'hFF for reset
-		wrCmdDQ <= 8'hFF; 
-		oenCmdDQ <= 0; //enable DQ output
-		//Wait for setup
-		if (waitCnt>=fromInteger(t_ASYNC_CMD_SETUP)) begin
-			nandRstSt<=LATCH_WE;
-			waitCnt <= 0;
-		end
-		else begin
-			waitCnt <= waitCnt+1;
-		end
-	endrule
-	
-	//Latch using WE#
-	rule doNandResetLatch if (currState==INIT_RESET && nandRstSt==LATCH_WE);
-		wen <= 1; //set WE# high to latch 
-		if (waitCnt>=fromInteger(t_ASYNC_CMD_HOLD)) begin
-			nandRstSt <= WAIT_POR;
-			waitCnt <= 0;
-		end
-		else begin
-			waitCnt <= waitCnt+1;
-		end
-	endrule
-
-	//Go bus idle. wait for power on reset. 1ms
-	rule doNandResetPOR if (currState==INIT_RESET && nandRstSt==WAIT_POR);
-		wen <= 1;//select and set WE# high (NAND_CLK)
-		wenSel <= 1;
-		cen <= 2'b00; //CE# low
-		wrn <= 1; //RE# high
-		cle <= 0; //DC
-		ale <= 0; //ALE low
-		oenCmdDQ <= 1; //release bus
-		if (waitCnt>=fromInteger(t_POR)) begin
-			currState <= IDLE;
-			waitCnt <= 0;
-		end
-		else begin
-			waitCnt <= waitCnt+1;
-		end
-	endrule
-*/

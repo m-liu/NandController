@@ -1,4 +1,5 @@
-
+//TODO: combine command and dq inputs into one struct. each cycle, push 
+// in either a command or data byte. 
 import FIFOF             ::*;
 import Vector            ::*;
 
@@ -7,13 +8,19 @@ import NandInfraWrapper::*;
 import NandPhy::*;
 
 typedef enum {
+	IDLE,
 	BUS_IDLE,
 	WAIT_CYCLES,
 	POR,
 	BUS_IDLE2,
 	SEND_STATUS_CMD,
 	GET_STATUS_CMD,
-	POLL_STATUS
+	POLL_STATUS,
+	ACTIVATE_SYNC,
+	ACTIVATE_SYNC_DATA, 
+	DESELECT_ALL,
+	EN_CLK
+
 
 } CtrlState deriving (Bits, Eq);
 
@@ -34,6 +41,10 @@ module mkNandController#(
 	//Timing parameters for timing parameters between different cycle types
 	Integer t_POR = 50000; //1ms. Power-on Reset time. TODO: reduced
 	Integer t_WHR = 13; //120ns. WE# HIGH to RE# LOW
+	Integer t_WB = 20; //200ns
+	Integer t_ITC = 150; //1us (tITC)
+	Integer t_ADL = 25; //200ns
+	Integer t_RHW = 25; //200ns
 
 
 	//NandInfraIfc nandInfra <- mkNandInfra(sysClkP, sysClkN, sysRstn);
@@ -100,26 +111,105 @@ module mkNandController#(
 	endrule
 
 	rule doPollStatus if (state==POLL_STATUS);
-		let status = phy.phyUser.asyncRdByte();
+		let status <- phy.phyUser.asyncRdByte();
 		$display("NandCtrl: status=%x", status);
-		//wait a while before polling
-		waitCnt <= 500;
-		state <= WAIT_CYCLES;
-		returnState <= GET_STATUS_CMD;
+		if (status==8'hE0) begin //ready
+			//wait tRHW before sending another command
+			waitCnt <= fromInteger(t_RHW);
+			state <= WAIT_CYCLES;
+			returnState <= ACTIVATE_SYNC;
+		end
+		else begin
+			//wait a while before polling
+			waitCnt <= 500;
+			state <= WAIT_CYCLES;
+			returnState <= GET_STATUS_CMD;
+		end
+	endrule
+
+	Vector#(5, ControllerCmd) actSync = newVector;
+	actSync[0] = ControllerCmd {
+							phyCmd: PHY_ASYNC_SEND_NAND_CMD,
+							nandCmd: N_SET_FEATURES,
+							numBurst: 0,
+					  		postCmdWait: 0 };
+
+	actSync[1] = ControllerCmd {
+							phyCmd: PHY_ASYNC_SEND_ADDR,
+							nandCmd: ?,
+							numBurst: 1,
+					  		postCmdWait: fromInteger(t_ADL) };
+	
+	actSync[2] = ControllerCmd {
+							phyCmd: PHY_ASYNC_WRITE,
+							nandCmd: ?,
+							numBurst: 4,
+					  		postCmdWait: fromInteger(t_WB) };
+	
+	Bit#(8) actSyncAddr = 8'h01;
+	Bit#(8) actSyncMode = 8'h15; //synchronous mode 5
+
+	Reg#(Bit#(4)) actSyncCnt <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
+	rule doActivateSyncCmd if (state==ACTIVATE_SYNC);
+		if (actSyncCnt < 3) begin
+			phy.phyUser.sendCmd(actSync[actSyncCnt]);
+			if (actSyncCnt==0) begin
+				phy.phyUser.sendAddr(actSyncAddr);
+			end
+			actSyncCnt <= actSyncCnt+1;
+		end
+		else begin
+			actSyncCnt <= 0;
+			state <= ACTIVATE_SYNC_DATA;
+		end
 	endrule
 
 
+	rule doActivateSyncData if (state==ACTIVATE_SYNC_DATA);
+		if (actSyncCnt==0) begin
+			phy.phyUser.asyncWrByte(actSyncMode);
+			actSyncCnt <= actSyncCnt + 1;
+		end
+		else if (actSyncCnt < 4) begin
+			phy.phyUser.asyncWrByte(0);
+			actSyncCnt <= actSyncCnt + 1;
+		end
+		else begin
+			actSyncCnt <= 0;
+			state <= DESELECT_ALL;
+		end
+	endrule
+		
 
-	//Device is in async mode on power up
-	//Hold reset command for several cycles to satisfy the long setup/hold times
-	// (1) transition to bus IDLE 
-	//			A target's bus is idle when CE# is LOW, WE# is HIGH, and RE# is HIGH.
-	// (2) send reset command 
-	//		An asynchronous command is written from DQ[7:0] to the command
-	//		register on the rising edge of WE# when CE# is LOW, ALE is LOW, CLE is
-	//		HIGH, and RE# is HIGH.  
-	// 	Sync to Async mapping: WR# = RE#; WE# = NAND_CLK
+	//Deassert CE#, wait t_ITC + t_WB
+	rule doDeselect if (state==DESELECT_ALL);
+		phy.phyUser.sendCmd( ControllerCmd {
+							phyCmd: PHY_DESELECT_ALL,
+							nandCmd: ?,
+							numBurst: 0,
+					  		postCmdWait: fromInteger(t_ITC)
+							} );
+		state <= EN_CLK;
+	endrule
+		
+
+	//enable the nand clock, and we're in sync mode 5!
+	rule doEnClk if (state==EN_CLK);
+		phy.phyUser.sendCmd( ControllerCmd {
+							phyCmd: PHY_ENABLE_NAND_CLK,
+							nandCmd: ?,
+							numBurst: 0,
+					  		postCmdWait: 1000 //arbitrary
+							} );
+		state <= IDLE;
+	endrule
+		
+
+
+
 	
+
+
 
 	
 	
