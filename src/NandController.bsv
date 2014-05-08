@@ -1,5 +1,9 @@
-//TODO: combine command and dq inputs into one struct. each cycle, push 
-// in either a command or data byte. 
+//TODO: a cleaner implementation:
+// each cycle:
+// 	1) push a command
+//		2) if command numbursts > 0, push data burst (addr, cmd or data, doesn't matter)
+//			need to combine addr and data fifos here. May need 2 fifos or double width fifos for DDR?
+// separate reads and status
 import FIFOF             ::*;
 import Vector            ::*;
 

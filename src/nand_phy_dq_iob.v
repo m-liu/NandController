@@ -1,3 +1,8 @@
+//NOTE: frame alignment of ISERDES is undetermined 
+// ISERDES Timing parameters are in Artix data sheet: 
+// http://www.xilinx.com/support/documentation/data_sheets/ds181_Artix_7_Data_Sheet.pdf
+// ISERDES timing diagrams are in UG471 (Select io) 
+
 
 `timescale 1ns/1ps
 
@@ -139,7 +144,8 @@ ISERDESE2 #(
    .INIT_Q3(1'b0),
    .INIT_Q4(1'b0),
    .INTERFACE_TYPE("MEMORY"),   // MEMORY, MEMORY_DDR3, MEMORY_QDR, NETWORKING, OVERSAMPLE
-   .IOBDELAY("BOTH"),           // NONE, BOTH, IBUF, IFD
+	//TODO testing
+   .IOBDELAY("IFD"),           // NONE, BOTH, IBUF, IFD
    .NUM_CE(2),                  // Number of clock enables (1,2)
    .OFB_USED("FALSE"),          // Select OFB path (FALSE, TRUE)
    .SERDES_MODE("MASTER"),      // MASTER, SLAVE
@@ -182,7 +188,8 @@ ISERDESE2_inst (
    .DYNCLKDIVSEL(), // 1-bit input: Dynamic CLKDIV inversion
    .DYNCLKSEL(),       // 1-bit input: Dynamic CLK/CLKB inversion
    // Input Data: 1-bit (each) input: ISERDESE2 data input ports
-   .D(),                       // 1-bit input: Data input
+	// TODO: testing
+   .D(dq_in),                       // 1-bit input: Data input
    .DDLY(dq_idelay),                 // 1-bit input: Serial data from IDELAYE2
    .OFB(),                   // 1-bit input: Data feedback from OSERDESE2
    .OCLKB(~clk90),               // 1-bit input: High speed negative edge output clock
