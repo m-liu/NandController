@@ -135,12 +135,12 @@ interface VPhyUser vphyUser;
 	method dlyIncDQ (v_dlyinc_dq) enable((*inhigh*) en9) clocked_by(clk90) reset_by(rstn90);
 	method dlyCeDQ (v_dlyce_dq) enable((*inhigh*) en10) clocked_by(clk90) reset_by(rstn90);
 	
-	//DQ data; clk90
-	method oenDataDQ (v_dq_data_oe_n) enable((*inhigh*) en11) clocked_by(clk90) reset_by(rstn90);
-	method wrDataRiseDQ (v_wr_data_rise) enable((*inhigh*) en12) clocked_by(clk90) reset_by(rstn90);
-	method wrDataFallDQ (v_wr_data_fall) enable((*inhigh*) en13) clocked_by(clk90) reset_by(rstn90);
-	method v_rd_data_rise rdDataRiseDQ() clocked_by(clk90) reset_by(rstn90);
-	method v_rd_data_fall rdDataFallDQ() clocked_by(clk90) reset_by(rstn90);
+	//DQ data; changed to clk0 too
+	method oenDataDQ (v_dq_data_oe_n) enable((*inhigh*) en11) clocked_by(clk0) reset_by(rstn0);
+	method wrDataRiseDQ (v_wr_data_rise) enable((*inhigh*) en12) clocked_by(clk0) reset_by(rstn0);
+	method wrDataFallDQ (v_wr_data_fall) enable((*inhigh*) en13) clocked_by(clk0) reset_by(rstn0);
+	method v_rd_data_rise rdDataRiseDQ() clocked_by(clk0) reset_by(rstn0);
+	method v_rd_data_fall rdDataFallDQ() clocked_by(clk0) reset_by(rstn0);
 	//DQ combinational data for async mode; clk0
 	method v_rd_data_comb rdDataCombDQ() clocked_by(clk0) reset_by(rstn0);
 
@@ -155,7 +155,7 @@ interface VPhyUser vphyUser;
 
 	//Debug signals
 	method setDebug (v_ctrl_debug) enable((*inhigh*)en14) clocked_by(clk0) reset_by(rstn0);
-	method setDebug90 (v_ctrl_debug90) enable((*inhigh*)en15) clocked_by(clk90) reset_by(rstn90);
+	method setDebug90 (v_ctrl_debug90) enable((*inhigh*)en15) clocked_by(clk0) reset_by(rstn0);
 
 endinterface
 

@@ -16,7 +16,9 @@ module nand_phy_dq_iob #
    parameter IODELAY_GRP           = "IODELAY_NAND"
    )
   (
+	input  clk0,
    input  clk90,
+	input	 rst0,
    input  rst90,
    input  dlyinc,
    input  dlyce,
@@ -25,8 +27,8 @@ module nand_phy_dq_iob #
    input  dqs,
    input  wr_data_rise,
    input  wr_data_fall,
-   output rd_data_rise,
-   output rd_data_fall,
+   output reg rd_data_rise,
+   output reg rd_data_fall,
 	output rd_data_comb, 
    inout  ddr_dq
    );
@@ -36,6 +38,45 @@ module nand_phy_dq_iob #
   wire    dq_out;
   wire    iserdes_clk;
   wire    iserdes_clkb;
+
+
+
+//Synchronization 
+
+//Sychronize read data: clk90 -> clk0
+//Because we have ~7.5ns of setup time, it should be safe
+always @ (posedge clk0)
+begin
+	if (rst0) begin
+		rd_data_rise <= 0;
+		rd_data_fall <= 0;
+	end else begin
+		rd_data_rise <= rd_data_rise_90;
+		rd_data_fall <= rd_data_fall_90;
+	end
+end
+
+//Synchronize write data from clk0 to clk90 domain. clk0 -> clk180 -> clk90
+//This way setup time is at least 5ns
+wire clk180;
+reg wr_data_rise_r1;
+reg wr_data_rise_r2;
+reg wr_data_fall_r1;
+reg wr_data_fall_r2;
+
+assign clk180 = ~clk0;
+always @ (posedge clk180)
+begin
+	wr_data_rise_r1 <= wr_data_rise;
+	wr_data_fall_r1 <= wr_data_fall;
+end
+
+always @ (posedge clk90)
+begin
+	wr_data_rise_r2 <= wr_data_rise_r1;
+	wr_data_fall_r2 <= wr_data_fall_r1;
+end
+
 
   // on a write, rising edge of DQS corresponds to rising edge of CLK180
   // (aka falling edge of CLK0 -> rising edge DQS). We also know:
@@ -54,8 +95,8 @@ module nand_phy_dq_iob #
        .Q  (dq_out),
        .C  (clk90),
        .CE (1'b1),
-       .D1 (wr_data_rise),
-       .D2 (wr_data_fall),
+       .D1 (wr_data_rise_r2),
+       .D2 (wr_data_fall_r2),
        .R  (1'b0),
        .S  (1'b0)
        );
@@ -106,28 +147,6 @@ u_idelay_dq (
    .REGRST(dlyrst)            // 1-bit input: Active-high reset tap-delay input
 );
 
-/*
-  (* IODELAY_GROUP = IODELAY_GRP *) IODELAY #
-    (
-     .DELAY_SRC("I"),
-     .IDELAY_TYPE("VARIABLE"),
-     .HIGH_PERFORMANCE_MODE(HIGH_PERFORMANCE_MODE),
-     .IDELAY_VALUE(0),
-     .ODELAY_VALUE(0)
-     )
-    u_idelay_dq
-      (
-       .DATAOUT(dq_idelay),
-       .C(clk90),
-       .CE(dlyce),
-       .DATAIN(),
-       .IDATAIN(dq_in),
-       .INC(dlyinc),
-       .ODATAIN(),
-       .RST(dlyrst),
-       .T()
-       );
-*/
   // equalize delays to avoid delta-delay issues
   assign  iserdes_clk  = dqs;
   assign  iserdes_clkb = ~dqs;
@@ -158,8 +177,8 @@ ISERDESE2 #(
 ISERDESE2_inst (
    .O(rd_data_comb),                       // 1-bit output: Combinatorial output
    // Q1 - Q8: 1-bit (each) output: Registered data outputs
-   .Q1(rd_data_fall),
-   .Q2(rd_data_rise),
+   .Q1(rd_data_fall_90),
+   .Q2(rd_data_rise_90),
    .Q3(),
    .Q4(),
    .Q5(),
@@ -199,44 +218,4 @@ ISERDESE2_inst (
    .SHIFTIN2() 
 );
 
-
-
-
-
-
-
-/*
-  ISERDESE2 # //testing FIXME
-    (
-     //.BITSLIP_ENABLE("FALSE"), //TESTING
-     .DATA_RATE("DDR"),
-     .DATA_WIDTH(4),
-     .INTERFACE_TYPE("MEMORY"),
-     .NUM_CE(2),
-     .SERDES_MODE("MASTER")
-     )
-    u_iserdes_dq
-      (
-       .Q1           (rd_data_fall),
-       .Q2           (rd_data_rise),
-       .Q3           (),
-       .Q4           (),
-       .Q5           (),
-       .Q6           (),
-       .SHIFTOUT1    (),
-       .SHIFTOUT2    (),
-       .BITSLIP      (),
-       .CE1          (1'd1),
-       .CE2          (1'd1),
-       .CLK          (iserdes_clk),
-       .CLKB         (iserdes_clkb),
-       .CLKDIV       (clk90),
-       //.D            (dq_idelay),
-		 .DDLY            (dq_idelay), //TESTING FIXME
-       .OCLK         (clk90),
-       .RST          (rst90),
-       .SHIFTIN1     (),
-       .SHIFTIN2     ()
-       );
-*/
 endmodule

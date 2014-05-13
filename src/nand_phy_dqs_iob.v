@@ -1,14 +1,9 @@
-
 `timescale 1ns/1ps
 
 module nand_phy_dqs_iob #
   (
-   // Following parameters are for 32-bit component design (for ML561 Reference
-   // board design). Actual values may be different. Actual parameters values
-   // are passed from design top module mig_36_1 module. Please refer to
-   // the mig_36_1 module for actual values.
-   
    //parameter DQS_GATE_EN           = 1,
+	parameter DQS_NET_DELAY			  = 1.0, //TODO FUnctional simulation only!!
    parameter HIGH_PERFORMANCE_MODE = "TRUE",
    parameter IODELAY_GRP           = "IODELAY_NAND"
    )
@@ -33,11 +28,10 @@ module nand_phy_dqs_iob #
   wire          dqs_idelay;
   wire          dqs_oe_n_r;
   reg           dqs_rst_n_r /* synthesis syn_maxfan = 1 syn_preserve = true */;
+  reg           dqs_rst_n_r2 /* synthesis syn_maxfan = 1 syn_preserve = true */;
   wire          dqs_out;
 
   assign        clk180 = ~clk0;
-
-  //localparam    DQS_NET_DELAY = (DQS_GATE_EN) ? 1.25 : 0.8;
 
 
 
@@ -49,15 +43,13 @@ controller and can be misinterpreted as an access. Therefore, the DQS signals sh
 and used only when needed. This is done by the DQS calibration procedure.
 http://cache.freescale.com/files/dsp/doc/app_note/AN3992.pdf
 */
-//For NAND, we shouldn't need DQS gating because we have pull up/down resistors on the DQS line
+//XXX For NAND, we shouldn't need DQS gating because we have pull up/down resistors on the DQS line XXX
+//We DON'T have pullup/down resistors! Forgot to add them. 
+//Options: either rework the board by adding these resistors, or gate DQS in
+//hardware. TODO TODO TODO. Not sure how to do this gating yet... Add a mux?
+//use CE pin of BUFR? (not sure if allowed), keep ISERDES reset until DQS is
+	//driven?
 
-  //***************************************************************************
-  // DQS input-side resources
-  //***************************************************************************
-
-  //***************************************************************************
-  // DQS gate circuit (not supported for all controllers)
-  //***************************************************************************
 //replaced IODELAY with 7 series IDELAYE2
 (* IODELAY_GROUP = IODELAY_GRP *) IDELAYE2 #(
    .CINVCTRL_SEL("FALSE"),          // Enable dynamic clock inversion (FALSE, TRUE)
@@ -84,32 +76,6 @@ u_idelay_dqs (
    .REGRST(dlyrst_dqs)            // 1-bit input: Active-high reset tap-delay input
 );
 
-      // if DQS gate not supported for this controller, then route
-      // input DQS from pad immediately to IDELAY
-		
-		/*
-      (* IODELAY_GROUP = IODELAY_GRP *) IODELAY #
-        (
-         .DELAY_SRC("I"),
-         .IDELAY_TYPE("VARIABLE"),
-         .HIGH_PERFORMANCE_MODE(HIGH_PERFORMANCE_MODE),
-         .IDELAY_VALUE(0),
-         .ODELAY_VALUE(0)
-         )
-        u_idelay_dqs
-          (
-           .DATAOUT(dqs_idelay),
-           .C(clk90),
-           .CE(dlyce_dqs),
-           .DATAIN(),
-           .IDATAIN(dqs_ibuf),
-           .INC(dlyinc_dqs),
-           .ODATAIN(),
-           .RST(dlyrst_dqs),
-           .T()
-           );
-			  */
-
 /*
   BUFIO u_bufio_dqs
     (
@@ -130,19 +96,19 @@ u_bufr_dqs (
    .I(dqs_idelay)      // 1-bit input: Clock buffer input driven by an IBUFG, MMCM or local interconnect
 );
 
-  
 
 //ml: testing if we don't use a bufio; bufios dont exist on non CC pins
 //assign dqs_bufio = dqs_idelay; 
 
-
-  // To model additional delay of DQS BUFIO + gating network
-  // for behavioral simulation. Make sure to select a delay number smaller
-  // than half clock cycle (otherwise output will not track input changes
-  // because of inertial delay)
-  //assign #(DQS_NET_DELAY) delayed_dqs = dqs_bufio;
-  //ml: not sure about this delay here for simulation
-  assign delayed_dqs = dqs_bufio;
+	//Insert an assignment delay for functional simulation. IDELAY is not
+	//modeled in functional sims. 
+	//For timing simulation, do not use assignment delay
+	//TODO FIXME does this work?
+	//`ifndef XIL_TIMING
+	//		assign delayed_dqs = dqs_bufio;
+	//`else
+			assign #(DQS_NET_DELAY) delayed_dqs = dqs_bufio;
+	//`endif
 
   //***************************************************************************
   // DQS output-side resources
@@ -151,7 +117,10 @@ u_bufr_dqs (
   // synthesis attribute max_fanout of dqs_rst_n_r is 1
   // synthesis attribute keep of dqs_rst_n_r is "true"
   always @(posedge clk180)
+  begin
     dqs_rst_n_r <= dqs_rst_n;
+    dqs_rst_n_r2 <= dqs_rst_n_r;
+ end
 
   ODDR #
     (
@@ -163,7 +132,7 @@ u_bufr_dqs (
        .Q  (dqs_out),
        .C  (clk180),
        .CE (1'b1),
-       .D1 (dqs_rst_n_r),      // keep output deasserted for write preamble
+       .D1 (dqs_rst_n_r2),      // keep output deasserted for write preamble
        .D2 (1'b0),
        .R  (1'b0),
        .S  (1'b0)

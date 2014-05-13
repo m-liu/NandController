@@ -82,14 +82,6 @@ module nand_phy #
 		
     );
 
-/* Simulation TODO: 
- * both I/Os within a NAND package
- * multiple chips on a bus
- * multiple buses
- * 
- *
- */
-
 localparam IODELAY_GRP = "IODELAY_NAND";
 localparam HIGH_PERFORMANCE_MODE = "TRUE";
 
@@ -193,6 +185,8 @@ nand_phy_dqs_iob #
          )
         u_iob_dq
           (
+			  .clk0			 (v_clk0),
+			  .rst0			 (v_rst0),
            .clk90        (v_clk90),
            .rst90        (v_rst90),
            .dlyinc       (v_dlyinc_dq[dq_i]),
@@ -236,70 +230,6 @@ nand_phy_ctl_io u_io_phy_ctl
 	.rst0(v_rst0)
 	
 	);
-
-
-
-//for debug
-/*
-always @ (posedge clk0)
-begin
-	if (rd_data_rise == 8'hFF || rd_data_fall == 8'hFF)
-		ale <= 1;
-	else
-		ale <= 0;
-end
-
-(* KEEP = "TRUE" *) reg [DQ_WIDTH-1:0] rd_data_rise_r;
-(* KEEP = "TRUE" *) reg [DQ_WIDTH-1:0] rd_data_fall_r;
-always @ (posedge clk0)
-begin
-	rd_data_rise_r <= rd_data_rise;
-	rd_data_fall_r <= rd_data_fall;
-end
-
-//disable output
-assign dqs_oe_n = 1; 
-assign dq_oe_n = 1;
-
-//test shifting
-reg [31:0] delay_r;
-wire trigger;
-assign trigger = (delay_r==32'd50);
-always @ (posedge clk90)
-begin
-	if (rst90) begin
-		delay_r <= 0;
-	end
-	else if (delay_r < 50) begin
-		delay_r <= delay_r + 1;
-	end
-	
-end
-
-
-localparam DELAY_TAPS = 20;
-assign dlyrst_dqs = rst90;
-reg [4:0] tap_cnt;
-always @ (posedge clk90)
-begin
-	if (rst90 || ~trigger) begin
-		tap_cnt <= 5'd0;
-		dlyinc_dqs <= 1'b0;
-		dlyce_dqs <= 1'b0;
-	end
-	else if (tap_cnt == DELAY_TAPS) begin
-		dlyinc_dqs <= 1'b0;
-		dlyce_dqs <= 1'b0;
-	end
-	else if (trigger) begin
-		tap_cnt <= tap_cnt + 1;
-		dlyinc_dqs <= 1'b1;
-		dlyce_dqs <= 1'b1;
-	end
-end
-
-
-*/
 
 endmodule
 
