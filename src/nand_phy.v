@@ -66,9 +66,9 @@ module nand_phy #
 		//clk0 DQ lines for commands only. Beware of timing!
 		//BSV thinks these are clocked by clk0, but actually 
 		//clocked by ODDR clk90. 
-		input v_dq_cmd_oe_n,
-		input [DQ_WIDTH-1:0] v_wr_cmd,
-		input v_dq_cmd_sel,
+		//input v_dq_cmd_oe_n,
+		//input [DQ_WIDTH-1:0] v_wr_cmd,
+		//input v_dq_cmd_sel,
 
 
 		//clocks and resets
@@ -123,6 +123,7 @@ assign v_debug90 = v_ctrl_debug90;
 	// Create muxes to select between DQ data (clk90) or DQ commands (clk0)
 	//**********************************************************************
 	//Sync registers for dq_oe_n and dq_cmd. Note that these are held for a long time
+	/*
 	reg dq_cmd_oe_n_r1 = 1; //disable output initially
 	reg dq_cmd_oe_n_r2 = 1;
 	reg [DQ_WIDTH-1:0] wr_cmd_r1;
@@ -147,6 +148,7 @@ assign v_debug90 = v_ctrl_debug90;
 	assign dq_wr_rise = (v_dq_cmd_sel) ? (wr_cmd_r2) : (v_wr_data_rise);
 	assign dq_wr_fall = (v_dq_cmd_sel) ? (wr_cmd_r2) : (v_wr_data_fall);
 	assign dq_oe_n = (v_dq_cmd_sel) ? (dq_cmd_oe_n_r2) : (v_dq_data_oe_n);
+	*/
 
 //DQS tri-state inout buffer
 nand_phy_dqs_iob #
@@ -192,10 +194,10 @@ nand_phy_dqs_iob #
            .dlyinc       (v_dlyinc_dq[dq_i]),
            .dlyce        (v_dlyce_dq[dq_i]),
            .dlyrst       (/*dlyrst_dq[dq_i]*/), //not sure if needed
-           .dq_oe_n      (dq_oe_n), //(v_dq_oe_n),
+           .dq_oe_n      (v_dq_oe_n),
            .dqs          (delayed_dqs),
-           .wr_data_rise (dq_wr_rise[dq_i]), //(v_wr_data_rise[dq_i]),
-           .wr_data_fall (dq_wr_fall[dq_i]), //(v_wr_data_fall[dq_i]),
+           .wr_data_rise (v_wr_data_rise[dq_i]),
+           .wr_data_fall (v_wr_data_fall[dq_i]),
            .rd_data_rise (v_rd_data_rise[dq_i]),
            .rd_data_fall (v_rd_data_fall[dq_i]),
 			  .rd_data_comb (v_rd_data_comb[dq_i]),

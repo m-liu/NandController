@@ -77,6 +77,19 @@ begin
 	wr_data_fall_r2 <= wr_data_fall_r1;
 end
 
+//Synchronize OE_n from clk0 to clk90. clk0 -> clk180 -> clk90
+reg dq_oe_n_r1;
+reg dq_oe_n_r2;
+always @ (posedge clk180)
+begin
+	dq_oe_n_r1 <= dq_oe_n;
+end
+
+always @ (posedge clk90)
+begin
+	dq_oe_n_r2 <= dq_oe_n_r1;
+end
+
 
   // on a write, rising edge of DQS corresponds to rising edge of CLK180
   // (aka falling edge of CLK0 -> rising edge DQS). We also know:
@@ -105,7 +118,7 @@ end
   (* KEEP = "TRUE" *)
   (* IOB = "FORCE" *) FDPE u_tri_state_dq
     (
-     .D    (dq_oe_n),
+     .D    (dq_oe_n_r2),
      .PRE  (rst90),
      .C    (clk90),
      .Q    (dq_oe_n_r),

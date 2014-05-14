@@ -64,9 +64,9 @@ interface VPhyUser;
 	method Bit#(8) rdDataCombDQ();
 	
 
-	method Action oenCmdDQ (Bit#(1) i);
-	method Action wrCmdDQ (Bit#(8) d);
-	method Action cmdSelDQ (Bit#(1) i);
+//	method Action oenCmdDQ (Bit#(1) i);
+//	method Action wrCmdDQ (Bit#(8) d);
+//	method Action cmdSelDQ (Bit#(1) i);
 
 	method Action setDebug (Bit#(8) i);
 	method Action setDebug90 (Bit#(8) i);
@@ -149,9 +149,9 @@ interface VPhyUser vphyUser;
 	// feed into mux, then ODDR (clocked by clk90). For commands, we hold DQ
 	// for a long time, therefore we don't care of ODDR goes metastable briefly if
 	// the clk0 path input violates setup 
-	method oenCmdDQ (v_dq_cmd_oe_n) enable((*inhigh*) en20) clocked_by(clk0) reset_by(rstn0);
-	method wrCmdDQ (v_wr_cmd) enable((*inhigh*) en21) clocked_by(clk0) reset_by(rstn0);
-	method cmdSelDQ (v_dq_cmd_sel) enable((*inhigh*) en22) clocked_by(clk0) reset_by(rstn0);
+	//method oenCmdDQ (v_dq_cmd_oe_n) enable((*inhigh*) en20) clocked_by(clk0) reset_by(rstn0);
+	//method wrCmdDQ (v_wr_cmd) enable((*inhigh*) en21) clocked_by(clk0) reset_by(rstn0);
+	//method cmdSelDQ (v_dq_cmd_sel) enable((*inhigh*) en22) clocked_by(clk0) reset_by(rstn0);
 
 	//Debug signals
 	method setDebug (v_ctrl_debug) enable((*inhigh*)en14) clocked_by(clk0) reset_by(rstn0);
@@ -172,7 +172,7 @@ vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_set
 vphyUser_setWEN, vphyUser_setWENSel,
 vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDataDQ,
 vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
-vphyUser_oenCmdDQ, vphyUser_wrCmdDQ, vphyUser_cmdSelDQ,
+//vphyUser_oenCmdDQ, vphyUser_wrCmdDQ, vphyUser_cmdSelDQ,
 vphyUser_setDebug, vphyUser_setDebug90)
 CF
 (vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ, 
@@ -180,7 +180,7 @@ vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_set
 vphyUser_setWEN, vphyUser_setWENSel,
 vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDataDQ,
 vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
-vphyUser_oenCmdDQ, vphyUser_wrCmdDQ, vphyUser_cmdSelDQ,
+//vphyUser_oenCmdDQ, vphyUser_wrCmdDQ, vphyUser_cmdSelDQ,
 vphyUser_setDebug, vphyUser_setDebug90);
 
 //
