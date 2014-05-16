@@ -105,7 +105,7 @@ module mkNandController#(
 	// 1) Go bus idle
 	rule doSelectBusAndIdle if (state==BUS_IDLE);
 		phy.phyUser.sendCmd( ControllerCmd {
-							phyCmd: PHY_ASYNC_BUS_IDLE,
+							phyCycle: PHY_ASYNC_BUS_IDLE,
 							nandCmd: ?,
 							numBurst: 0,
 					  		postCmdWait: 0	
@@ -116,7 +116,7 @@ module mkNandController#(
 	// 2) Issue power on reset; wait t_POR
 	rule doPOR if (state==POR);
 		phy.phyUser.sendCmd( ControllerCmd {
-							phyCmd: PHY_ASYNC_SEND_NAND_CMD,
+							phyCycle: PHY_ASYNC_CMD,
 							nandCmd: N_RESET,
 							numBurst: 0, 
 							postCmdWait: fromInteger(t_POR)
@@ -127,7 +127,7 @@ module mkNandController#(
 	// 3) Send command to get status; wait t_WHR before reading status
 	rule doSendStatusCmd if (state==SEND_STATUS_CMD);
 		phy.phyUser.sendCmd( ControllerCmd {
-							phyCmd: PHY_ASYNC_SEND_NAND_CMD,
+							phyCycle: PHY_ASYNC_CMD,
 							nandCmd: N_READ_STATUS,
 							numBurst: 0,
 					  		postCmdWait: fromInteger(t_WHR)
@@ -138,7 +138,7 @@ module mkNandController#(
 	// 4) Get status
 	rule doGetStatus if (state==GET_STATUS_CMD);
 		phy.phyUser.sendCmd( ControllerCmd {
-							phyCmd: PHY_ASYNC_READ,
+							phyCycle: PHY_ASYNC_READ,
 							nandCmd: ?,
 							numBurst: 1,
 					  		postCmdWait: 0
@@ -165,19 +165,19 @@ module mkNandController#(
 
 	Vector#(5, ControllerCmd) actSync = newVector;
 	actSync[0] = ControllerCmd {
-							phyCmd: PHY_ASYNC_SEND_NAND_CMD,
+							phyCycle: PHY_ASYNC_CMD,
 							nandCmd: N_SET_FEATURES,
 							numBurst: 0,
 					  		postCmdWait: 0 };
 
 	actSync[1] = ControllerCmd {
-							phyCmd: PHY_ASYNC_SEND_ADDR,
+							phyCycle: PHY_ASYNC_ADDR,
 							nandCmd: ?,
 							numBurst: 1,
 					  		postCmdWait: fromInteger(t_ADL) };
 	
 	actSync[2] = ControllerCmd {
-							phyCmd: PHY_ASYNC_WRITE,
+							phyCycle: PHY_ASYNC_WRITE,
 							nandCmd: ?,
 							numBurst: 4,
 					  		postCmdWait: fromInteger(t_WB) };
@@ -220,7 +220,7 @@ module mkNandController#(
 	//Deassert CE#, wait t_ITC + t_WB
 	rule doDeselect if (state==DESELECT_ALL);
 		phy.phyUser.sendCmd( ControllerCmd {
-							phyCmd: PHY_DESELECT_ALL,
+							phyCycle: PHY_DESELECT_ALL,
 							nandCmd: ?,
 							numBurst: 0,
 					  		postCmdWait: fromInteger(t_ITC)
@@ -232,7 +232,7 @@ module mkNandController#(
 	//enable the nand clock, and we're in sync mode 5!
 	rule doEnClk if (state==EN_CLK);
 		phy.phyUser.sendCmd( ControllerCmd {
-							phyCmd: PHY_ENABLE_NAND_CLK,
+							phyCycle: PHY_ENABLE_NAND_CLK,
 							nandCmd: ?,
 							numBurst: 0,
 					  		postCmdWait: 1000 //arbitrary
@@ -247,7 +247,7 @@ module mkNandController#(
 
 	rule doSyncBusIdle if (state==SYNC_BUS_IDLE);
 		phy.phyUser.sendCmd( ControllerCmd {
-							phyCmd: PHY_SYNC_BUS_IDLE,
+							phyCycle: PHY_SYNC_BUS_IDLE,
 							nandCmd: ?,
 							numBurst: 0,
 					  		postCmdWait: 0
@@ -262,7 +262,7 @@ module mkNandController#(
 	//send read status cmd
 	rule doSyncRdStatusCmd if (state==SYNC_READ_STATUS_CMD);
 		phy.phyUser.sendCmd( ControllerCmd {
-							phyCmd: PHY_SYNC_SEND_NAND_CMD,
+							phyCycle: PHY_SYNC_CMD,
 							nandCmd: N_READ_STATUS,
 							numBurst: 0,
 					  		postCmdWait: fromInteger(t_WHR_SYNC)
@@ -272,7 +272,7 @@ module mkNandController#(
 	
 	rule doSyncRdStatusGet if (state==SYNC_GET_STATUS);
 		phy.phyUser.sendCmd( ControllerCmd {
-							phyCmd: PHY_SYNC_READ,
+							phyCycle: PHY_SYNC_READ,
 							nandCmd: ?,
 							numBurst: 1,
 					  		postCmdWait: fromInteger(t_RHW_SYNC)
@@ -305,7 +305,7 @@ module mkNandController#(
 
 	rule doWriteCmd if (state==SYNC_WRITE_CMD);
 		phy.phyUser.sendCmd ( ControllerCmd {
-						phyCmd: PHY_SYNC_SEND_NAND_CMD,
+						phyCycle: PHY_SYNC_CMD,
 						nandCmd: N_PROGRAM_PAGE,
 						numBurst: 0, //TESTING
 						postCmdWait: 0
@@ -317,7 +317,7 @@ module mkNandController#(
 
 	rule doWriteAddr if (state==SYNC_WRITE_ADDR); 
 		phy.phyUser.sendCmd ( ControllerCmd {
-						phyCmd: PHY_SYNC_SEND_ADDR,
+						phyCycle: PHY_SYNC_ADDR,
 						nandCmd: ?,
 						numBurst: 5,
 						postCmdWait: fromInteger(t_ADL)
@@ -350,7 +350,7 @@ module mkNandController#(
 
 	rule doWriteData if (state==SYNC_WRITE_DATA && addrCnt==5);
 		phy.phyUser.sendCmd ( ControllerCmd {
-						phyCmd: PHY_SYNC_WRITE,
+						phyCycle: PHY_SYNC_WRITE,
 						nandCmd: ?,
 						numBurst: fromInteger(pageSize/2), //TODO testing
 						postCmdWait: 0
@@ -361,7 +361,7 @@ module mkNandController#(
 
 	rule doWriteConfirm if (state==SYNC_WRITE_CONFIRM && dataCnt==fromInteger(pageSize/2));
 		phy.phyUser.sendCmd ( ControllerCmd {
-						phyCmd: PHY_SYNC_SEND_NAND_CMD,
+						phyCycle: PHY_SYNC_CMD,
 						nandCmd: N_PROGRAM_PAGE_END,
 						numBurst: 0,
 						postCmdWait: fromInteger(t_WB_SYNC)
@@ -375,7 +375,7 @@ module mkNandController#(
 	//Sync read
 	rule doSyncReadSendAddr if (state==SYNC_READ_CMD);
 		phy.phyUser.sendCmd ( ControllerCmd {
-						phyCmd: PHY_SYNC_SEND_NAND_CMD,
+						phyCycle: PHY_SYNC_CMD,
 						nandCmd: N_READ_MODE,
 						numBurst: 0,
 						postCmdWait: 0
@@ -387,7 +387,7 @@ module mkNandController#(
 
 	rule doReadAddr if (state==SYNC_READ_ADDR); 
 		phy.phyUser.sendCmd ( ControllerCmd {
-						phyCmd: PHY_SYNC_SEND_ADDR,
+						phyCycle: PHY_SYNC_ADDR,
 						nandCmd: ?,
 						numBurst: 5,
 						postCmdWait: 0
@@ -412,7 +412,7 @@ module mkNandController#(
 
 	rule doReadConfirm if (state==SYNC_READ_CONFIRM && addrCnt==5);
 		phy.phyUser.sendCmd ( ControllerCmd {
-						phyCmd: PHY_SYNC_SEND_NAND_CMD,
+						phyCycle: PHY_SYNC_CMD,
 						nandCmd: N_READ_PAGE_END,
 						numBurst: 0,
 						postCmdWait: fromInteger(t_WB_SYNC)
@@ -425,7 +425,7 @@ module mkNandController#(
 	//switch back to read mode (otherwise we'd be reading the status on dq)
 	rule doSyncReadReadMode if (state==SYNC_READ_DONE_READ_MODE);
 		phy.phyUser.sendCmd ( ControllerCmd {
-						phyCmd: PHY_SYNC_SEND_NAND_CMD,
+						phyCycle: PHY_SYNC_CMD,
 						nandCmd: N_READ_MODE,
 						numBurst: 0,
 						postCmdWait: fromInteger(t_WHR_SYNC)
@@ -436,7 +436,7 @@ module mkNandController#(
 
 	rule doSyncReadData if (state==SYNC_READ_DATA);
 		phy.phyUser.sendCmd ( ControllerCmd {
-						phyCmd: PHY_SYNC_READ,
+						phyCycle: PHY_SYNC_READ,
 						nandCmd: ?,
 						numBurst: fromInteger(pageSize/2),
 						postCmdWait: 0

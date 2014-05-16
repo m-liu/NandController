@@ -136,7 +136,7 @@ interface VPhyUser vphyUser;
 	method dlyCeDQ (v_dlyce_dq) enable((*inhigh*) en10) clocked_by(clk90) reset_by(rstn90);
 	
 	//DQ data; changed to clk0 too
-	method oenDataDQ (v_dq_data_oe_n) enable((*inhigh*) en11) clocked_by(clk0) reset_by(rstn0);
+	method oenDataDQ (v_dq_oe_n) enable((*inhigh*) en11) clocked_by(clk0) reset_by(rstn0);
 	method wrDataRiseDQ (v_wr_data_rise) enable((*inhigh*) en12) clocked_by(clk0) reset_by(rstn0);
 	method wrDataFallDQ (v_wr_data_fall) enable((*inhigh*) en13) clocked_by(clk0) reset_by(rstn0);
 	method v_rd_data_rise rdDataRiseDQ() clocked_by(clk0) reset_by(rstn0);

@@ -55,7 +55,7 @@ module nand_phy #
 		input [DQ_WIDTH-1:0] v_dlyinc_dq,
 		input [DQ_WIDTH-1:0] v_dlyce_dq,
 		//input [DQ_WIDTH-1:0] dlyrst_dq,
-		input v_dq_data_oe_n,
+		input v_dq_oe_n,
 		input [DQ_WIDTH-1:0] v_wr_data_rise,
 		input [DQ_WIDTH-1:0] v_wr_data_fall,
 		output [DQ_WIDTH-1:0] v_rd_data_rise,

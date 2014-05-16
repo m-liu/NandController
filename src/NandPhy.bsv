@@ -4,13 +4,11 @@
 // ISERDESE2 is a secureip. Don't know when we violate timing or how much to shift IDELAY by. 
 //At power up, default mode is * asynchronous mode 0 *
 
-//TODOOK: initialization: wait at least 100us after power up
 //TODO: initial values of CEN, WPN etc. is incorrect for a bit after power up
 //			need to set INIT parameter in FDRE reg
-//TODOOK change reset routine to use a single state and to use wait rule
-//TODOOK go bus idle after each command
 //TODO separate CEs! For now just select one of the targets
 //TODO dqs gating or dqs pull up/down resistors
+//TODO rearrange DQ when writting to different chips
 
 import Connectable       ::*;
 import Clocks            ::*;
@@ -62,43 +60,43 @@ typedef enum {
 	ASYNC_ADDR_WE_HIGH	= 14,
 	ASYNC_WRITE_WE_LOW	= 15,
 	ASYNC_WRITE_WE_HIGH	= 16,
-	ASYNC_DONE				= 100,
+	ASYNC_DONE				= 17,
 
 
-	SYNC_CMD_SET			= 30,
-	SYNC_CMD_LATCH			= 31,
-	SYNC_READ_WR_LOW 		= 32,
-	SYNC_READ_LATCH		= 33,
-	SYNC_READ_CAPTURE		= 34,
-	SYNC_ADDR_SET			= 35,
-	SYNC_ADDR_LATCH		= 36,
-	SYNC_ADDR_BURST		= 37,
-	SYNC_WRITE_PREAMBLE	= 38,
-	SYNC_WRITE_BURST		= 39,
+	SYNC_CMD_SET			= 20,
+	SYNC_CMD_LATCH			= 21,
+	SYNC_READ_WR_LOW 		= 22,
+	SYNC_READ_LATCH		= 23,
+	SYNC_READ_CAPTURE		= 24,
+	SYNC_ADDR_SET			= 25,
+	SYNC_ADDR_LATCH		= 26,
+	SYNC_ADDR_BURST		= 27,
+	SYNC_WRITE_PREAMBLE	= 28,
+	SYNC_WRITE_BURST		= 29,
 
-	SYNC_BUS_IDLE			= 50,
-	SYNC_DONE				= 51,
+	SYNC_BUS_IDLE			= 30,
+	SYNC_DONE				= 31,
 	
-	DESELECT_ALL			= 101,
-	ENABLE_NAND_CLK		= 102
+	DESELECT_ALL			= 40,
+	ENABLE_NAND_CLK		= 41
 
 
 } PhyState deriving (Bits, Eq);
 
 typedef enum {
 	PHY_ASYNC_BUS_IDLE,
-	PHY_ASYNC_SEND_NAND_CMD,
+	PHY_ASYNC_CMD,
 	PHY_ASYNC_READ,
 	PHY_ASYNC_WRITE,
-	PHY_ASYNC_SEND_ADDR,
+	PHY_ASYNC_ADDR,
 	PHY_SYNC_BUS_IDLE,
-	PHY_SYNC_SEND_NAND_CMD,
+	PHY_SYNC_CMD,
 	PHY_SYNC_READ,
 	PHY_SYNC_WRITE,
-	PHY_SYNC_SEND_ADDR,
+	PHY_SYNC_ADDR,
 	PHY_DESELECT_ALL,
 	PHY_ENABLE_NAND_CLK
-} PhyCmd deriving (Bits, Eq);
+} PhyCycle deriving (Bits, Eq);
 
 typedef enum {
 	N_RESET = 8'hFF,
@@ -114,7 +112,7 @@ typedef enum {
 
 
 typedef struct {
-	PhyCmd phyCmd;
+	PhyCycle phyCycle;
 	NandCmd nandCmd;
 	Bit#(16) numBurst;
 	Bit#(32) postCmdWait; //number of cycles to wait after the command
@@ -143,7 +141,7 @@ module mkNandPhy#(
 	Integer t_REH = 5; //30ns. Async RE# High hold time. Note: tRC=tRP+tREH >100n
 	//Sync timing params
 	Integer t_CAD = 3; //25ns 
-	Integer t_CMD_DQ_SYNCREG_DELAY = 3; //2 sync regs used for DQ cmd path
+	Integer t_CMD_DQ_SYNCREG_DELAY = 2; //2 sync regs used for DQ cmd path
 	Integer t_WRCK = 2; //20ns
 	Integer t_DQSCK = 2; //TODO: probably needs tweaking
 	Integer t_ISERDES = 4; //cycs for data to appear from DQ to output of ISERDESE2 TODO: tweak
@@ -179,20 +177,16 @@ module mkNandPhy#(
 	Reg#(Bit#(1)) wen <- mkReg(1); //WE# = NAND_CLK when wenSel=0
 	Reg#(Bit#(1)) wenSel <- mkReg(1); //WE# by default. until sync mode active
 	Reg#(Bit#(1)) wpn <- mkReg(0);
-	Reg#(Bit#(1)) cmdSelDQ <- mkReg(1);
+	//Reg#(Bit#(1)) cmdSelDQ <- mkReg(1);
 
 	//Registers for write data DQ
-	Reg#(Bit#(8)) wrDataRise <- mkReg(0); //, clocked_by clk90, reset_by rst90);
-	Reg#(Bit#(8)) wrDataFall <- mkReg(0); //, clocked_by clk90, reset_by rst90);
-	Reg#(Bit#(1)) oenDataDQ <- mkReg(1); //, clocked_by clk90, reset_by rst90);
-
-	//Registers for command DQ. Beware of timing: actually clocked by clk90. 
-	Reg#(Bit#(1)) oenCmdDQ <- mkReg(1);
-	Reg#(Bit#(8)) wrCmdDQ <- mkReg(0);
+	Reg#(Bit#(8)) wrDataRise <- mkReg(0); 
+	Reg#(Bit#(8)) wrDataFall <- mkReg(0); 
+	Reg#(Bit#(1)) oenDataDQ <- mkReg(1); 
 
 	//Registers for DQS
-	Reg#(Bit#(1)) oenDQS <- mkReg(1); //, clocked_by clk0, reset_by rst0);
-	Reg#(Bit#(1)) rstnDQS <- mkReg(0); //, clocked_by clk0, reset_by rst0); //set to 1 to enable DQS toggle
+	Reg#(Bit#(1)) oenDQS <- mkReg(1); 
+	Reg#(Bit#(1)) rstnDQS <- mkReg(0);//set to 1 to enable DQS toggle
 
 	//Delay adjustment registers
 	Reg#(Bit#(5)) incIdelayDQS_90 <- mkReg(0, clocked_by clk90, reset_by rst90);
@@ -201,8 +195,6 @@ module mkNandPhy#(
 	Reg#(Bool) initDoneSync <- mkSyncRegToCC(False, clk90, rst90);
 
 	//Debug registers
-	//Reg#(Bit#(8)) rdFall <- mkReg(0, clocked_by clk90, reset_by rst90);
-	//Reg#(Bit#(8)) rdRise <- mkReg(0, clocked_by clk90, reset_by rst90);
 	//Reg#(Bit#(8)) debugR90 <- mkReg(0, clocked_by clk90, reset_by rst90);
 	Reg#(Bit#(8)) debugR <- mkReg(0);
 	Reg#(Bit#(8)) debugR90 <- mkReg(0); //TODO not actually clk90
@@ -239,17 +231,11 @@ module mkNandPhy#(
 		vnandPhy.vphyUser.setCEN(cen);
 		vnandPhy.vphyUser.setWEN(wen);
 		vnandPhy.vphyUser.setWENSel(wenSel);
-		vnandPhy.vphyUser.oenCmdDQ(oenCmdDQ);
-		vnandPhy.vphyUser.wrCmdDQ(wrCmdDQ);
-		vnandPhy.vphyUser.cmdSelDQ(cmdSelDQ);
-
 		vnandPhy.vphyUser.oenDQS(oenDQS);
 		vnandPhy.vphyUser.rstnDQS(rstnDQS);
-
 		vnandPhy.vphyUser.oenDataDQ(oenDataDQ);
 		vnandPhy.vphyUser.wrDataRiseDQ(wrDataRise);
 		vnandPhy.vphyUser.wrDataFallDQ(wrDataFall);
-
 		vnandPhy.vphyUser.setDebug(debugR);
 		vnandPhy.vphyUser.setDebug90(debugR90);
 	endrule
@@ -312,17 +298,17 @@ module mkNandPhy#(
 
 	rule doIdle if (currState==IDLE);
 		let cmd = ctrlCmdQ.first();
-		case(cmd.phyCmd)
+		case(cmd.phyCycle)
 			PHY_ASYNC_BUS_IDLE: currState <= ASYNC_BUS_IDLE;
-			PHY_ASYNC_SEND_NAND_CMD: currState <= ASYNC_CMD_SET_CMD;
+			PHY_ASYNC_CMD: currState <= ASYNC_CMD_SET_CMD;
 			PHY_ASYNC_READ: currState <= ASYNC_READ_RE_LOW;
-			PHY_ASYNC_SEND_ADDR: currState <= ASYNC_ADDR_WE_LOW;
+			PHY_ASYNC_ADDR: currState <= ASYNC_ADDR_WE_LOW;
 			PHY_ASYNC_WRITE: currState <= ASYNC_WRITE_WE_LOW;
 			PHY_DESELECT_ALL: currState <= DESELECT_ALL;
 			PHY_ENABLE_NAND_CLK: currState <= ENABLE_NAND_CLK;
-			PHY_SYNC_SEND_NAND_CMD: currState <= SYNC_CMD_SET;
+			PHY_SYNC_CMD: currState <= SYNC_CMD_SET;
 			PHY_SYNC_READ: currState <= SYNC_READ_WR_LOW;
-			PHY_SYNC_SEND_ADDR: currState <= SYNC_ADDR_SET;
+			PHY_SYNC_ADDR: currState <= SYNC_ADDR_SET;
 			PHY_SYNC_WRITE: currState <= SYNC_WRITE_PREAMBLE;
 			PHY_SYNC_BUS_IDLE: currState <= SYNC_BUS_IDLE;
 			default: currState <= IDLE;
@@ -330,7 +316,7 @@ module mkNandPhy#(
 		numBurstCnt <= cmd.numBurst;
 		numBurstCntBr <= cmd.numBurst;
 		postCmdWaitCnt <= cmd.postCmdWait;
-		$display("@%t\t NandPhy: New command received: %x", $time, cmd.phyCmd);
+		$display("@%t\t NandPhy: New command received: %x", $time, cmd.phyCycle);
 	endrule
 
 	//****************************************
@@ -343,8 +329,7 @@ module mkNandPhy#(
 		wrn <= 1; //RE# high
 		wen <= 1;//select and set WE# high (NAND_CLK)
 		wenSel <= 1; 
-		cmdSelDQ <= 1; //default
-		oenCmdDQ <= 1; //disable output
+		oenDataDQ <= 1; //disable output
 		currState <= IDLE;
 		ctrlCmdQ.deq();
 		$display("@%t\t NandPhy: ASYNC_BUS_IDLE", $time);
@@ -354,14 +339,11 @@ module mkNandPhy#(
 	// Async command
 	//****************************************
 	rule doAsyncCmdSetup if (currState==ASYNC_CMD_SET_CMD);
-		cen <= 2'b10;
 		cle <= 1;
-		ale <= 0;
 		wen <= 0; 
-		wenSel <= 1;
-		cmdSelDQ <= 1;
-		oenCmdDQ <= 0; //enable cmd output on DQ
-		wrCmdDQ <= pack(ctrlCmdQ.first().nandCmd); //set command
+		oenDataDQ <= 0; //enable cmd output on DQ
+		wrDataRise <= pack(ctrlCmdQ.first().nandCmd); //set command
+		wrDataFall <= pack(ctrlCmdQ.first().nandCmd); //set command
 		//Wait for setup
 		waitCnt <= fromInteger(t_ASYNC_CMD_SETUP);
 		currState <= WAIT_CYCLES;
@@ -381,15 +363,11 @@ module mkNandPhy#(
 	// Async address cycle; assume bus idle
 	//****************************************
 	rule doAsyncAddrWeLow if (currState==ASYNC_ADDR_WE_LOW);
-		//cen <= 2'b10; //CE# low
-		cle <= 0; //Low
 		ale <= 1; //High
-		//wrn <= 1; //RE# high
 		wen <= 0;//select and set WE# low
-		wenSel <= 1; 
-		cmdSelDQ <= 1; //default
-		oenCmdDQ <= 0; //enable output. Note this signal needs 2 cycles to propogate
-		wrCmdDQ <= addrQ.first(); //set address output
+		oenDataDQ <= 0; //enable output. Note this signal needs 2 cycles to propogate
+		wrDataRise <= addrQ.first(); //set address output
+		wrDataFall <= addrQ.first(); //set address output
 		addrQ.deq();
 		//wait for setup
 		waitCnt <= fromInteger(t_ASYNC_ADDR_SETUP);
@@ -419,14 +397,10 @@ module mkNandPhy#(
 	// Async data input cycle (write to NAND); assume bus idle
 	//*************************************************************
 	rule doAsyncWriteWeLow if (currState==ASYNC_WRITE_WE_LOW);
-		//cle <= 0; //Low
-		//ale <= 0; //Low
-		//wrn <= 1; //RE# high
 		wen <= 0;//select and set WE# low
-		wenSel <= 1; 
-		cmdSelDQ <= 1; 
-		oenCmdDQ <= 0; //enable output. Note this signal needs 2 cycles to propogate
-		wrCmdDQ <= asyncWrQ.first(); //set data output
+		oenDataDQ <= 0; //enable output. Note this signal needs 2 cycles to propogate
+		wrDataRise <= asyncWrQ.first(); //set data output
+		wrDataFall <= asyncWrQ.first(); //set data output
 		asyncWrQ.deq();
 		//wait for setup
 		waitCnt <= fromInteger(t_ASYNC_WRITE_SETUP);
@@ -458,12 +432,7 @@ module mkNandPhy#(
 	// Async data output cycle (read from NAND); Assume bus idle
 	//*************************************************************
 	rule doAsyncReadReLow if (currState==ASYNC_READ_RE_LOW);
-		cle <= 0;
-		ale <= 0;
-		cmdSelDQ <= 1;
-		//TODO this appears to be a hack because we should be using oenDataDQ, 
-		// but that's in the clk90 domain
-		oenCmdDQ <= 1; //disable output. 
+		oenDataDQ <= 1; //disable output. 
 		//toggle RE# to capture data
 		wrn <= 0;
 		//wait tRP
@@ -512,8 +481,7 @@ module mkNandPhy#(
 		wrn <= 1; //RE# high
 		wen <= 1;//select and set WE# high (NAND_CLK)
 		wenSel <= 1; 
-		cmdSelDQ <= 1; //default
-		oenCmdDQ <= 1; //disable output
+		oenDataDQ <= 1; //disable output
 
 		//post command wait
 		if (postCmdWaitCnt > 0) begin
@@ -528,7 +496,6 @@ module mkNandPhy#(
 		$display("@%t\t NandPhy: ASYNC_DONE", $time);
 	endrule
 
-	//TODO: code a bit verbose here
 	//******************************************************
 	// Deselect all targets. Should be in bus idle already
 	//******************************************************
@@ -575,8 +542,7 @@ module mkNandPhy#(
 		ale <= 0;
 		cle <= 0;
 		wrn <= 1;
-		cmdSelDQ <= 1;
-		oenCmdDQ <= 1;
+		oenDataDQ <= 1;
 		oenDQS <= 1;
 		rstnDQS <= 0; 
 		ctrlCmdQ.deq();
@@ -591,13 +557,11 @@ module mkNandPhy#(
 	// Sync mode command cycle
 	//******************************************************
 	rule doSyncCommandSet if (currState==SYNC_CMD_SET);
-		//cen <= 2'b10;
 		cle <= 0;
-		cmdSelDQ <= 1;
-		oenCmdDQ <= 0; //TODO enable here because of sync reg
-		wrCmdDQ <= pack(ctrlCmdQ.first().nandCmd);
+		oenDataDQ <= 0;
+		wrDataRise <= pack(ctrlCmdQ.first().nandCmd);
+		wrDataFall <= pack(ctrlCmdQ.first().nandCmd);
 		//it takes 2 cycles to appear on DQ
-		//TODO check the cycles here
 		currState <= WAIT_CYCLES;
 		waitCnt <= fromInteger(t_CMD_DQ_SYNCREG_DELAY);
 		returnState <= SYNC_CMD_LATCH;
@@ -615,14 +579,12 @@ module mkNandPhy#(
 	// Sync mode address cycle; very similar to cmd cycle
 	//******************************************************
 	rule doSyncAddrSet if (currState==SYNC_ADDR_SET);
-		//cen <= 2'b10;
 		cle <= 0;
-		cmdSelDQ <= 1;
-		oenCmdDQ <= 0;
-		wrCmdDQ <= addrQ.first();
+		oenDataDQ <= 0;
+		wrDataRise <= addrQ.first();
+		wrDataFall <= addrQ.first();
 		addrQ.deq();
 		//it takes 2 cycles to appear on DQ
-		//TODO check the cycles here
 		currState <= WAIT_CYCLES;
 		waitCnt <= fromInteger(t_CMD_DQ_SYNCREG_DELAY);
 		returnState <= SYNC_ADDR_LATCH;
@@ -636,7 +598,8 @@ module mkNandPhy#(
 			currState <= SYNC_DONE;
 		end
 		else begin
-			wrCmdDQ <= addrQ.first();
+			wrDataRise <= addrQ.first();
+			wrDataFall <= addrQ.first();
 			addrQ.deq();
 			currState <= SYNC_ADDR_BURST;
 			numBurstCnt <= numBurstCnt - 1;
@@ -710,7 +673,6 @@ module mkNandPhy#(
 	rule doSyncWritePreamble if (currState==SYNC_WRITE_PREAMBLE);
 		oenDQS <= 0; //enable DQS
 		rstnDQS <= 0; //hold DQS low
-		cmdSelDQ <= 0; //select data output
 		oenDataDQ <= 0; //enable DQ
 		wrDataRise <= 0; //no real data
 		wrDataFall <= 0;
@@ -764,8 +726,7 @@ module mkNandPhy#(
 		cle <= 0;
 		ale <= 0;
 		wrn <= 1;
-		cmdSelDQ <= 1;
-		oenCmdDQ <= 1;
+		oenDataDQ <= 1;
 		oenDQS <= 1;
 		rstnDQS <= 0;
 		ctrlCmdQ.deq();
