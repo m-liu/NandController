@@ -25,7 +25,7 @@ import NandPhyWrapper::*;
 import NandInfra::*;
 
 interface PhyUser;
-	method Action sendCmd (ControllerCmd cmd);
+	method Action sendCmd (PhyCmd cmd);
 	method Action sendAddr (Bit#(8) addr);
 	method Action asyncWrByte (Bit#(8) data);
 	method ActionValue#(Bit#(16)) syncRdWord();
@@ -105,7 +105,9 @@ typedef enum {
 	N_PROGRAM_PAGE = 8'h80,
 	N_PROGRAM_PAGE_END = 8'h10,
 	N_READ_MODE = 8'h00,
-	N_READ_PAGE_END = 8'h30
+	N_READ_PAGE_END = 8'h30,
+	N_ERASE_BLOCK = 8'h60,
+	N_ERASE_BLOCK_END = 8'hD0
 
 
 } NandCmd deriving (Bits, Eq);
@@ -116,7 +118,7 @@ typedef struct {
 	NandCmd nandCmd;
 	Bit#(16) numBurst;
 	Bit#(32) postCmdWait; //number of cycles to wait after the command
-} ControllerCmd deriving (Bits, Eq);
+} PhyCmd deriving (Bits, Eq);
 
 
 //Default clock and resets are: clk0 and rst0
@@ -200,7 +202,7 @@ module mkNandPhy#(
 	Reg#(Bit#(8)) debugR90 <- mkReg(0); //TODO not actually clk90
 
 	//Command and address FIFO
-	FIFOF#(ControllerCmd) ctrlCmdQ <- mkFIFOF();
+	FIFOF#(PhyCmd) ctrlCmdQ <- mkFIFOF();
 	FIFO#(Bit#(8)) addrQ <- mkFIFO();
 
 	//Counters
@@ -348,7 +350,7 @@ module mkNandPhy#(
 		waitCnt <= fromInteger(t_ASYNC_CMD_SETUP);
 		currState <= WAIT_CYCLES;
 		returnState <= ASYNC_CMD_LATCH_WE;
-		$display("@%t\t NandPhy: ASYNC_CMD_SET_CMD", $time);
+		$display("@%t\t NandPhy: ASYNC_CMD_SET_CMD: %x", $time, ctrlCmdQ.first().nandCmd);
 	endrule
 
 	rule doAsyncCmdLatch if (currState==ASYNC_CMD_LATCH_WE);
@@ -603,8 +605,8 @@ module mkNandPhy#(
 			addrQ.deq();
 			currState <= SYNC_ADDR_BURST;
 			numBurstCnt <= numBurstCnt - 1;
+			$display("@%t\t NandPhy: SYNC_ADDR_LATCH addr=%x", $time, addrQ.first());
 		end
-		$display("@%t\t NandPhy: SYNC_ADDR_LATCH", $time);
 	endrule
 
 	rule doSyncAddrBurst if (currState == SYNC_ADDR_BURST);
@@ -780,7 +782,7 @@ module mkNandPhy#(
 	//*****************************************************
 	
 	interface PhyUser phyUser;
-		method Action sendCmd (ControllerCmd cmd);
+		method Action sendCmd (PhyCmd cmd);
 			ctrlCmdQ.enq(cmd);
 		endmethod
 

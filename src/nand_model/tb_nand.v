@@ -39,7 +39,7 @@ nand_model nand_model (
 	
 	//CE
 	.Ce_n(b0_cen[0]),
-	.Ce2_n(/*b0_cen[1]*/),
+	.Ce2_n(b0_cen[1]),
 	.Ce3_n(/*b0_cen[2]*/),
 	.Ce4_n(/*b0_cen[3]*/),
 	
@@ -66,7 +66,7 @@ nand_model nand_model (
 	.Wp2_n(/*b0_wpn[1]*/)
 );
 
-mkNandController u_nand_controller(
+mkFlashController u_flash_controller(
 		.CLK_sysClkP(clk_in_p),
 		 .CLK_sysClkN(clk_in_n),
 		 .RST_N_sysRstn(sys_resetn),
@@ -88,26 +88,10 @@ mkNandController u_nand_controller(
 		 .DEBUG(b0_debug),
 		 .DEBUG90(b0_debug90)
 	 );
-	 /*
-		.sys_resetn(sys_resetn), //from FMC
-		
-		.sys_clk_p(clk_in_p),
-		.sys_clk_n(clk_in_n),
-		.nand_clk(b0_nand_clk0),
-		
-		.dq(b0_dq),
-		.dqs(b0_dqs),
-		.cle(b0_cle),
-		.ale(b0_ale),
-		.wrn(b0_wrn),
-		.wpn(b0_wpn),
-		.cen(b0_cen),
-		.rb(b0_rb)
-		
-); 
-*/
+
+
 //---------------------------------------------
-// Simulation
+// Simulation clock and reset
 //---------------------------------------------
 
 initial begin
@@ -119,9 +103,6 @@ initial begin
 	//#200
 	sys_resetn = 1;
 	
-	//for now just wait a long time before ending simulation
-	//#100000000000000
-	//$finish;
 end
 
 //100MHz differential clock
@@ -133,58 +114,5 @@ always begin
 	#5 clk_in_n=~clk_in_n;
 end
 
-//reg [7:0] b0_dq_out;
-//reg b0_dqs_out;
-
-//assign b0_dq = (b0_ale==0) ? b0_dq_out : 8'hZZ;
-//assign b0_dq = b0_dq_out;
-//assign b0_dqs = (b0_ale==0) ? b0_dqs_out : 1'bZ;
-//assign b0_dqs = b0_dqs_out;
-
-/*
-always begin
-		#1000
-		b0_dq_out = 8'h0;
-		b0_dqs_out = 1'b0;
-		#503
-		b0_dq_out = 8'hDE;
-		b0_dqs_out = 1'b1;
-		#5
-		b0_dq_out = 8'hAD;
-		b0_dqs_out = 1'b0;
-		#5
-		b0_dq_out = 8'hBE;
-		b0_dqs_out = 1'b1;
-		#5
-		b0_dq_out = 8'hEF;
-		b0_dqs_out = 1'b0;
-		#5
-		b0_dq_out = 8'h0;
-		b0_dqs_out = 1'b0;
-		end
-*/
-
-
-/*
-
-
-always @ (*)
-begin
-	if (debug_ctrl==0) begin
-		#5
-		b0_dq = 16'hDEAD;
-		b0_dqs = 2'b11;
-		#5
-		b0_dq = 16'hBEEF;
-		b0_dqs = 2'b11;
-		
-	end
-	else begin
-		b0_dq = 16'hZZZZ;
-		b0_dqs = 2'bZZ;
-	end
-end
-
-*/
 
 endmodule

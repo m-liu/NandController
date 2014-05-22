@@ -214,8 +214,8 @@
 
 module nand_die_model (Io, Cle, Ale, Ce_n_i, Clk_We_n, Wr_Re_n, Wp_n, Rb_n, Pre, Lock, Dqs, ML_rdy, Rb_lun_n, PID, ENi, ENo, Dqs_c, Re_c);
 
-`include "nand_defines.v"
-`include "nand_parameters.v"
+`include "nand_defines.vh"
+`include "nand_parameters.vh"
 
 //-----------------------------------------------------------------
 // DEBUG options

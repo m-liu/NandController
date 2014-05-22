@@ -62,11 +62,6 @@ interface VPhyUser;
 	method Bit#(8) rdDataRiseDQ();
 	method Bit#(8) rdDataFallDQ();
 	method Bit#(8) rdDataCombDQ();
-	
-
-//	method Action oenCmdDQ (Bit#(1) i);
-//	method Action wrCmdDQ (Bit#(8) d);
-//	method Action cmdSelDQ (Bit#(1) i);
 
 	method Action setDebug (Bit#(8) i);
 	method Action setDebug90 (Bit#(8) i);
@@ -144,15 +139,6 @@ interface VPhyUser vphyUser;
 	//DQ combinational data for async mode; clk0
 	method v_rd_data_comb rdDataCombDQ() clocked_by(clk0) reset_by(rstn0);
 
-	//DQ commands; clk0
-	// create two path to DQ, one clocked by clk0 and other by clk90
-	// feed into mux, then ODDR (clocked by clk90). For commands, we hold DQ
-	// for a long time, therefore we don't care of ODDR goes metastable briefly if
-	// the clk0 path input violates setup 
-	//method oenCmdDQ (v_dq_cmd_oe_n) enable((*inhigh*) en20) clocked_by(clk0) reset_by(rstn0);
-	//method wrCmdDQ (v_wr_cmd) enable((*inhigh*) en21) clocked_by(clk0) reset_by(rstn0);
-	//method cmdSelDQ (v_dq_cmd_sel) enable((*inhigh*) en22) clocked_by(clk0) reset_by(rstn0);
-
 	//Debug signals
 	method setDebug (v_ctrl_debug) enable((*inhigh*)en14) clocked_by(clk0) reset_by(rstn0);
 	method setDebug90 (v_ctrl_debug90) enable((*inhigh*)en15) clocked_by(clk0) reset_by(rstn0);
@@ -183,69 +169,6 @@ vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wr
 //vphyUser_oenCmdDQ, vphyUser_wrCmdDQ, vphyUser_cmdSelDQ,
 vphyUser_setDebug, vphyUser_setDebug90);
 
-//
-////Delay controls areCF
-//schedule
-//(vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ)
-//CF
-//(vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ);
-//
-////Control signals are CF
-//schedule
-//(vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN)
-//CF
-//(vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN);
-//
-//schedule
-//(vphyUser_oenDQS, vphyUser_rstnDQS) 
-//CF 
-//(vphyUser_oenDQ, vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN);
-//
-//schedule
-//(vphyUser_oenDQ)
-//CF
-//(vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
-//vphyUser_dlyIncDQS,vphyUser_dlyCeDQS,vphyUser_dlyIncDQ,vphyUser_dlyCeDQ,vphyUser_wrDataRiseDQ,vphyUser_wrDataFallDQ);
-//
-//
-//schedule 
-//(vphyUser_oenDQ) C (vphyUser_oenDQ);
-//
-//schedule
-//(vphyUser_oenDQS) C (vphyUser_rstnDQS);
-//
-//schedule
-//(vphyUser_rstnDQS) C (vphyUser_rstnDQS);
-//
-//schedule
-//(vphyUser_oenDQS) C (vphyUser_oenDQS);
-//
-////read and writes are conflicting
-//schedule
-//(vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ)
-//C 
-//(vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ);
-//
-////unrelated
-//schedule
-//(vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ, vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ)
-//CF
-//(vphyUser_dlyIncDQS,vphyUser_dlyCeDQS,vphyUser_dlyIncDQ,vphyUser_dlyCeDQ,vphyUser_oenDQ);
-//
-////can read CF
-//schedule
-//(vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ)
-//CF
-//(vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ);
-//
-////FIXME testing
-//schedule
-//(vphyUser_setALE)
-//CF
-//(vphyUser_dlyIncDQS,vphyUser_dlyCeDQS,vphyUser_dlyIncDQ,vphyUser_dlyCeDQ,vphyUser_oenDQ,vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ, vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ);
-//
-////TODO: what other schedule constraints?
-//
 
 endmodule
 

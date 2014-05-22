@@ -103,7 +103,7 @@ u_bufr_dqs (
 	//Insert an assignment delay for functional simulation. IDELAY is not
 	//modeled in functional sims. 
 	//For timing simulation, do not use assignment delay
-	//TODO FIXME does this work?
+	//TODO FIXME remove this for post implementation sim
 	//`ifndef XIL_TIMING
 	//		assign delayed_dqs = dqs_bufio;
 	//`else

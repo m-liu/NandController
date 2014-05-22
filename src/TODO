@@ -1,0 +1,14 @@
+- Separate CE#
+- Separate NAND_CLK and RE#! (need to assert the correct one based on the ce#)
+- Use typedefs for command vector sizes (or arrays)
+- delay adjustment for DQ line
+- Sync Delay adjustment to clk0 domain (there are timing errors otherwise)
+- Implement and simulate in ISE
+- DQ reversing because of pin swap of front/back packages
+
+- Remove DQS simulation delay in post implementation sim
+- Timing and FIFO size adjustments
+- DQS pull up down resistors or Gating
+- Short reset used in the  model right now
+- Full support for async read/writes
+

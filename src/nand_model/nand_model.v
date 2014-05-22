@@ -27,7 +27,7 @@
 
 `timescale 1ns / 1ps
 
-`include "nand_defines.v"
+`include "nand_defines.vh"
 
 module nand_model (
 
@@ -63,7 +63,7 @@ module nand_model (
     Rb_n
 );
 
-`include "nand_parameters.v"
+`include "nand_parameters.vh"
 
 // Ports Declaration
     wire                    Lock = 1'b0;
