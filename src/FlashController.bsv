@@ -61,10 +61,10 @@ module mkFlashController#(
 	rule doWriteData if (state==WRITE_DATA);
 		if (dataCnt < fromInteger(pageSize/2)) begin
 			//hash block/page. Add 16'hA000 so the first burst isn't 0.
-			Bit#(16) dataTmp = dataCnt<<9;
-			Bit#(16) data = truncate(zeroExtend(pageCnt) * dataCnt + blockCnt * dataCnt + dataCnt + 
-												dataTmp + 16'hA000);
-			busCtrl.busIfc.writeWord(data);
+			Bit#(8) dataHi = truncate(dataCnt + 16'h00A0);
+			Bit#(8) dataLow = truncate((dataCnt<<2) + 16'h00DE);
+			Bit#(16) wData = {dataHi, dataLow};
+			busCtrl.busIfc.writeWord(wData);
 			dataCnt <= dataCnt + 1;
 		end
 		else begin
@@ -83,14 +83,16 @@ module mkFlashController#(
 	rule doReadData if (state==READ_DATA);
 		if (dataCnt < fromInteger(pageSize/2)) begin
 			let rdata <- busCtrl.busIfc.readWord();
-			Bit#(16) dataTmp = dataCnt<<9;
-			Bit#(16) checkData = truncate(zeroExtend(pageCnt) * dataCnt + blockCnt * dataCnt + dataCnt + 
-												dataTmp + 16'hA000);
+			Bit#(8) dataHi = truncate(dataCnt + 16'h00A0);
+			Bit#(8) dataLow = truncate((dataCnt<<2) + 16'h00DE);
+			Bit#(16) wData = {dataHi, dataLow};
+			//Bit#(16) checkData = truncate(zeroExtend(pageCnt) * dataCnt + blockCnt * dataCnt + dataCnt + 
+			//									dataTmp + 16'hA000);
 			//check
 			dataCnt <= dataCnt + 1;
-			if (rdata != checkData) begin
+			if (rdata != wData) begin
 				$display("FlashController TB: readback error on block=%d, page=%d; Expected %x, got %x", 
-								blockCnt, pageCnt, checkData, rdata);
+								blockCnt, pageCnt, wData, rdata);
 				hasErr <= True;
 			end
 			else begin

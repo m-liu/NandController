@@ -45,15 +45,15 @@ module nand_phy #
 		input [7:0] v_ctrl_debug90,
 		
 		//DQS iob control and data signals
-		input v_dlyinc_dqs,
-		input v_dlyce_dqs,
+		//input v_dlyinc_dqs,
+		//input v_dlyce_dqs,
 		//input dlyrst_dqs,
 		input v_dqs_oe_n,
 		input v_dqs_rst_n,
 		
 		//DQ iob control signals
-		input [DQ_WIDTH-1:0] v_dlyinc_dq,
-		input [DQ_WIDTH-1:0] v_dlyce_dq,
+		//input [DQ_WIDTH-1:0] v_dlyinc_dq,
+		//input [DQ_WIDTH-1:0] v_dlyce_dq,
 		//input [DQ_WIDTH-1:0] dlyrst_dq,
 		input v_dq_oe_n,
 		input [DQ_WIDTH-1:0] v_wr_data_rise,
@@ -162,9 +162,9 @@ nand_phy_dqs_iob #
 		.clk0           (v_clk0),
 		.clk90          (v_clk90),
 		.rst0           (v_rst0),
-		.dlyinc_dqs     (v_dlyinc_dqs),
-		.dlyce_dqs      (v_dlyce_dqs),
-		.dlyrst_dqs     (), //not sure if this is needed. Seems to only be for pipeline variable mode
+		//.dlyinc_dqs     (v_dlyinc_dqs),
+		//.dlyce_dqs      (v_dlyce_dqs),
+		//.dlyrst_dqs     (), //not sure if this is needed. Seems to only be for pipeline variable mode
 
 		.dqs_oe_n       (v_dqs_oe_n),
 		.dqs_rst_n      (v_dqs_rst_n),
@@ -191,9 +191,9 @@ nand_phy_dqs_iob #
 			  .rst0			 (v_rst0),
            .clk90        (v_clk90),
            .rst90        (v_rst90),
-           .dlyinc       (v_dlyinc_dq[dq_i]),
-           .dlyce        (v_dlyce_dq[dq_i]),
-           .dlyrst       (/*dlyrst_dq[dq_i]*/), //not sure if needed
+           //.dlyinc       (v_dlyinc_dq[dq_i]),
+           //.dlyce        (v_dlyce_dq[dq_i]),
+           //.dlyrst       (/*dlyrst_dq[dq_i]*/), //not sure if needed
            .dq_oe_n      (v_dq_oe_n),
            .dqs          (delayed_dqs),
            .wr_data_rise (v_wr_data_rise[dq_i]),

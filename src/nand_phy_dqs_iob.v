@@ -5,15 +5,16 @@ module nand_phy_dqs_iob #
    //parameter DQS_GATE_EN           = 1,
 	parameter DQS_NET_DELAY			  = 1.0, //TODO FUnctional simulation only!!
    parameter HIGH_PERFORMANCE_MODE = "TRUE",
-   parameter IODELAY_GRP           = "IODELAY_NAND"
+   parameter IODELAY_GRP           = "IODELAY_NAND",
+	parameter IDELAY_TAP 			  = 31
    )
   (
    input        clk0,
    input        clk90,
    input        rst0,
-   input        dlyinc_dqs,
-   input        dlyce_dqs,
-   input        dlyrst_dqs,
+   //input        dlyinc_dqs,
+   //input        dlyce_dqs,
+   //input        dlyrst_dqs,
    input        dqs_oe_n,
    input        dqs_rst_n,
    inout        ddr_dqs,
@@ -43,20 +44,20 @@ controller and can be misinterpreted as an access. Therefore, the DQS signals sh
 and used only when needed. This is done by the DQS calibration procedure.
 http://cache.freescale.com/files/dsp/doc/app_note/AN3992.pdf
 */
-//XXX For NAND, we shouldn't need DQS gating because we have pull up/down resistors on the DQS line XXX
+//For NAND, we shouldn't need DQS gating because we have pull up/down resistors on the DQS line
 //We DON'T have pullup/down resistors! Forgot to add them. 
 //Options: either rework the board by adding these resistors, or gate DQS in
-//hardware. TODO TODO TODO. Not sure how to do this gating yet... Add a mux?
-//use CE pin of BUFR? (not sure if allowed), keep ISERDES reset until DQS is
-	//driven?
+//hardware. 
+//[OK] Added PULL DOWN RESISTORS. 
 
 //replaced IODELAY with 7 series IDELAYE2
 (* IODELAY_GROUP = IODELAY_GRP *) IDELAYE2 #(
    .CINVCTRL_SEL("FALSE"),          // Enable dynamic clock inversion (FALSE, TRUE)
    .DELAY_SRC("IDATAIN"),           // Delay input (IDATAIN, DATAIN)
    .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter ("TRUE"), Reduced power ("FALSE")
-   .IDELAY_TYPE("VARIABLE"),           // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
-   .IDELAY_VALUE(0),                // Input delay tap setting (0-31)
+   //.IDELAY_TYPE("VARIABLE"),           // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
+   .IDELAY_TYPE("FIXED"),           // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
+   .IDELAY_VALUE(IDELAY_TAP),                // Input delay tap setting (0-31)
    .PIPE_SEL("FALSE"),              // Select pipelined mode, FALSE, TRUE
    .REFCLK_FREQUENCY(200.0),        // IDELAYCTRL clock input frequency in MHz (190.0-210.0).
    .SIGNAL_PATTERN("CLOCK")          // DATA, CLOCK input signal
@@ -65,15 +66,15 @@ u_idelay_dqs (
    .CNTVALUEOUT(), // 5-bit output: Counter value output
    .DATAOUT(dqs_idelay),         // 1-bit output: Delayed data output
    .C(clk90),                     // 1-bit input: Clock input
-   .CE(dlyce_dqs),                   // 1-bit input: Active high enable increment/decrement input
+   .CE(/*dlyce_dqs*/),                   // 1-bit input: Active high enable increment/decrement input
    .CINVCTRL(),       // 1-bit input: Dynamic clock inversion input
    .CNTVALUEIN(),   // 5-bit input: Counter value input
    .DATAIN(),           // 1-bit input: Internal delay data input
    .IDATAIN(dqs_ibuf),         // 1-bit input: Data input from the I/O
-   .INC(dlyinc_dqs),                 // 1-bit input: Increment / Decrement tap delay input
+   .INC(/*dlyinc_dqs*/),                 // 1-bit input: Increment / Decrement tap delay input
    .LD(),                   // 1-bit input: Load IDELAY_VALUE input
    .LDPIPEEN(),       // 1-bit input: Enable PIPELINE register to load data input
-   .REGRST(dlyrst_dqs)            // 1-bit input: Active-high reset tap-delay input
+   .REGRST(/*dlyrst_dqs*/)            // 1-bit input: Active-high reset tap-delay input
 );
 
 /*

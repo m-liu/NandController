@@ -103,9 +103,9 @@ module mkBusController#(
 	Reg#(Bit#(16)) debugR <- mkReg(0);
 
 	//Command/Data FIFOs
-	FIFO#(BusCmd) cmdQ <- mkSizedFIFO(128); //TODO adjust
-	FIFO#(Bit#(16)) writeQ <- mkSizedFIFO(2048); //TODO adjust
-	FIFO#(Bit#(16)) readQ <- mkSizedFIFO(2048); //TODO adjust
+	FIFO#(BusCmd) cmdQ <- mkSizedFIFO(64); //TODO adjust
+	FIFO#(Bit#(16)) writeQ <- mkSizedFIFO(128); //TODO adjust
+	FIFO#(Bit#(16)) readQ <- mkSizedFIFO(128); //TODO adjust
 	Reg#(BusCmd) cmdR <- mkRegU();
 	Reg#(Bit#(4)) chipR <- mkReg(0);
 	Vector#(5, Reg#(Bit#(8))) addrDecoded <- replicateM(mkReg(0));

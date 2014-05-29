@@ -45,16 +45,16 @@ interface VPhyUser;
 	method Action setWENSel (Bit#(1) i);
 	
 	//DQS delay control; clk90 domain
-	method Action dlyIncDQS (Bit#(1) i);
-	method Action dlyCeDQS (Bit#(1) i);
+	//method Action dlyIncDQS (Bit#(1) i);
+	//method Action dlyCeDQS (Bit#(1) i);
 
 	//DQS output; clk0 domain
 	method Action oenDQS (Bit#(1) i);
 	method Action rstnDQS (Bit#(1) i);
 
 	//DQ delay control; clk90 domain
-	method Action dlyIncDQ (Bit#(8) i);
-	method Action dlyCeDQ (Bit#(8) i);
+	//method Action dlyIncDQ (Bit#(8) i);
+	//method Action dlyCeDQ (Bit#(8) i);
 	method Action oenDataDQ (Bit#(1) i);
 	
 	method Action wrDataRiseDQ (Bit#(8) d);
@@ -119,16 +119,16 @@ interface VPhyUser vphyUser;
 	
 	
 	//DQS delay control; clk90 domain
-	method dlyIncDQS (v_dlyinc_dqs) enable((*inhigh*) en5) clocked_by(clk90) reset_by(rstn90);
-	method dlyCeDQS (v_dlyce_dqs) enable((*inhigh*) en6) clocked_by(clk90) reset_by(rstn90);
+	//method dlyIncDQS (v_dlyinc_dqs) enable((*inhigh*) en5) clocked_by(clk90) reset_by(rstn90);
+	//method dlyCeDQS (v_dlyce_dqs) enable((*inhigh*) en6) clocked_by(clk90) reset_by(rstn90);
 
 	//DQS output; clk0 domain
 	method oenDQS (v_dqs_oe_n) enable((*inhigh*) en7) clocked_by(clk0) reset_by(rstn0); //active low
 	method rstnDQS (v_dqs_rst_n) enable((*inhigh*) en8) clocked_by(clk0) reset_by(rstn0);
 
 	//DQ delay control; clk90 domain
-	method dlyIncDQ (v_dlyinc_dq) enable((*inhigh*) en9) clocked_by(clk90) reset_by(rstn90);
-	method dlyCeDQ (v_dlyce_dq) enable((*inhigh*) en10) clocked_by(clk90) reset_by(rstn90);
+	//method dlyIncDQ (v_dlyinc_dq) enable((*inhigh*) en9) clocked_by(clk90) reset_by(rstn90);
+	//method dlyCeDQ (v_dlyce_dq) enable((*inhigh*) en10) clocked_by(clk90) reset_by(rstn90);
 	
 	//DQ data; changed to clk0 too
 	method oenDataDQ (v_dq_oe_n) enable((*inhigh*) en11) clocked_by(clk0) reset_by(rstn0);
@@ -153,7 +153,7 @@ CF
 
 //Just set all other signals as CF
 schedule
-(vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ, 
+(/*vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ, */
 vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
 vphyUser_setWEN, vphyUser_setWENSel,
 vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDataDQ,
@@ -161,7 +161,7 @@ vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wr
 //vphyUser_oenCmdDQ, vphyUser_wrCmdDQ, vphyUser_cmdSelDQ,
 vphyUser_setDebug, vphyUser_setDebug90)
 CF
-(vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ, 
+(/*vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ,*/ 
 vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
 vphyUser_setWEN, vphyUser_setWENSel,
 vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDataDQ,

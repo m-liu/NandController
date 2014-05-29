@@ -1,14 +1,8 @@
 //Potential timing problems:
 // DQS and clk90 are not aligned on a read. It appears that ISERDESE2 align its output to 
 // OCLK (which is clk90), but I cannot be sure. 
-// ISERDESE2 is a secureip. Don't know when we violate timing or how much to shift IDELAY by. 
 //At power up, default mode is * asynchronous mode 0 *
 
-//TODO: initial values of CEN, WPN etc. is incorrect for a bit after power up
-//			need to set INIT parameter in FDRE reg
-//TODO separate CEs! For now just select one of the targets
-//TODO dqs gating or dqs pull up/down resistors
-//TODO rearrange DQ when writting to different chips
 
 import Connectable       ::*;
 import Clocks            ::*;
@@ -166,7 +160,7 @@ module mkNandPhy#(
 	//State registers
 	Reg#(PhyState) currState <- mkReg(INIT_WAIT);
 	Reg#(PhyState) returnState <- mkReg(INIT_WAIT);
-	Reg#(PhyState) currState90 <- mkSyncRegFromCC(INIT_WAIT, clk90);
+	//Reg#(PhyState) currState90 <- mkSyncRegFromCC(INIT_WAIT, clk90);
 
 	//Timing wait counters
 	Reg#(Bit#(32)) waitCnt <- mkReg(0);
@@ -191,10 +185,10 @@ module mkNandPhy#(
 	Reg#(Bit#(1)) rstnDQS <- mkReg(0);//set to 1 to enable DQS toggle
 
 	//Delay adjustment registers
-	Reg#(Bit#(5)) incIdelayDQS_90 <- mkReg(0, clocked_by clk90, reset_by rst90);
-	Reg#(Bit#(1)) dlyIncDQSr <- mkReg(0, clocked_by clk90, reset_by rst90);
-	Reg#(Bit#(1)) dlyCeDQSr <- mkReg(0, clocked_by clk90, reset_by rst90);
-	Reg#(Bool) initDoneSync <- mkSyncRegToCC(False, clk90, rst90);
+	//Reg#(Bit#(5)) incIdelayDQS_90 <- mkReg(0, clocked_by clk90, reset_by rst90);
+	//Reg#(Bit#(1)) dlyIncDQSr <- mkReg(0, clocked_by clk90, reset_by rst90);
+	//Reg#(Bit#(1)) dlyCeDQSr <- mkReg(0, clocked_by clk90, reset_by rst90);
+	//Reg#(Bool) initDoneSync <- mkSyncRegToCC(False, clk90, rst90);
 
 	//Debug registers
 	//Reg#(Bit#(8)) debugR90 <- mkReg(0, clocked_by clk90, reset_by rst90);
@@ -202,8 +196,8 @@ module mkNandPhy#(
 	Reg#(Bit#(8)) debugR90 <- mkReg(0); //TODO not actually clk90
 
 	//Command and address FIFO
-	FIFOF#(PhyCmd) ctrlCmdQ <- mkFIFOF();
-	FIFO#(Bit#(8)) addrQ <- mkFIFO();
+	FIFO#(PhyCmd) ctrlCmdQ <- mkFIFO();
+	FIFO#(Bit#(8)) addrQ <- mkSizedFIFO(32);
 
 	//Counters
 	Reg#(Bit#(16)) numBurstCnt <- mkReg(0);
@@ -212,18 +206,20 @@ module mkNandPhy#(
 	Reg#(Bit#(16)) numBurstCntBr <- mkReg(0);
 
 	//Read/write data FIFO
-	FIFO#(Bit#(8)) asyncRdQ <- mkSizedFIFO(256); //TODO adjust size
-	FIFO#(Bit#(8)) asyncWrQ <- mkSizedFIFO(256); //TODO adjust size
-	FIFO#(Bit#(16)) syncRdQ <- mkSizedFIFO(256); //TODO adjust size
-	FIFO#(Bit#(16)) syncWrQ <- mkSizedFIFO(256); //TODO adjust size
+	FIFO#(Bit#(8)) asyncRdQ <- mkSizedFIFO(32); //TODO adjust size
+	FIFO#(Bit#(8)) asyncWrQ <- mkSizedFIFO(32); //TODO adjust size
+	FIFO#(Bit#(16)) syncRdQ <- mkSizedFIFO(32); //TODO adjust size
+	FIFO#(Bit#(16)) syncWrQ <- mkSizedFIFO(32); //TODO adjust size
 
 	//**********************************************
 	// Buffer phy signals using registers in front
 	//**********************************************
+	/*
 	rule regBufs90;
 		vnandPhy.vphyUser.dlyCeDQS(dlyCeDQSr);
 		vnandPhy.vphyUser.dlyIncDQS(dlyIncDQSr);
 	endrule
+	*/
 
 	rule regBufs;
 		vnandPhy.vphyUser.setCLE(cle);
@@ -267,15 +263,17 @@ module mkNandPhy#(
 		wenSel <= 1; //disable nand_clk
 		waitCnt <= fromInteger(t_SYS_RESET);
 		currState <= WAIT_CYCLES;
-		returnState <= ADJ_IDELAY_DQS;
+		returnState <= INIT_NAND_PWR_WAIT;
 		$display("@%t\t NandPhy: INIT_WAIT", $time);
 	endrule
 
+	/*
 	rule doWaitIdelayDQS if (currState==ADJ_IDELAY_DQS);
 		if (initDoneSync==True) begin
 			currState <= INIT_NAND_PWR_WAIT;
 		end
 	endrule
+	*/
 
 	//power up initialization by the NAND
 	rule doInitNandPwrWait if (currState==INIT_NAND_PWR_WAIT);
@@ -749,6 +747,7 @@ module mkNandPhy#(
 	// clk90 domain rules
 	//**************************
 	//synchronize state to clk90 domain
+	/*
 	rule syncState;
 		currState90<=currState;
 	endrule
@@ -774,7 +773,7 @@ module mkNandPhy#(
 			initDoneSync <= True;
 		end
 	endrule
-	
+	*/
 
 
 	//*****************************************************
