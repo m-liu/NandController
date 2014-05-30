@@ -44,7 +44,7 @@ typedef enum {
 	INIT_WP					= 4,
 	WAIT_CYCLES				= 5,
 	IDLE						= 6,
-	ASYNC_BUS_IDLE			= 7,
+	ASYNC_CHIP_SEL			= 7,
 	ASYNC_CMD_SET_CMD		= 8,
 	ASYNC_CMD_LATCH_WE	= 9,
 	ASYNC_READ_RE_LOW		= 10,
@@ -68,7 +68,7 @@ typedef enum {
 	SYNC_WRITE_PREAMBLE	= 28,
 	SYNC_WRITE_BURST		= 29,
 
-	SYNC_BUS_IDLE			= 30,
+	SYNC_CHIP_SEL			= 30,
 	SYNC_DONE				= 31,
 	
 	DESELECT_ALL			= 40,
@@ -78,12 +78,12 @@ typedef enum {
 } PhyState deriving (Bits, Eq);
 
 typedef enum {
-	PHY_ASYNC_BUS_IDLE,
+	PHY_ASYNC_CHIP_SEL,
 	PHY_ASYNC_CMD,
 	PHY_ASYNC_READ,
 	PHY_ASYNC_WRITE,
 	PHY_ASYNC_ADDR,
-	PHY_SYNC_BUS_IDLE,
+	PHY_SYNC_CHIP_SEL,
 	PHY_SYNC_CMD,
 	PHY_SYNC_READ,
 	PHY_SYNC_WRITE,
@@ -103,16 +103,20 @@ typedef enum {
 	N_ERASE_BLOCK = 8'h60,
 	N_ERASE_BLOCK_END = 8'hD0
 
+} ONFICmd deriving (Bits, Eq);
 
-} NandCmd deriving (Bits, Eq);
-
+//using tagged union
+typedef union tagged {
+	ONFICmd OnfiCmd;
+	Bit#(4) ChipSel;
+} NandCmd deriving (Bits);
 
 typedef struct {
 	PhyCycle phyCycle;
 	NandCmd nandCmd;
 	Bit#(16) numBurst;
 	Bit#(32) postCmdWait; //number of cycles to wait after the command
-} PhyCmd deriving (Bits, Eq);
+} PhyCmd deriving (Bits);
 
 
 //Default clock and resets are: clk0 and rst0
@@ -166,7 +170,7 @@ module mkNandPhy#(
 	Reg#(Bit#(32)) waitCnt <- mkReg(0);
 
 	//Registers for command inputs
-	Reg#(Bit#(2)) cen <- mkReg(2'b11);
+	Reg#(Bit#(8)) cen <- mkReg(8'hFF);
 	Reg#(Bit#(1)) cle <- mkReg(0);
 	Reg#(Bit#(1)) ale <- mkReg(0);
 	Reg#(Bit#(1)) wrn <- mkReg(1);
@@ -254,13 +258,7 @@ module mkNandPhy#(
 	//**********************************************
 
 	rule doInitWait if (currState==INIT_WAIT);
-		cle <= 0;
-		ale <= 0;
-		wrn <= 1;
 		wpn <= 0;
-		cen <= 2'b10;
-		wen <= 1;
-		wenSel <= 1; //disable nand_clk
 		waitCnt <= fromInteger(t_SYS_RESET);
 		currState <= WAIT_CYCLES;
 		returnState <= INIT_NAND_PWR_WAIT;
@@ -299,7 +297,7 @@ module mkNandPhy#(
 	rule doIdle if (currState==IDLE);
 		let cmd = ctrlCmdQ.first();
 		case(cmd.phyCycle)
-			PHY_ASYNC_BUS_IDLE: currState <= ASYNC_BUS_IDLE;
+			PHY_ASYNC_CHIP_SEL: currState <= ASYNC_CHIP_SEL;
 			PHY_ASYNC_CMD: currState <= ASYNC_CMD_SET_CMD;
 			PHY_ASYNC_READ: currState <= ASYNC_READ_RE_LOW;
 			PHY_ASYNC_ADDR: currState <= ASYNC_ADDR_WE_LOW;
@@ -310,7 +308,7 @@ module mkNandPhy#(
 			PHY_SYNC_READ: currState <= SYNC_READ_WR_LOW;
 			PHY_SYNC_ADDR: currState <= SYNC_ADDR_SET;
 			PHY_SYNC_WRITE: currState <= SYNC_WRITE_PREAMBLE;
-			PHY_SYNC_BUS_IDLE: currState <= SYNC_BUS_IDLE;
+			PHY_SYNC_CHIP_SEL: currState <= SYNC_CHIP_SEL;
 			default: currState <= IDLE;
 		endcase
 		numBurstCnt <= cmd.numBurst;
@@ -320,10 +318,13 @@ module mkNandPhy#(
 	endrule
 
 	//****************************************
-	// Async bus idle
+	// Async bus idle/chip select
 	//****************************************
-	rule doAsyncCmdBusIdle if (currState==ASYNC_BUS_IDLE);
-		cen <= 2'b10; //CE# low
+	rule doAsyncCmdBusIdle if (currState==ASYNC_CHIP_SEL);
+		//one hot encode CE#
+		Bit#(4) ce_encoded = ctrlCmdQ.first().nandCmd.ChipSel;
+		Bit#(8) cen_one_hot = ~(1 << ce_encoded);
+		cen <= cen_one_hot; //CE# low
 		cle <= 0; //DC
 		ale <= 0; //DC
 		wrn <= 1; //RE# high
@@ -332,7 +333,7 @@ module mkNandPhy#(
 		oenDataDQ <= 1; //disable output
 		currState <= IDLE;
 		ctrlCmdQ.deq();
-		$display("@%t\t NandPhy: ASYNC_BUS_IDLE", $time);
+		$display("@%t\t NandPhy: ASYNC_CHIP_SEL %x", $time, cen_one_hot);
 	endrule
 
 	//****************************************
@@ -342,13 +343,13 @@ module mkNandPhy#(
 		cle <= 1;
 		wen <= 0; 
 		oenDataDQ <= 0; //enable cmd output on DQ
-		wrDataRise <= pack(ctrlCmdQ.first().nandCmd); //set command
-		wrDataFall <= pack(ctrlCmdQ.first().nandCmd); //set command
+		wrDataRise <= pack(ctrlCmdQ.first().nandCmd.OnfiCmd); //set command
+		wrDataFall <= pack(ctrlCmdQ.first().nandCmd.OnfiCmd); //set command
 		//Wait for setup
 		waitCnt <= fromInteger(t_ASYNC_CMD_SETUP);
 		currState <= WAIT_CYCLES;
 		returnState <= ASYNC_CMD_LATCH_WE;
-		$display("@%t\t NandPhy: ASYNC_CMD_SET_CMD: %x", $time, ctrlCmdQ.first().nandCmd);
+		$display("@%t\t NandPhy: ASYNC_CMD_SET_CMD: %x", $time, ctrlCmdQ.first().nandCmd.OnfiCmd);
 	endrule
 
 	rule doAsyncCmdLatch if (currState==ASYNC_CMD_LATCH_WE);
@@ -475,7 +476,6 @@ module mkNandPhy#(
 	// Go bus idle if done (ASYNC)
 	//**************************
 	rule doAsyncDone if (currState==ASYNC_DONE);
-		cen <= 2'b10; //CE# low
 		cle <= 0; //DC
 		ale <= 0; //DC
 		wrn <= 1; //RE# high
@@ -500,7 +500,7 @@ module mkNandPhy#(
 	// Deselect all targets. Should be in bus idle already
 	//******************************************************
 	rule doDeselect if (currState==DESELECT_ALL);
-		cen <= 2'b11;
+		cen <= 8'hFF;
 		//post command wait
 		if (postCmdWaitCnt > 0) begin
 			currState <= WAIT_CYCLES;
@@ -537,8 +537,11 @@ module mkNandPhy#(
 	//******************************************************
 	// Sync mode bus idle
 	//******************************************************
-	rule doSyncBusIdle if (currState==SYNC_BUS_IDLE);
-		cen <= 2'b10;
+	rule doSyncBusIdle if (currState==SYNC_CHIP_SEL);
+		//one hot encode CE#
+		Bit#(4) ce_encoded = ctrlCmdQ.first().nandCmd.ChipSel;
+		Bit#(8) cen_one_hot = ~(1 << ce_encoded);
+		cen <= cen_one_hot; //CE# low
 		ale <= 0;
 		cle <= 0;
 		wrn <= 1;
@@ -546,8 +549,8 @@ module mkNandPhy#(
 		oenDQS <= 1;
 		rstnDQS <= 0; 
 		ctrlCmdQ.deq();
-		$display("@%t\t NandPhy: SYNC_BUS_IDLE", $time);
-		//wait t_CAD. TODO: wasting a couple of cycles by going idle here
+		$display("@%t\t NandPhy: SYNC_CHIP_SEL %x", $time, cen_one_hot);
+		//wait t_CAD.
 		currState <= WAIT_CYCLES;
 		waitCnt <= fromInteger(t_CAD);
 		returnState <= IDLE;
@@ -559,13 +562,13 @@ module mkNandPhy#(
 	rule doSyncCommandSet if (currState==SYNC_CMD_SET);
 		cle <= 0;
 		oenDataDQ <= 0;
-		wrDataRise <= pack(ctrlCmdQ.first().nandCmd);
-		wrDataFall <= pack(ctrlCmdQ.first().nandCmd);
+		wrDataRise <= pack(ctrlCmdQ.first().nandCmd.OnfiCmd);
+		wrDataFall <= pack(ctrlCmdQ.first().nandCmd.OnfiCmd);
 		//it takes 2 cycles to appear on DQ
 		currState <= WAIT_CYCLES;
 		waitCnt <= fromInteger(t_CMD_DQ_SYNCREG_DELAY);
 		returnState <= SYNC_CMD_LATCH;
-		$display("@%t\t NandPhy: SYNC_CMD_SET cmd=%x", $time, ctrlCmdQ.first().nandCmd);
+		$display("@%t\t NandPhy: SYNC_CMD_SET cmd=%x", $time, ctrlCmdQ.first().nandCmd.OnfiCmd);
 	endrule
 
 	rule doSyncCommandLatch if (currState == SYNC_CMD_LATCH);
@@ -722,7 +725,6 @@ module mkNandPhy#(
 	// Go bus idle if done (SYNC)
 	//**************************
 	rule doSyncDone if (currState==SYNC_DONE);
-		cen <= 2'b10;
 		cle <= 0;
 		ale <= 0;
 		wrn <= 1;

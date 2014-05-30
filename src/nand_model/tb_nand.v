@@ -19,7 +19,7 @@ module tb;
 	wire b0_ale;
 	wire b0_wrn;
 	wire b0_wpn;
-	wire [1:0] b0_cen;
+	wire [7:0] b0_cen;
 	wire  [3:0] b0_rb;
 	wire [7:0] b0_debug;
 	wire [7:0] b0_debug90;
@@ -39,8 +39,8 @@ nand_model nand_model (
 	
 	//CE
 	.Ce_n(b0_cen[0]),
-	.Ce2_n(b0_cen[1]),
-	.Ce3_n(/*b0_cen[2]*/),
+	.Ce2_n(/*b0_cen[1]*/),
+	.Ce3_n(b0_cen[1]),
 	.Ce4_n(/*b0_cen[3]*/),
 	
 	//Ready/busy

@@ -1,18 +1,17 @@
-- Separate CE#
+- ISERDES frame alignment and valid data cycle capture
 - Separate NAND_CLK and RE#! (need to assert the correct one based on the ce#)
-- Use typedefs for command vector sizes (or arrays)
-- Implement and simulate in ISE
 - DQ reversing because of pin swap of front/back packages
- - initial values of CEN, WPN etc. is incorrect for a bit after power up need to set INIT parameter in FDRE reg
+- initial values of CEN, WPN etc. is incorrect for a bit after power up need to set INIT parameter in FDRE reg
+- Full support for async read/writes
 
 - Remove DQS simulation delay in post implementation sim
 - delay adjustment for DQ line
 - Timing and FIFO size adjustments
 - Short reset used in the  model right now
-- Full support for async read/writes
 
-/*** TESTING ***/
-- Use fix delay adjustments instead. Sync Delay adjustment to clk0 domain (there are timing errors otherwise). 
 
 /*** DONE ***/
+- Use typedefs for command vector sizes (or arrays)
+- Separate CE#
 - DQS pull up down resistors or Gating
+- Use fix delay adjustments instead. Sync Delay adjustment to clk0 domain (there are timing errors otherwise). 

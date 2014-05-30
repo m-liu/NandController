@@ -6,7 +6,7 @@ module nand_phy_dqs_iob #
 	parameter DQS_NET_DELAY			  = 1.0, //TODO FUnctional simulation only!!
    parameter HIGH_PERFORMANCE_MODE = "TRUE",
    parameter IODELAY_GRP           = "IODELAY_NAND",
-	parameter IDELAY_TAP 			  = 31
+	parameter IDELAY_TAP 			  = 16
    )
   (
    input        clk0,

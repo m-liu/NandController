@@ -24,7 +24,7 @@ module nand_phy #
 		output v_ale,
 		output v_wrn,
 		output v_wpn,
-		output [1:0] v_cen,
+		output [7:0] v_cen,
 		//input  [3:0] rb,
 
 		output [7:0] v_debug,
@@ -37,7 +37,7 @@ module nand_phy #
 		input v_ctrl_ale,
 		input v_ctrl_wrn,
 		input v_ctrl_wpn,
-		input [1:0] v_ctrl_cen,
+		input [7:0] v_ctrl_cen,
 		//output [3:0] ctrl_rb,
 		input v_ctrl_wen, 
 		input v_ctrl_wen_sel,

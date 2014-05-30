@@ -4,7 +4,7 @@
 //add flip flops at the IOB 
 module nand_phy_ctl_io #
 	(
-		parameter CENS_PER_IO = 2
+		parameter CENS_PER_BUS = 8
 		//parameter RBS_PER_IO = 4
 	)
 	(
@@ -15,7 +15,7 @@ module nand_phy_ctl_io #
 	output ale,
 	output wrn,
 	output wpn,
-	output [CENS_PER_IO-1:0] cen,
+	output [CENS_PER_BUS-1:0] cen,
 	//input  [RBS_PER_IO-1:0] rb,
 		
 	//controller facing interface
@@ -23,7 +23,7 @@ module nand_phy_ctl_io #
 	input ctrl_ale,
 	input ctrl_wrn,
 	input ctrl_wpn,
-	input [CENS_PER_IO-1:0] ctrl_cen,
+	input [CENS_PER_BUS-1:0] ctrl_cen,
 	//output [RBS_PER_IO-1:0] ctrl_rb,
 	
 	//clock and reset
@@ -34,7 +34,7 @@ module nand_phy_ctl_io #
 //ce. Active low. 
 genvar ce_i;
   generate
-    for(ce_i = 0; ce_i < CENS_PER_IO; ce_i = ce_i + 1) begin: gen_ce_n
+    for(ce_i = 0; ce_i < CENS_PER_BUS; ce_i = ce_i + 1) begin: gen_ce_n
       (* IOB = "FORCE" *) FDCPE #(
 				.INIT(1'b1)
 			) u_ff_ce_n (

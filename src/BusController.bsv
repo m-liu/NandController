@@ -85,6 +85,9 @@ module mkBusController#(
 	Integer t_BERS = 20000; //3.8 to 10ms. But start polling earlier.
 
 
+	Integer nAddrBursts = 5; //5 addr bursts is standard
+	Integer nAddrBurstsErase = 3; //3 addr bursts for erase
+	
 	//Nand PHY instantiation
 	NandPhyIfc phy <- mkNandPhy(clk90, rst90);
 
@@ -155,31 +158,43 @@ module mkBusController#(
 	//******************************************************
 	// Sync Read Page
 	//******************************************************
-	Vector#(3, PhyCmd) readReqCmds = newVector();
-	readReqCmds[0] = PhyCmd { 	phyCycle: PHY_SYNC_CMD, nandCmd: N_READ_MODE,
-										numBurst: 0, postCmdWait: 0};
-	readReqCmds[1] = PhyCmd {	phyCycle: PHY_SYNC_ADDR, nandCmd: ?, 
-		 		  						numBurst: 5, postCmdWait: 0};
-	readReqCmds[2] = PhyCmd {	phyCycle: PHY_SYNC_CMD, nandCmd: N_READ_PAGE_END, 
-										numBurst: 0, postCmdWait: fromInteger(t_WB_SYNC)};
+	Integer nreadReqCmds = 4;
+	PhyCmd readReqCmds[nreadReqCmds] = {
+			PhyCmd { phyCycle: PHY_SYNC_CHIP_SEL, nandCmd: tagged ChipSel chipR,
+						numBurst: 0, postCmdWait: 0},
+			PhyCmd { phyCycle: PHY_SYNC_CMD, nandCmd: tagged OnfiCmd N_READ_MODE,
+						numBurst: 0, postCmdWait: 0},
+			PhyCmd {	phyCycle: PHY_SYNC_ADDR, nandCmd: ?, 
+						numBurst: fromInteger(nAddrBursts), postCmdWait: 0},
+			PhyCmd {	phyCycle: PHY_SYNC_CMD, nandCmd: tagged OnfiCmd N_READ_PAGE_END, 
+						numBurst: 0, postCmdWait: fromInteger(t_WB_SYNC)}
+			};
 	
-	Vector#(2, PhyCmd) readDataCmds = newVector();
-	readDataCmds[0] = PhyCmd {	phyCycle: PHY_SYNC_CMD, nandCmd: N_READ_MODE, 
-		 		  						numBurst: 0, postCmdWait: fromInteger(t_WHR_SYNC)};
-	readDataCmds[1] = PhyCmd {	phyCycle: PHY_SYNC_READ, nandCmd: ?, 
-		 		  						numBurst: fromInteger(pageSize/2), postCmdWait: fromInteger(t_RHW_SYNC)};
+	Integer nreadDataCmds = 4;
+	PhyCmd readDataCmds[nreadDataCmds] = {
+			PhyCmd { phyCycle: PHY_SYNC_CHIP_SEL, nandCmd: tagged ChipSel chipR,
+						numBurst: 0, postCmdWait: 0},
+			PhyCmd {	phyCycle: PHY_SYNC_CMD, nandCmd: tagged OnfiCmd N_READ_MODE, 
+						numBurst: 0, postCmdWait: fromInteger(t_WHR_SYNC)},
+			PhyCmd {	phyCycle: PHY_SYNC_READ, nandCmd: ?, 
+						numBurst: fromInteger(pageSize/2), postCmdWait: fromInteger(t_RHW_SYNC)},
+			PhyCmd {	phyCycle: PHY_DESELECT_ALL, nandCmd: ?, 
+						numBurst: 0, postCmdWait: 0}
+			};
 
-	rule doReadPageCmd if (state==SYNC_READ_PAGE_REQ && cmdCnt < 3);
+	rule doReadPageCmd if (state==SYNC_READ_PAGE_REQ && cmdCnt < fromInteger(nreadReqCmds));
 		phy.phyUser.sendCmd(readReqCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
 	endrule
 		
-	rule doReadPageAddr if (state==SYNC_READ_PAGE_REQ && addrCnt < 5);
+	rule doReadPageAddr if (state==SYNC_READ_PAGE_REQ && addrCnt < fromInteger(nAddrBursts));
 		phy.phyUser.sendAddr(addrDecoded[addrCnt]);
 		addrCnt <= addrCnt + 1;
 	endrule
 
-	rule doReadPageWait if (state==SYNC_READ_PAGE_REQ && addrCnt==5 && cmdCnt==3);
+	rule doReadPageWait if (state==SYNC_READ_PAGE_REQ && 
+									addrCnt==fromInteger(nAddrBursts) && 
+									cmdCnt==fromInteger(nreadReqCmds));
 		state <= SYNC_POLL_STATUS;
 		rdyReturnState <= SYNC_READ_DATA;
 		cmdCnt <= 0;
@@ -187,7 +202,7 @@ module mkBusController#(
 		dataCnt <= 0;
 	endrule
 
-	rule doReadDataCmd if (state==SYNC_READ_DATA && cmdCnt < 2);
+	rule doReadDataCmd if (state==SYNC_READ_DATA && cmdCnt < fromInteger(nreadDataCmds));
 		phy.phyUser.sendCmd(readDataCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
 	endrule
@@ -200,7 +215,9 @@ module mkBusController#(
 		$display("NandCtrl: read data: %x", rd);
 	endrule
 
-	rule doReadDataDone if (state==SYNC_READ_DATA && dataCnt == fromInteger(pageSize/2) && cmdCnt==2);
+	rule doReadDataDone if (state==SYNC_READ_DATA && 
+								dataCnt == fromInteger(pageSize/2) && 
+								cmdCnt==fromInteger(nreadDataCmds));
 		state <= IDLE;
 	endrule
 
@@ -208,23 +225,29 @@ module mkBusController#(
 	//******************************************************
 	// Sync Write Page
 	//******************************************************
-		
-	Vector#(4, PhyCmd) writeReqCmds = newVector();
-	writeReqCmds[0] = PhyCmd {	phyCycle: PHY_SYNC_CMD, nandCmd: N_PROGRAM_PAGE, 
-		 		  						numBurst: 0, postCmdWait: 0};
-	writeReqCmds[1] = PhyCmd {	phyCycle: PHY_SYNC_ADDR, nandCmd: ?, 
-		 		  						numBurst: 5, postCmdWait: fromInteger(t_ADL_SYNC)};
-	writeReqCmds[2] = PhyCmd {	phyCycle: PHY_SYNC_WRITE, nandCmd: ?, 
-		 		  						numBurst: fromInteger(pageSize/2), postCmdWait: 0}; 
-	writeReqCmds[3] = PhyCmd {	phyCycle: PHY_SYNC_CMD, nandCmd: N_PROGRAM_PAGE_END, 
-		 		  						numBurst: 0, postCmdWait: fromInteger(t_WB_SYNC)};
+	Integer nwriteReqCmds = 6;	
+	PhyCmd writeReqCmds[nwriteReqCmds] = {
+			PhyCmd { phyCycle: PHY_SYNC_CHIP_SEL, nandCmd: tagged ChipSel chipR,
+						numBurst: 0, postCmdWait: 0},
+			PhyCmd {	phyCycle: PHY_SYNC_CMD, nandCmd: tagged OnfiCmd N_PROGRAM_PAGE, 
+						numBurst: 0, postCmdWait: 0},
+			PhyCmd {	phyCycle: PHY_SYNC_ADDR, nandCmd: ?, 
+						numBurst: fromInteger(nAddrBursts), postCmdWait: fromInteger(t_ADL_SYNC)},
+			PhyCmd {	phyCycle: PHY_SYNC_WRITE, nandCmd: ?, 
+						numBurst: fromInteger(pageSize/2), postCmdWait: 0}, 
+			PhyCmd {	phyCycle: PHY_SYNC_CMD, nandCmd: tagged OnfiCmd N_PROGRAM_PAGE_END, 
+		 				numBurst: 0, postCmdWait: fromInteger(t_WB_SYNC)},
+			PhyCmd {	phyCycle: PHY_DESELECT_ALL, nandCmd: ?, 
+						numBurst: 0, postCmdWait: 0}
+			};
 
-	rule doWritePageCmd if (state==SYNC_WRITE_PAGE && cmdCnt < 4);
+
+	rule doWritePageCmd if (state==SYNC_WRITE_PAGE && cmdCnt < fromInteger(nwriteReqCmds));
 		phy.phyUser.sendCmd(writeReqCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
 	endrule
 		
-	rule doWritePageAddr if (state==SYNC_WRITE_PAGE && addrCnt < 5);
+	rule doWritePageAddr if (state==SYNC_WRITE_PAGE && addrCnt < fromInteger(nAddrBursts));
 		phy.phyUser.sendAddr(addrDecoded[addrCnt]); 
 		addrCnt <= addrCnt + 1;
 	endrule
@@ -237,7 +260,8 @@ module mkBusController#(
 	endrule
 		
 	rule doWriteDone if (state==SYNC_WRITE_PAGE && dataCnt==fromInteger(pageSize/2) 
-								&& cmdCnt==4 && addrCnt==5);
+								&& cmdCnt==fromInteger(nwriteReqCmds) && 
+								addrCnt==fromInteger(nAddrBursts));
 		//wait for write to finish
 		state <= SYNC_POLL_STATUS;
 		rdyReturnState <= IDLE;
@@ -248,20 +272,27 @@ module mkBusController#(
 	//******************************************************
 	// Sync Erase Block
 	//******************************************************
-	Vector#(3, PhyCmd) eraseCmds = newVector();
-	eraseCmds[0] = PhyCmd {	phyCycle: PHY_SYNC_CMD, nandCmd: N_ERASE_BLOCK, 
-		 		  						numBurst: 0, postCmdWait: 0};
-	eraseCmds[1] = PhyCmd {	phyCycle: PHY_SYNC_ADDR, nandCmd: ?, 
-		 		  						numBurst: 3, postCmdWait: 0};
-	eraseCmds[2] = PhyCmd {	phyCycle: PHY_SYNC_CMD, nandCmd: N_ERASE_BLOCK_END, 
-		 		  						numBurst: 0, postCmdWait: fromInteger(t_BERS)};
+	Integer neraseCmds = 5;
+	PhyCmd eraseCmds[neraseCmds] = {
+			PhyCmd { phyCycle: PHY_SYNC_CHIP_SEL, nandCmd: tagged ChipSel chipR,
+						numBurst: 0, postCmdWait: 0},
+			PhyCmd {	phyCycle: PHY_SYNC_CMD, nandCmd: tagged OnfiCmd N_ERASE_BLOCK, 
+						numBurst: 0, postCmdWait: 0},
+			PhyCmd {	phyCycle: PHY_SYNC_ADDR, nandCmd: ?, 
+						numBurst: fromInteger(nAddrBurstsErase), postCmdWait: 0},
+			PhyCmd {	phyCycle: PHY_SYNC_CMD, nandCmd: tagged OnfiCmd N_ERASE_BLOCK_END, 
+		 				numBurst: 0, postCmdWait: fromInteger(t_BERS)},
+			PhyCmd {	phyCycle: PHY_DESELECT_ALL, nandCmd: ?, 
+						numBurst: 0, postCmdWait: 0}
+			};
 
-	rule doEraseBlockCmd if (state==SYNC_ERASE_BLOCK && cmdCnt < 3);
+	rule doEraseBlockCmd if (state==SYNC_ERASE_BLOCK && cmdCnt < fromInteger(neraseCmds));
 		phy.phyUser.sendCmd(eraseCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
 	endrule
 
-	rule doEraseBlockAddr if (state==SYNC_ERASE_BLOCK && addrCnt < 3);
+	rule doEraseBlockAddr if (state==SYNC_ERASE_BLOCK && 
+									addrCnt < fromInteger(nAddrBurstsErase));
 		//Write 3 row addresses (page, block) indices 2,3,4.
 		//Note: page addr is ignored by the NAND, but still have to send it
 		let ind = addrCnt+2;
@@ -269,7 +300,7 @@ module mkBusController#(
 		addrCnt <= addrCnt + 1;
 	endrule
 
-	rule doEraseBlockPoll if (state==SYNC_ERASE_BLOCK && addrCnt==3 && cmdCnt==3);
+	rule doEraseBlockPoll if (state==SYNC_ERASE_BLOCK && addrCnt==fromInteger(nAddrBurstsErase) && cmdCnt==fromInteger(neraseCmds));
 		//wait for write to finish
 		state <= SYNC_POLL_STATUS;
 		rdyReturnState <= IDLE;
@@ -280,22 +311,28 @@ module mkBusController#(
 	//******************************************************
 	// Sync Poll Status
 	//******************************************************
-	Vector#(2, PhyCmd) statusCmds = newVector();
-	statusCmds[0] = PhyCmd {	phyCycle: PHY_SYNC_CMD, nandCmd: N_READ_STATUS, 
-		 		  						numBurst: 0, postCmdWait: fromInteger(t_WHR_SYNC)};
-	statusCmds[1] = PhyCmd {	phyCycle: PHY_SYNC_READ, nandCmd: ?, 
-		 		  						numBurst: 1, postCmdWait: fromInteger(t_RHW_SYNC)};
+	Integer nstatusCmds = 4;
+	PhyCmd statusCmds[nstatusCmds] = { 
+			PhyCmd { phyCycle: PHY_SYNC_CHIP_SEL, nandCmd: tagged ChipSel chipR,
+						numBurst: 0, postCmdWait: 0},
+			PhyCmd {	phyCycle: PHY_SYNC_CMD, nandCmd: tagged OnfiCmd N_READ_STATUS, 
+			  			numBurst: 0, postCmdWait: fromInteger(t_WHR_SYNC)},
+			PhyCmd {	phyCycle: PHY_SYNC_READ, nandCmd: ?, 
+		 				numBurst: 1, postCmdWait: fromInteger(t_RHW_SYNC)},
+			PhyCmd {	phyCycle: PHY_DESELECT_ALL, nandCmd: ?, 
+						numBurst: 0, postCmdWait: 0}
+		};
 	rule doStatusCntReset if (state==SYNC_POLL_STATUS);
 		cmdCnt <= 0;
 		state <= SYNC_POLL_STATUS_POLL;
 	endrule 
 
-	rule doReadStatusCmd if (state==SYNC_POLL_STATUS_POLL && cmdCnt < 2);
+	rule doReadStatusCmd if (state==SYNC_POLL_STATUS_POLL && cmdCnt < fromInteger(nstatusCmds));
 		phy.phyUser.sendCmd(statusCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
 	endrule
 
-	rule doReadStatusGet if (state==SYNC_POLL_STATUS_POLL && cmdCnt==2);
+	rule doReadStatusGet if (state==SYNC_POLL_STATUS_POLL && cmdCnt==fromInteger(nstatusCmds));
 		let status <- phy.phyUser.syncRdWord();
 		cmdCnt <= 0;
 		$display("NandCtrl: sync status=%x", status);
@@ -321,64 +358,67 @@ module mkBusController#(
 	// 5) release CE#, wait t_ITC+t_WB
 	// 6) enable nand clock
 	// 7) select CE#, go sync bus idle
-	// TODO: can probably combine the addr/cmd/data rules into one
-	// TODO: typedefs for sizes. Use arrays
 	//******************************************************
-	Vector#(2, PhyCmd) initCmds = newVector();
-	initCmds[0] = PhyCmd {	phyCycle: PHY_ASYNC_BUS_IDLE, nandCmd: ?, 
-	 		  						numBurst: 0, postCmdWait: 0};
-	initCmds[1] = PhyCmd {	phyCycle: PHY_ASYNC_CMD, nandCmd: N_RESET, 
-	 		  						numBurst: 0, postCmdWait: fromInteger(t_POR)};
+	Integer ninitCmds = 2;
+	PhyCmd initCmds[ninitCmds] = {
+				PhyCmd {	phyCycle: PHY_ASYNC_CHIP_SEL, nandCmd: tagged ChipSel chipR, 
+	 						numBurst: 0, postCmdWait: 0},
+				PhyCmd {	phyCycle: PHY_ASYNC_CMD, nandCmd: tagged OnfiCmd N_RESET, 
+	 		  				numBurst: 0, postCmdWait: fromInteger(t_POR)}
+				};
 
-	Vector#(6, PhyCmd) actSyncCmds = newVector();
-	actSyncCmds[0] = PhyCmd {	phyCycle: PHY_ASYNC_CMD, nandCmd: N_SET_FEATURES, 
-	 		  							numBurst: 0, postCmdWait: 0};
-	actSyncCmds[1] = PhyCmd {	phyCycle: PHY_ASYNC_ADDR, nandCmd: ?, 
-	 		  							numBurst: 1, postCmdWait: fromInteger(t_ADL)};
-	actSyncCmds[2] = PhyCmd {	phyCycle: PHY_ASYNC_WRITE, nandCmd: ?, 
-	 		  							numBurst: 4, postCmdWait: fromInteger(t_WB)};
-	actSyncCmds[3] = PhyCmd {	phyCycle: PHY_DESELECT_ALL, nandCmd: ?, 
-	 		  							numBurst: 0, postCmdWait: fromInteger(t_ITC)};
-	actSyncCmds[4] = PhyCmd {	phyCycle: PHY_ENABLE_NAND_CLK, nandCmd: ?, 
-	 		  							numBurst: 0, postCmdWait: fromInteger(t_EN_CLK)};
-	actSyncCmds[5] = PhyCmd {	phyCycle: PHY_SYNC_BUS_IDLE, nandCmd: ?, 
-	 		  							numBurst: 0, postCmdWait: 0};
+	Integer nactSyncData = 4;
+	Integer nactSyncCmds = 6;
+	PhyCmd actSyncCmds[nactSyncCmds] = {
+				PhyCmd {	phyCycle: PHY_ASYNC_CHIP_SEL, nandCmd: tagged ChipSel chipR, 
+	 						numBurst: 0, postCmdWait: 0},
+				PhyCmd {	phyCycle: PHY_ASYNC_CMD, nandCmd: tagged OnfiCmd N_SET_FEATURES, 
+							numBurst: 0, postCmdWait: 0},
+				PhyCmd {	phyCycle: PHY_ASYNC_ADDR, nandCmd: ?, 
+							numBurst: 1, postCmdWait: fromInteger(t_ADL)},
+				PhyCmd {	phyCycle: PHY_ASYNC_WRITE, nandCmd: ?, 
+							numBurst: fromInteger(nactSyncData), postCmdWait: fromInteger(t_WB)},
+				PhyCmd {	phyCycle: PHY_DESELECT_ALL, nandCmd: ?, 
+							numBurst: 0, postCmdWait: fromInteger(t_ITC)},
+				PhyCmd {	phyCycle: PHY_ENABLE_NAND_CLK, nandCmd: ?, 
+							numBurst: 0, postCmdWait: fromInteger(t_EN_CLK)}
+				};
+	//actSyncCmds[5] = PhyCmd {	phyCycle: PHY_SYNC_CHIP_SEL, nandCmd: tagged ChipSel chipR, 
+	// 		  							numBurst: 0, postCmdWait: 0};
 
-	
+	Integer nactSyncAddr = 1;
 	Bit#(8) actSyncAddr = 8'h01;
-	Vector#(4, Bit#(8)) actSyncData = newVector();
-	actSyncData[0] = 8'h15; //synchronous mode 5
-	actSyncData[1] = 8'h00; 
-	actSyncData[2] = 8'h00; 
-	actSyncData[3] = 8'h00; 
+	//commands for sync mode 5 (0x15)
+	Bit#(8) actSyncData[nactSyncData] = { 8'h15, 8'h00, 8'h00, 8'h00 };
 	
-	rule doInitCmd if (state==INIT && cmdCnt < 2);
+	rule doInitCmd if (state==INIT && cmdCnt < fromInteger(ninitCmds));
 		phy.phyUser.sendCmd(initCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
 	endrule
 
-
-	rule doInitWait if (state==INIT && cmdCnt==2);
+	rule doInitWait if (state==INIT && cmdCnt==fromInteger(ninitCmds));
 		state <= ASYNC_POLL_STATUS;
 		rdyReturnState <= INIT_ACT_SYNC;
 	endrule
 
-	rule doInitActSync if (state==INIT_ACT_SYNC && cmdCnt < 6);
+	rule doInitActSync if (state==INIT_ACT_SYNC && cmdCnt < fromInteger(nactSyncCmds));
 		phy.phyUser.sendCmd(actSyncCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
 	endrule
 
-	rule doInitActSyncAddr if (state==INIT_ACT_SYNC && addrCnt < 1);
+	rule doInitActSyncAddr if (state==INIT_ACT_SYNC && addrCnt < fromInteger(nactSyncAddr));
 		phy.phyUser.sendAddr(actSyncAddr);
 		addrCnt <= addrCnt + 1;
 	endrule
 
-	rule doInitActSyncData if (state==INIT_ACT_SYNC && dataCnt < 4);
+	rule doInitActSyncData if (state==INIT_ACT_SYNC && dataCnt < fromInteger(nactSyncData));
 		phy.phyUser.asyncWrByte(actSyncData[dataCnt]);
 		dataCnt <= dataCnt + 1;
 	endrule
 
-	rule doInitDone if (state==INIT_ACT_SYNC && cmdCnt==6 && addrCnt==1 && dataCnt==4);
+	rule doInitDone if (state==INIT_ACT_SYNC && cmdCnt==fromInteger(nactSyncCmds) && 
+								addrCnt==fromInteger(nactSyncAddr) && 
+								dataCnt==fromInteger(nactSyncData));
 		state <= IDLE;
 	endrule
 
@@ -386,24 +426,31 @@ module mkBusController#(
 	//******************************************************
 	// Async Poll Status
 	//******************************************************
-
-	Vector#(2, PhyCmd) aStatusCmds = newVector();
-	aStatusCmds[0] = PhyCmd {	phyCycle: PHY_ASYNC_CMD, nandCmd: N_READ_STATUS, 
-	 		  						numBurst: 0, postCmdWait: fromInteger(t_WHR)};
-	aStatusCmds[1] = PhyCmd {	phyCycle: PHY_ASYNC_READ, nandCmd: ?, 
-	 		  						numBurst: 1, postCmdWait: fromInteger(t_RHW)};
+	Integer naStatusCmds = 4;
+	PhyCmd aStatusCmds[naStatusCmds] = {
+			PhyCmd { phyCycle: PHY_ASYNC_CHIP_SEL, nandCmd: tagged ChipSel chipR,
+						numBurst: 0, postCmdWait: 0},
+			PhyCmd {	phyCycle: PHY_ASYNC_CMD, nandCmd: tagged OnfiCmd N_READ_STATUS, 
+				 		numBurst: 0, postCmdWait: fromInteger(t_WHR)},
+			PhyCmd {	phyCycle: PHY_ASYNC_READ, nandCmd: ?, 
+	 		  			numBurst: 1, postCmdWait: fromInteger(t_RHW)},
+			PhyCmd {	phyCycle: PHY_DESELECT_ALL, nandCmd: ?, 
+						numBurst: 0, postCmdWait: 0}
+			};
 
 	rule doAsyncStatusCntReset if (state==ASYNC_POLL_STATUS);
 		cmdCnt <= 0;
 		state <= ASYNC_POLL_STATUS_POLL;
 	endrule
 
-	rule doAsyncPollStatus if (state==ASYNC_POLL_STATUS_POLL && cmdCnt < 2);
+	rule doAsyncPollStatus if (state==ASYNC_POLL_STATUS_POLL && 
+										cmdCnt < fromInteger(naStatusCmds));
 		phy.phyUser.sendCmd(aStatusCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
 	endrule
 
-	rule doAsyncGetStatus if (state==ASYNC_POLL_STATUS_POLL && cmdCnt==2);
+	rule doAsyncGetStatus if (state==ASYNC_POLL_STATUS_POLL && 
+										cmdCnt==fromInteger(naStatusCmds));
 		let status <- phy.phyUser.asyncRdByte();
 		cmdCnt <= 0;
 		$display("NandCtrl: async status=%x", status);

@@ -22,7 +22,7 @@ interface NANDPins;
 	(* prefix = "", result = "WPN" *)
 	method    Bit#(1)           wpn;
 	(* prefix = "", result = "CEN" *)
-	method    Bit#(2)           cen;
+	method    Bit#(8)           cen;
 	(* prefix = "DQ" *)
 	interface Inout#(Bit#(8))  dq;
 	(* prefix = "DQS" *)
@@ -40,7 +40,7 @@ interface VPhyUser;
 	method Action setALE (Bit#(1) i);
 	method Action setWRN (Bit#(1) i);
 	method Action setWPN (Bit#(1) i);
-	method Action setCEN (Bit#(2) i);
+	method Action setCEN (Bit#(8) i);
 	method Action setWEN (Bit#(1) i);
 	method Action setWENSel (Bit#(1) i);
 	
