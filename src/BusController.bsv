@@ -11,6 +11,7 @@ typedef enum {
 
 	INIT,
 	INIT_ACT_SYNC,
+	INIT_CALIB,
 
 	SYNC_READ_PAGE_REQ,
 	SYNC_READ_DATA,
@@ -337,14 +338,21 @@ module mkBusController#(
 		cmdCnt <= 0;
 		$display("NandCtrl: sync status=%x", status);
 		debugR <= status; //debug
-		if (status==16'hE0E0) begin //ready
+
+		//TODO: DEBUG calibration
+		if (rdyReturnState==INIT_CALIB) begin
 			state <= rdyReturnState;
 		end
 		else begin
-			//wait a while before polling
-			waitCnt <= 100;
-			state <= WAIT_CYCLES;
-			returnState <= SYNC_POLL_STATUS_POLL;
+			if (status==16'hE0E0) begin //ready
+				state <= rdyReturnState;
+			end
+			else begin
+				//wait a while before polling
+				waitCnt <= 100;
+				state <= WAIT_CYCLES;
+				returnState <= SYNC_POLL_STATUS_POLL;
+			end
 		end
 	endrule
 
@@ -358,6 +366,7 @@ module mkBusController#(
 	// 5) release CE#, wait t_ITC+t_WB
 	// 6) enable nand clock
 	// 7) select CE#, go sync bus idle
+	// 8) calibrate read timing by issuing READ ID 
 	//******************************************************
 	Integer ninitCmds = 2;
 	PhyCmd initCmds[ninitCmds] = {
@@ -383,14 +392,29 @@ module mkBusController#(
 				PhyCmd {	phyCycle: PHY_ENABLE_NAND_CLK, nandCmd: ?, 
 							numBurst: 0, postCmdWait: fromInteger(t_EN_CLK)}
 				};
-	//actSyncCmds[5] = PhyCmd {	phyCycle: PHY_SYNC_CHIP_SEL, nandCmd: tagged ChipSel chipR, 
-	// 		  							numBurst: 0, postCmdWait: 0};
 
 	Integer nactSyncAddr = 1;
 	Bit#(8) actSyncAddr = 8'h01;
 	//commands for sync mode 5 (0x15)
 	Bit#(8) actSyncData[nactSyncData] = { 8'h15, 8'h00, 8'h00, 8'h00 };
 	
+
+	Integer ncalibCmds = 5;
+	Integer ncalibIdAddr = 1;
+	PhyCmd calibCmds[ncalibCmds] = {
+				PhyCmd {	phyCycle: PHY_SYNC_CHIP_SEL, nandCmd: tagged ChipSel chipR, 
+	 						numBurst: 0, postCmdWait: 0},
+				PhyCmd {	phyCycle: PHY_SYNC_CMD, nandCmd: tagged OnfiCmd N_READ_ID, 
+							numBurst: 0, postCmdWait: 0},
+				PhyCmd {	phyCycle: PHY_SYNC_ADDR, nandCmd: ?, 
+							numBurst: 1, postCmdWait: fromInteger(t_WHR_SYNC)},
+				PhyCmd {	phyCycle: PHY_SYNC_CALIB, nandCmd: ?, 
+							numBurst: 8, postCmdWait: fromInteger(t_RHW_SYNC)},
+				PhyCmd {	phyCycle: PHY_DESELECT_ALL, nandCmd: ?, 
+							numBurst: 0, postCmdWait: 0}
+				};
+	Bit#(8) calibIdAddr = 8'h00;
+
 	rule doInitCmd if (state==INIT && cmdCnt < fromInteger(ninitCmds));
 		phy.phyUser.sendCmd(initCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
@@ -419,9 +443,31 @@ module mkBusController#(
 	rule doInitDone if (state==INIT_ACT_SYNC && cmdCnt==fromInteger(nactSyncCmds) && 
 								addrCnt==fromInteger(nactSyncAddr) && 
 								dataCnt==fromInteger(nactSyncData));
-		state <= IDLE;
+
+		//TODO: testing
+		//state <= INIT_CALIB;
+		//state <= IDLE; //FIXME TODO ml: testing
+		state <= SYNC_POLL_STATUS;
+		rdyReturnState <= INIT_CALIB;
+		cmdCnt <= 0;
+		addrCnt <= 0;
 	endrule
 
+	//Calibration rules
+	rule doInitCalib if (state==INIT_CALIB && cmdCnt < fromInteger(ncalibCmds));
+		phy.phyUser.sendCmd(calibCmds[cmdCnt]);
+		cmdCnt <= cmdCnt + 1;
+	endrule
+
+	rule doInitCalibIdAddr if (state==INIT_CALIB && addrCnt < fromInteger(ncalibIdAddr));
+		phy.phyUser.sendAddr(calibIdAddr);
+		addrCnt <= addrCnt+1;
+	endrule
+
+	rule doInitCalibDone if (state==INIT_CALIB && cmdCnt==fromInteger(ncalibCmds) &&
+										addrCnt==fromInteger(ncalibIdAddr));
+		state <= IDLE;
+	endrule
 	
 	//******************************************************
 	// Async Poll Status

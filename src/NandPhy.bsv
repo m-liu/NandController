@@ -67,12 +67,17 @@ typedef enum {
 	SYNC_ADDR_BURST		= 27,
 	SYNC_WRITE_PREAMBLE	= 28,
 	SYNC_WRITE_BURST		= 29,
+	SYNC_CALIB_WR_LOW		= 30,
+	SYNC_CALIB_LATCH		= 31,
+	SYNC_CALIB_DEQ			= 32,
+	SYNC_CALIB_CALIBRATE	= 33,
+	SYNC_CALIB_FAIL		= 34,
 
-	SYNC_CHIP_SEL			= 30,
-	SYNC_DONE				= 31,
+	SYNC_CHIP_SEL			= 40,
+	SYNC_DONE				= 41,
 	
-	DESELECT_ALL			= 40,
-	ENABLE_NAND_CLK		= 41
+	DESELECT_ALL			= 50,
+	ENABLE_NAND_CLK		= 51
 
 
 } PhyState deriving (Bits, Eq);
@@ -83,6 +88,7 @@ typedef enum {
 	PHY_ASYNC_READ,
 	PHY_ASYNC_WRITE,
 	PHY_ASYNC_ADDR,
+	PHY_SYNC_CALIB,
 	PHY_SYNC_CHIP_SEL,
 	PHY_SYNC_CMD,
 	PHY_SYNC_READ,
@@ -101,7 +107,8 @@ typedef enum {
 	N_READ_MODE = 8'h00,
 	N_READ_PAGE_END = 8'h30,
 	N_ERASE_BLOCK = 8'h60,
-	N_ERASE_BLOCK_END = 8'hD0
+	N_ERASE_BLOCK_END = 8'hD0,
+	N_READ_ID = 8'h90
 
 } ONFICmd deriving (Bits, Eq);
 
@@ -142,7 +149,7 @@ module mkNandPhy#(
 	//Sync timing params
 	Integer t_CAD = 3; //25ns 
 	Integer t_CMD_DQ_SYNCREG_DELAY = 2; //2 sync regs used for DQ cmd path
-	Integer t_WRCK = 2; //20ns
+	Integer t_WRCK_DQSD = 4; //20ns. Chose a safe value to wait until NAND drives DQS
 	Integer t_DQSCK = 2; //TODO: probably needs tweaking
 	Integer t_ISERDES = 4; //cycs for data to appear from DQ to output of ISERDESE2 TODO: tweak
 	Integer t_CKWR = 3; 
@@ -155,6 +162,8 @@ module mkNandPhy#(
 	Integer idelayDQS = 10;
 	Integer idelayDQ = 0;
 
+	//number of calibration bursts to sample
+	Integer calibFifoDepth = 16;
 
 	Clock defaultClk0 <- exposeCurrentClock();
 	Reset defaultRst0 <- exposeCurrentReset();
@@ -183,6 +192,7 @@ module mkNandPhy#(
 	Reg#(Bit#(8)) wrDataRise <- mkReg(0); 
 	Reg#(Bit#(8)) wrDataFall <- mkReg(0); 
 	Reg#(Bit#(1)) oenDataDQ <- mkReg(1); 
+	Reg#(Bit#(1)) iddrRstDQ <- mkReg(1); //assert reset until we need IDDR
 
 	//Registers for DQS
 	Reg#(Bit#(1)) oenDQS <- mkReg(1); 
@@ -193,6 +203,16 @@ module mkNandPhy#(
 	//Reg#(Bit#(1)) dlyIncDQSr <- mkReg(0, clocked_by clk90, reset_by rst90);
 	//Reg#(Bit#(1)) dlyCeDQSr <- mkReg(0, clocked_by clk90, reset_by rst90);
 	//Reg#(Bool) initDoneSync <- mkSyncRegToCC(False, clk90, rst90);
+
+	//Calibration registers, FIFOs and Counters
+	Reg#(Bit#(8)) rLat <- mkReg(fromInteger(calibFifoDepth)); //initialize to max rLat
+	Reg#(Bit#(1)) calibClk0Sel <- mkReg(0);
+	Reg#(Bit#(8)) refDqR <- mkReg(8'h2C); //TODO how to set this
+	FIFO#(Bit#(8)) fifoDqR0 <- mkSizedFIFO(calibFifoDepth);
+	FIFO#(Bit#(8)) fifoDqR90 <- mkSizedFIFO(calibFifoDepth);
+	FIFO#(Bit#(8)) fifoDqR180 <- mkSizedFIFO(calibFifoDepth);
+	FIFO#(Bit#(8)) fifoDqR270 <- mkSizedFIFO(calibFifoDepth);
+	Reg#(Bit#(16)) numCalibBrCnt <- mkReg(0);
 
 	//Debug registers
 	//Reg#(Bit#(8)) debugR90 <- mkReg(0, clocked_by clk90, reset_by rst90);
@@ -206,7 +226,7 @@ module mkNandPhy#(
 	//Counters
 	Reg#(Bit#(16)) numBurstCnt <- mkReg(0);
 	Reg#(Bit#(32)) postCmdWaitCnt <- mkReg(0);
-	Reg#(Bit#(4)) cntRdDelay <- mkReg(0);
+	Reg#(Bit#(8)) cntRdDelay <- mkReg(0);
 	Reg#(Bit#(16)) numBurstCntBr <- mkReg(0);
 
 	//Read/write data FIFO
@@ -236,8 +256,10 @@ module mkNandPhy#(
 		vnandPhy.vphyUser.oenDQS(oenDQS);
 		vnandPhy.vphyUser.rstnDQS(rstnDQS);
 		vnandPhy.vphyUser.oenDataDQ(oenDataDQ);
+		vnandPhy.vphyUser.iddrRstDQ(iddrRstDQ);
 		vnandPhy.vphyUser.wrDataRiseDQ(wrDataRise);
 		vnandPhy.vphyUser.wrDataFallDQ(wrDataFall);
+		vnandPhy.vphyUser.setCalibClk0Sel(calibClk0Sel);
 		vnandPhy.vphyUser.setDebug(debugR);
 		vnandPhy.vphyUser.setDebug90(debugR90);
 	endrule
@@ -304,6 +326,7 @@ module mkNandPhy#(
 			PHY_ASYNC_WRITE: currState <= ASYNC_WRITE_WE_LOW;
 			PHY_DESELECT_ALL: currState <= DESELECT_ALL;
 			PHY_ENABLE_NAND_CLK: currState <= ENABLE_NAND_CLK;
+			PHY_SYNC_CALIB: currState <= SYNC_CALIB_WR_LOW;
 			PHY_SYNC_CMD: currState <= SYNC_CMD_SET;
 			PHY_SYNC_READ: currState <= SYNC_READ_WR_LOW;
 			PHY_SYNC_ADDR: currState <= SYNC_ADDR_SET;
@@ -546,6 +569,7 @@ module mkNandPhy#(
 		cle <= 0;
 		wrn <= 1;
 		oenDataDQ <= 1;
+		iddrRstDQ <= 1; //still keep IDDR in reset
 		oenDQS <= 1;
 		rstnDQS <= 0; 
 		ctrlCmdQ.deq();
@@ -621,13 +645,142 @@ module mkNandPhy#(
 
 
 	//******************************************************************
+	// Sync mode read capture timing calibration
+	//******************************************************************
+	rule doSyncCalibWRLow if (currState==SYNC_CALIB_WR_LOW);
+		wrn <= 0;
+		numCalibBrCnt <= fromInteger(calibFifoDepth);
+		currState <= WAIT_CYCLES;
+		waitCnt <= fromInteger(t_WRCK_DQSD);
+		returnState <= SYNC_CALIB_LATCH;
+	endrule
+	
+	//Enable CLE/ALE for num of cycles of bursts
+	//Each burst corresponds to one DDR output (16-bit)
+	rule doSyncCalibLatch if (currState==SYNC_CALIB_LATCH);
+		if (numBurstCnt>=1) begin
+			cle <= 1;
+			ale <= 1;
+			iddrRstDQ <= 0; //release reset on IDDR so we capture data
+			numBurstCnt <= numBurstCnt - 1;
+			$display("@%t\t NandPhy: SYNC_CALIB_LATCH asserted cle/ale", $time);
+		end
+		else begin
+			cle <= 0;
+			ale <= 0;
+		end
+	endrule
+
+	//Access window can be 3-20ns after NAND_CLK edge (1 to 2 cycles)
+	//Domain transfer regs (2 cycles)
+	
+	//TODO: set reference calib data values
+	//TODO: assert reset on transfer regs so that we start fresh
+	//TODO: do we have to calibrate EACH CHIP?
+
+	//Buffer a bunch of data bursts in FIFOs
+	rule doSyncCalibCap if (currState==SYNC_CALIB_LATCH);
+		if (numCalibBrCnt > 0) begin
+			fifoDqR0.enq(vnandPhy.vphyUser.calibDqRise0()); 
+			fifoDqR90.enq(vnandPhy.vphyUser.calibDqRise90()); 
+			fifoDqR180.enq(vnandPhy.vphyUser.calibDqRise180()); 
+			fifoDqR270.enq(vnandPhy.vphyUser.calibDqRise270()); 
+			numCalibBrCnt <= numCalibBrCnt-1;
+			$display("@%t\t NandPhy: SYNC_CALIB enq'd dqR %x %x %x %x", $time, 
+					vnandPhy.vphyUser.calibDqRise0(), vnandPhy.vphyUser.calibDqRise90(), 
+					vnandPhy.vphyUser.calibDqRise180(), vnandPhy.vphyUser.calibDqRise270());
+		end
+
+		if (numBurstCntBr > 0) begin
+			//wait until ddr bursting is done
+			numBurstCntBr <= numBurstCntBr-1;
+		end
+
+		if (numBurstCntBr==0 && numCalibBrCnt==0) begin
+			numCalibBrCnt <= 0;
+			//currState <= SYNC_CALIB_CALIBRATE;
+			currState <= SYNC_CALIB_DEQ; //TODO testing
+			rLat <= 0;
+		end
+	endrule
+
+	//Calibration procedure
+	//1) Sample DQS domain DQ rise data at 0, 90, 180 and 270 degrees 
+	//   in cycles 3, 4 and 5
+	//2) Find the first valid data
+	//3) Use the clock edge 90 to 180 degrees after the first valid byte (clk0 or clk180)
+	Reg#(Bit#(8)) dqR0 <- mkReg(0);
+	Reg#(Bit#(8)) dqR90 <- mkReg(0);
+	Reg#(Bit#(8)) dqR180 <- mkReg(0);
+	Reg#(Bit#(8)) dqR270 <- mkReg(0);
+
+
+	rule doSyncCalibDeq if (currState==SYNC_CALIB_DEQ);
+		dqR0 <= fifoDqR0.first();
+		dqR90 <= fifoDqR90.first();
+		dqR180 <= fifoDqR180.first();
+		dqR270 <= fifoDqR270.first();
+		fifoDqR0.deq();
+		fifoDqR90.deq();
+		fifoDqR180.deq();
+		fifoDqR270.deq();
+		currState <= SYNC_CALIB_CALIBRATE;
+	endrule
+
+	rule doSyncCalib if (currState==SYNC_CALIB_CALIBRATE);
+			//$display("@%t\t NandPhy: SYNC_CALIB_CALIBRATE", $time);
+			//Find the first valid byte
+			//if (fifoDqR0.first()==refDqR || fifoDqR90.first()==refDqR) begin
+			if (dqR0==refDqR || dqR90==refDqR) begin
+				//CLK is 0-180 degrees shifted from DQS
+				//Use clk180 to capture data
+				calibClk0Sel <= 0; //use clk180 for data capture
+				rLat <= rLat+1; //data is available at clk0 on the next edge
+				//fifoDqR0.clear();
+				//fifoDqR90.clear();
+				//fifoDqR180.clear();
+				//fifoDqR270.clear();
+				currState <= SYNC_DONE;
+				$display("@%t\t NandPhy: SYNC_CALIB_CALIBRATE done, clk0sel=0, rLat=%d", $time, rLat);
+			end
+			//else if (fifoDqR180.first()==refDqR || fifoDqR270.first()==refDqR) begin
+			else if (dqR180==refDqR || dqR270==refDqR) begin
+				//CLK is 180-360 degrees shifted from DQS
+				//Use clk0 at the next cycle edge to capture data
+				rLat <= rLat+1;
+				calibClk0Sel <= 1;
+				//fifoDqR0.clear();
+				//fifoDqR90.clear();
+				//fifoDqR180.clear();
+				//fifoDqR270.clear();
+				currState <= SYNC_DONE;
+				$display("@%t\t NandPhy: SYNC_CALIB_CALIBRATE done, clk0sel=1, rLat=%d", $time, rLat+1);
+			end
+			else if (rLat < fromInteger(calibFifoDepth)) begin
+				//Check the next cycle
+				rLat <= rLat + 1;
+				//fifoDqR0.deq();
+				//fifoDqR90.deq();
+				//fifoDqR180.deq();
+				//fifoDqR270.deq();
+				currState <= SYNC_CALIB_DEQ;
+			end
+			else begin
+				//Something bad happened. Not capturing data correctly
+				$display("@%t\t NandPhy: SYNC_CALIB_CALIBRATE failed. Possible DQ-DQS skew error", $time);
+				currState <= SYNC_CALIB_FAIL;
+				//TODO: adjust DQ/DQS skew
+			end
+	endrule
+
+	//******************************************************************
 	// Sync mode data output cycle (read from NAND); assume bus idle
 	//******************************************************************
 	//TODO: not very efficient here. tCAD and tWRCK can overlap
 	rule doSyncReadWRLow if (currState==SYNC_READ_WR_LOW);
 		wrn <= 0;
 		currState <= WAIT_CYCLES;
-		waitCnt <= fromInteger(t_WRCK);
+		waitCnt <= fromInteger(t_WRCK_DQSD);
 		returnState <= SYNC_READ_LATCH;
 	endrule
 	
@@ -637,6 +790,7 @@ module mkNandPhy#(
 		if (numBurstCnt>=1) begin
 			cle <= 1;
 			ale <= 1;
+			iddrRstDQ <= 0; //release reset on IDDR so we capture data
 			numBurstCnt <= numBurstCnt - 1;
 			$display("@%t\t NandPhy: SYNC_READ_LATCH asserted cle/ale", $time);
 		end
@@ -650,7 +804,8 @@ module mkNandPhy#(
 	//Start capturing data t_DQSCK+t_ISERDES after cle/ale is asserted.
 	//Use a separate temp counter here
 	rule doSyncReadCap if (currState==SYNC_READ_LATCH);
-		if ((cntRdDelay > fromInteger(t_DQSCK + t_ISERDES)) && numBurstCntBr>=1 ) begin
+		//if ((cntRdDelay > fromInteger(t_DQSCK + t_ISERDES)) && numBurstCntBr>=1 ) begin
+		if (cntRdDelay >= rLat && numBurstCntBr>=1 ) begin
 			let rdRise = vnandPhy.vphyUser.rdDataRiseDQ();
 			let rdFall = vnandPhy.vphyUser.rdDataFallDQ();
 			syncRdQ.enq({rdRise, rdFall});
@@ -660,11 +815,11 @@ module mkNandPhy#(
 		else if (numBurstCntBr < 1) begin //we finished reading data bursts
 			//wait for ( tCKWR - (t_DQSCK+t_ISERDES) )
 			currState <= WAIT_CYCLES;
-			waitCnt <= fromInteger(t_CKWR_DQSCK_ISERDES);
+			waitCnt <= fromInteger(t_CKWR_DQSCK_ISERDES); //TODO not exactly correct
 			returnState <= SYNC_DONE;
 			cntRdDelay <= 0;
 		end
-		else begin //waiting t_DQSCK+t_ISERDES
+		else begin //waiting rLat
 			cntRdDelay <= cntRdDelay+1;
 		end
 	endrule
@@ -729,6 +884,7 @@ module mkNandPhy#(
 		ale <= 0;
 		wrn <= 1;
 		oenDataDQ <= 1;
+		iddrRstDQ <= 1; //IDDR reset again 
 		oenDQS <= 1;
 		rstnDQS <= 0;
 		ctrlCmdQ.deq();

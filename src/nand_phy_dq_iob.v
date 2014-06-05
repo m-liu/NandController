@@ -25,37 +25,33 @@ module nand_phy_dq_iob #
    //input  dlyce,
    //input  dlyrst,
    input  dq_oe_n,
+	input  dq_iddr_rst,
    input  dqs,
    input  wr_data_rise,
    input  wr_data_fall,
    output reg rd_data_rise,
    output reg rd_data_fall,
 	output rd_data_comb, 
-   inout  ddr_dq
+   inout  ddr_dq,
+
+	//calibration
+	output reg calib_dq_rise_0,
+	output reg calib_dq_rise_90,
+	output reg calib_dq_rise_180,
+	output reg calib_dq_rise_270,
+	input calib_clk0_sel
+
    );
 
   wire    dq_in;
   wire    dq_oe_n_r;
   wire    dq_out;
-  wire    iserdes_clk;
-  wire    iserdes_clkb;
+  //wire    iserdes_clk;
+  //wire    iserdes_clkb;
+  reg doutR_0, doutR_180, doutR_180_sync;
+  reg doutF_0, doutF_180;
+  wire dq_iddr_r, dq_iddr_f;
 
-
-
-//Synchronization 
-
-//Sychronize read data: clk90 -> clk0
-//Because we have ~7.5ns of setup time, it should be safe
-always @ (posedge clk0)
-begin
-	if (rst0) begin
-		rd_data_rise <= 0;
-		rd_data_fall <= 0;
-	end else begin
-		rd_data_rise <= rd_data_rise_90;
-		rd_data_fall <= rd_data_fall_90;
-	end
-end
 
 //Synchronize write data from clk0 to clk90 domain. clk0 -> clk180 -> clk90
 //This way setup time is at least 5ns
@@ -162,6 +158,200 @@ u_idelay_dq (
    .REGRST(/*dlyrst*/)            // 1-bit input: Active-high reset tap-delay input
 );
 
+
+
+//IDDR reset register buffer. High at power up
+ FDCPE u_ff_dq_iddr_rst
+    (
+     .Q   (dq_iddr_rst_r),
+     .C   (clk0),
+     .CE  (1'b1),
+     .CLR (1'b0),
+     .D   (dq_iddr_rst),
+     .PRE (rst0)
+     );
+
+
+(* KEEP = "TRUE" *)
+IDDR #(
+   .DDR_CLK_EDGE("OPPOSITE_EDGE"), // "OPPOSITE_EDGE", "SAME_EDGE" 
+                                   //    or "SAME_EDGE_PIPELINED" 
+   .INIT_Q1(1'b0), // Initial value of Q1: 1'b0 or 1'b1
+   .INIT_Q2(1'b0), // Initial value of Q2: 1'b0 or 1'b1
+   .SRTYPE("ASYNC") // Set/Reset type: "SYNC" or "ASYNC" 
+) IDDR_inst (
+   .Q1(dq_iddr_r), // 1-bit output for positive edge of clock 
+   .Q2(dq_iddr_f), // 1-bit output for negative edge of clock
+   .C(dqs),   // 1-bit clock input
+   .CE(~dq_iddr_rst_r), // 1-bit clock enable input
+   .D(dq_idelay),   // 1-bit DDR data input
+   .R(rst0),// | dq_iddr_rst_r),   // 1-bit reset
+   .S(1'd0)    // 1-bit set
+);
+
+assign rd_data_comb = dq_in;
+
+
+
+//Synchronize read data from DQS domain to clk0 domain
+//TODO FIXME: may violate timing. May need an opposite edge synchronizer
+
+always @ (posedge clk0)
+begin
+	if (rst0) begin
+		doutR_0 <= 0;
+		doutF_180 <= 0;
+		doutR_180 <= 0;
+	end else begin
+		doutR_0 <= dq_iddr_r;
+		doutF_180 <= dq_iddr_f;
+		doutR_180 <= doutR_180_sync;
+	end
+end
+
+always @ (negedge clk0)
+begin
+	if (rst0) begin
+		doutR_180_sync <= 0;
+		doutF_0 <= 0;
+	end else begin
+		doutR_180_sync <= dq_iddr_r;
+		doutF_0 <= dq_iddr_f;
+	end
+end
+
+always @ (posedge clk0)
+begin
+	if (rst0) begin
+		rd_data_fall <= 0;
+		rd_data_rise <= 0;
+	end else begin
+		rd_data_fall <= (calib_clk0_sel==1) ? doutF_0 : doutF_180;
+		rd_data_rise <= (calib_clk0_sel==1) ? doutR_0 : doutR_180;
+	end
+end
+
+//For calibration, also examine data at clk90 edges
+reg doutR_90;
+reg doutR_270;
+
+always @ (posedge clk90)
+begin
+	if (rst90) begin
+		doutR_90 <= 0;
+	end else begin
+		doutR_90 <= dq_iddr_r;
+	end
+end
+
+always @ (negedge clk90)
+begin
+	if (rst90) begin
+		doutR_270 <= 0;
+	end else begin
+		doutR_270 <= dq_iddr_r;
+	end
+end
+
+
+//Examine all 4 registers for calibration 
+always @ (posedge clk0)
+begin
+	if (rst0) begin
+		calib_dq_rise_0 <= 0;
+		calib_dq_rise_90 <= 0;
+		calib_dq_rise_180 <= 0;
+		calib_dq_rise_270 <= 0;
+	end else begin
+		calib_dq_rise_0 <= doutR_0;
+		calib_dq_rise_90 <= doutR_90; 
+		calib_dq_rise_180 <= doutR_180_sync;
+		calib_dq_rise_270 <= doutR_270;
+	end
+end
+
+
+
+//TODO TODO TODO. Replace IDDR with ISERDES again....!?
+/*
+
+  // equalize delays to avoid delta-delay issues
+  assign  iserdes_clk  = dqs;
+  assign  iserdes_clkb = ~dqs;
+
+(* KEEP = "TRUE" *)
+ISERDESE2 #(
+   .DATA_RATE("DDR"),           // DDR, SDR
+   .DATA_WIDTH(4),              // Parallel data width (2-8,10,14)
+   .DYN_CLKDIV_INV_EN("FALSE"), // Enable DYNCLKDIVINVSEL inversion (FALSE, TRUE)
+   .DYN_CLK_INV_EN("FALSE"),    // Enable DYNCLKINVSEL inversion (FALSE, TRUE)
+   // INIT_Q1 - INIT_Q4: Initial value on the Q outputs (0/1)
+   .INIT_Q1(1'b0),
+   .INIT_Q2(1'b0),
+   .INIT_Q3(1'b0),
+   .INIT_Q4(1'b0),
+   .INTERFACE_TYPE("MEMORY"),   // MEMORY, MEMORY_DDR3, MEMORY_QDR, NETWORKING, OVERSAMPLE
+   .IOBDELAY("IFD"),           // NONE, BOTH, IBUF, IFD
+   .NUM_CE(2),                  // Number of clock enables (1,2)
+   .OFB_USED("FALSE"),          // Select OFB path (FALSE, TRUE)
+   .SERDES_MODE("MASTER"),      // MASTER, SLAVE
+   // SRVAL_Q1 - SRVAL_Q4: Q output values when SR is used (0/1)
+   .SRVAL_Q1(1'b0),
+   .SRVAL_Q2(1'b0),
+   .SRVAL_Q3(1'b0),
+   .SRVAL_Q4(1'b0) 
+)
+ISERDESE2_inst (
+   .O(),                       // 1-bit output: Combinatorial output
+   // Q1 - Q8: 1-bit (each) output: Registered data outputs
+   .Q1(rd_data_fall_test),
+   .Q2(rd_data_rise_test),
+   .Q3(),
+   .Q4(),
+   .Q5(),
+   .Q6(),
+   .Q7(),
+   .Q8(),
+   // SHIFTOUT1-SHIFTOUT2: 1-bit (each) output: Data width expansion output ports
+   .SHIFTOUT1(),
+   .SHIFTOUT2(),
+   .BITSLIP(1'b0),           // 1-bit input: The BITSLIP pin performs a Bitslip operation synchronous to
+                                // CLKDIV when asserted (active High). Subsequently, the data seen on the Q1
+                                // to Q8 output ports will shift, as in a barrel-shifter operation, one
+                                // position every time Bitslip is invoked (DDR operation is different from
+                                // SDR).
+
+   // CE1, CE2: 1-bit (each) input: Data register clock enable inputs
+   .CE1(1'd1),
+   .CE2(1'd1),
+   .CLKDIVP(),           // 1-bit input: TBD
+   // Clocks: 1-bit (each) input: ISERDESE2 clock input ports
+   .CLK(iserdes_clk),                   // 1-bit input: High-speed clock
+   .CLKB(iserdes_clkb),                 // 1-bit input: High-speed secondary clock
+   .CLKDIV(clk0),             // 1-bit input: Divided clock
+   .OCLK(clk0),                 // 1-bit input: High speed output clock used when INTERFACE_TYPE="MEMORY"
+   // Dynamic Clock Inversions: 1-bit (each) input: Dynamic clock inversion pins to switch clock polarity
+   .DYNCLKDIVSEL(), // 1-bit input: Dynamic CLKDIV inversion
+   .DYNCLKSEL(),       // 1-bit input: Dynamic CLK/CLKB inversion
+   // Input Data: 1-bit (each) input: ISERDESE2 data input ports
+   .D(),                       // 1-bit input: Data input
+   .DDLY(dq_idelay),                 // 1-bit input: Serial data from IDELAYE2
+   .OFB(),                   // 1-bit input: Data feedback from OSERDESE2
+   .OCLKB(~clk0),               // 1-bit input: High speed negative edge output clock
+   .RST(rst0),                   // 1-bit input: Active high asynchronous reset
+   // SHIFTIN1-SHIFTIN2: 1-bit (each) input: Data width expansion input ports
+   .SHIFTIN1(),
+   .SHIFTIN2() 
+);
+
+*/
+
+
+
+
+
+
+/*
   // equalize delays to avoid delta-delay issues
   assign  iserdes_clk  = dqs;
   assign  iserdes_clkb = ~dqs;
@@ -230,5 +420,7 @@ ISERDESE2_inst (
    .SHIFTIN1(),
    .SHIFTIN2() 
 );
+*/
+
 
 endmodule

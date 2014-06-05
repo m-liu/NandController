@@ -1,8 +1,5 @@
 `timescale 1ns / 1ps
 
-//`define DQ_WIDTH 8
-//`define DQ_PER_DQS 8
-
 module nand_phy #
 	(
 	parameter DQ_WIDTH = 8,
@@ -12,10 +9,6 @@ module nand_phy #
 		//****************************
 		//NAND and FPGA I/O interface
 		//****************************
-		//input sys_resetn, //from FMC
-		
-		//input sys_clk_p,
-		//input sys_clk_n,
 		output v_nand_clk,
 		
 		inout [7:0] v_dq,
@@ -25,7 +18,6 @@ module nand_phy #
 		output v_wrn,
 		output v_wpn,
 		output [7:0] v_cen,
-		//input  [3:0] rb,
 
 		output [7:0] v_debug,
 		output [7:0] v_debug90,
@@ -38,7 +30,6 @@ module nand_phy #
 		input v_ctrl_wrn,
 		input v_ctrl_wpn,
 		input [7:0] v_ctrl_cen,
-		//output [3:0] ctrl_rb,
 		input v_ctrl_wen, 
 		input v_ctrl_wen_sel,
 		input [7:0] v_ctrl_debug,
@@ -56,30 +47,25 @@ module nand_phy #
 		//input [DQ_WIDTH-1:0] v_dlyce_dq,
 		//input [DQ_WIDTH-1:0] dlyrst_dq,
 		input v_dq_oe_n,
+		input v_dq_iddr_rst,
 		input [DQ_WIDTH-1:0] v_wr_data_rise,
 		input [DQ_WIDTH-1:0] v_wr_data_fall,
 		output [DQ_WIDTH-1:0] v_rd_data_rise,
 		output [DQ_WIDTH-1:0] v_rd_data_fall,
 		output [DQ_WIDTH-1:0] v_rd_data_comb,
 		
-		//A bit of a hack
-		//clk0 DQ lines for commands only. Beware of timing!
-		//BSV thinks these are clocked by clk0, but actually 
-		//clocked by ODDR clk90. 
-		//input v_dq_cmd_oe_n,
-		//input [DQ_WIDTH-1:0] v_wr_cmd,
-		//input v_dq_cmd_sel,
-
-
+		//Calibration DQ and DQ phase selection signals
+ 		output [DQ_WIDTH-1:0] v_calib_dq_rise_0,
+ 		output [DQ_WIDTH-1:0] v_calib_dq_rise_90,
+ 		output [DQ_WIDTH-1:0] v_calib_dq_rise_180,
+ 		output [DQ_WIDTH-1:0] v_calib_dq_rise_270,
+		input v_calib_clk0_sel,
+		
 		//clocks and resets
 		input v_clk0,
 		input v_clk90,
 		input v_rstn0,
 		input v_rstn90
-		
-
-		
-		
     );
 
 localparam IODELAY_GRP = "IODELAY_NAND";
@@ -119,36 +105,6 @@ assign v_debug90 = v_ctrl_debug90;
            );
 
  
-	//**********************************************************************
-	// Create muxes to select between DQ data (clk90) or DQ commands (clk0)
-	//**********************************************************************
-	//Sync registers for dq_oe_n and dq_cmd. Note that these are held for a long time
-	/*
-	reg dq_cmd_oe_n_r1 = 1; //disable output initially
-	reg dq_cmd_oe_n_r2 = 1;
-	reg [DQ_WIDTH-1:0] wr_cmd_r1;
-	reg [DQ_WIDTH-1:0] wr_cmd_r2;
-	always @ (posedge v_clk90) begin
-		if (v_rst90) begin
-			dq_cmd_oe_n_r1 <= 1; //disable output
-			dq_cmd_oe_n_r2 <= 1; //disable output
-			wr_cmd_r1 <= 0;
-			wr_cmd_r2 <= 0;
-		end else begin
-			dq_cmd_oe_n_r1 <= v_dq_cmd_oe_n;
-			dq_cmd_oe_n_r2 <= dq_cmd_oe_n_r1;
-			wr_cmd_r1 <= v_wr_cmd;
-			wr_cmd_r2 <= wr_cmd_r1;
-		end
-	end
-
-	wire [DQ_WIDTH-1:0] dq_wr_rise;
-	wire [DQ_WIDTH-1:0] dq_wr_fall;
-	wire dq_oe_n;
-	assign dq_wr_rise = (v_dq_cmd_sel) ? (wr_cmd_r2) : (v_wr_data_rise);
-	assign dq_wr_fall = (v_dq_cmd_sel) ? (wr_cmd_r2) : (v_wr_data_fall);
-	assign dq_oe_n = (v_dq_cmd_sel) ? (dq_cmd_oe_n_r2) : (v_dq_data_oe_n);
-	*/
 
 //DQS tri-state inout buffer
 nand_phy_dqs_iob #
@@ -195,13 +151,19 @@ nand_phy_dqs_iob #
            //.dlyce        (v_dlyce_dq[dq_i]),
            //.dlyrst       (/*dlyrst_dq[dq_i]*/), //not sure if needed
            .dq_oe_n      (v_dq_oe_n),
+			  .dq_iddr_rst	 (v_dq_iddr_rst),
            .dqs          (delayed_dqs),
            .wr_data_rise (v_wr_data_rise[dq_i]),
            .wr_data_fall (v_wr_data_fall[dq_i]),
            .rd_data_rise (v_rd_data_rise[dq_i]),
            .rd_data_fall (v_rd_data_fall[dq_i]),
 			  .rd_data_comb (v_rd_data_comb[dq_i]),
-           .ddr_dq       (v_dq[dq_i])
+           .ddr_dq       (v_dq[dq_i]),
+			  .calib_dq_rise_0 (v_calib_dq_rise_0[dq_i]),
+			  .calib_dq_rise_90 (v_calib_dq_rise_90[dq_i]),
+			  .calib_dq_rise_180 (v_calib_dq_rise_180[dq_i]),
+			  .calib_dq_rise_270 (v_calib_dq_rise_270[dq_i]),
+			  .calib_clk0_sel (v_calib_clk0_sel)
            );
     end
   endgenerate
@@ -217,7 +179,6 @@ nand_phy_ctl_io u_io_phy_ctl
 	.wrn(v_wrn),
 	.wpn(v_wpn),
 	.cen(v_cen),
-	//.rb(rb[3:0]),
 		
 	//controller facing interface
 	.ctrl_cle(v_ctrl_cle),
@@ -225,7 +186,6 @@ nand_phy_ctl_io u_io_phy_ctl
 	.ctrl_wrn(v_ctrl_wrn),
 	.ctrl_wpn(v_ctrl_wpn),
 	.ctrl_cen(v_ctrl_cen),
-	//.ctrl_rb(ctrl_rb),
 	
 	//clock and reset
 	.clk0(v_clk0),
