@@ -150,10 +150,10 @@ module mkNandPhy#(
 	Integer t_CAD = 3; //25ns 
 	Integer t_CMD_DQ_SYNCREG_DELAY = 2; //2 sync regs used for DQ cmd path
 	Integer t_WRCK_DQSD = 4; //20ns. Chose a safe value to wait until NAND drives DQS
-	Integer t_DQSCK = 2; //TODO: probably needs tweaking
-	Integer t_ISERDES = 4; //cycs for data to appear from DQ to output of ISERDESE2 TODO: tweak
+	//Integer t_DQSCK = 2; //Self calibrated
+	//Integer t_ISERDES = 4; //cycs for data to appear from DQ to output of ISERDESE2 TODO: tweak
 	Integer t_CKWR = 3; 
-	Integer t_CKWR_DQSCK_ISERDES = 2; //( tCKWR - (t_DQSCK+t_ISERDES) ) Num of cycs to wait after read bursting
+	Integer t_CKWR_DQSCK_IDDR = 2; //( tCKWR - (t_DQSCK+t_ISERDES) ) Num of cycs to wait after read bursting
 	Integer t_WPRE = 2; //15ns
 	Integer t_WPST = 2; //15ns
 	Integer t_DQSS = 2; //7.5 to 12.5ns
@@ -674,10 +674,6 @@ module mkNandPhy#(
 	//Access window can be 3-20ns after NAND_CLK edge (1 to 2 cycles)
 	//Domain transfer regs (2 cycles)
 	
-	//TODO: set reference calib data values
-	//TODO: assert reset on transfer regs so that we start fresh
-	//TODO: do we have to calibrate EACH CHIP?
-
 	//Buffer a bunch of data bursts in FIFOs
 	rule doSyncCalibCap if (currState==SYNC_CALIB_LATCH);
 		if (numCalibBrCnt > 0) begin
@@ -698,8 +694,7 @@ module mkNandPhy#(
 
 		if (numBurstCntBr==0 && numCalibBrCnt==0) begin
 			numCalibBrCnt <= 0;
-			//currState <= SYNC_CALIB_CALIBRATE;
-			currState <= SYNC_CALIB_DEQ; //TODO testing
+			currState <= SYNC_CALIB_CALIBRATE;
 			rLat <= 0;
 		end
 	endrule
@@ -708,62 +703,43 @@ module mkNandPhy#(
 	//1) Sample DQS domain DQ rise data at 0, 90, 180 and 270 degrees 
 	//   in cycles 3, 4 and 5
 	//2) Find the first valid data
-	//3) Use the clock edge 90 to 180 degrees after the first valid byte (clk0 or clk180)
-	Reg#(Bit#(8)) dqR0 <- mkReg(0);
-	Reg#(Bit#(8)) dqR90 <- mkReg(0);
-	Reg#(Bit#(8)) dqR180 <- mkReg(0);
-	Reg#(Bit#(8)) dqR270 <- mkReg(0);
-
-
-	rule doSyncCalibDeq if (currState==SYNC_CALIB_DEQ);
-		dqR0 <= fifoDqR0.first();
-		dqR90 <= fifoDqR90.first();
-		dqR180 <= fifoDqR180.first();
-		dqR270 <= fifoDqR270.first();
-		fifoDqR0.deq();
-		fifoDqR90.deq();
-		fifoDqR180.deq();
-		fifoDqR270.deq();
-		currState <= SYNC_CALIB_CALIBRATE;
-	endrule
+	//3) Use the clock edge 90 to 180 degrees after the first valid 
+	//   byte (clk0 or clk180) to capture data
 
 	rule doSyncCalib if (currState==SYNC_CALIB_CALIBRATE);
-			//$display("@%t\t NandPhy: SYNC_CALIB_CALIBRATE", $time);
+			$display("@%t\t NandPhy: SYNC_CALIB_CALIBRATE", $time);
 			//Find the first valid byte
-			//if (fifoDqR0.first()==refDqR || fifoDqR90.first()==refDqR) begin
-			if (dqR0==refDqR || dqR90==refDqR) begin
+			if (fifoDqR0.first()==refDqR || fifoDqR90.first()==refDqR) begin
 				//CLK is 0-180 degrees shifted from DQS
 				//Use clk180 to capture data
 				calibClk0Sel <= 0; //use clk180 for data capture
 				rLat <= rLat+1; //data is available at clk0 on the next edge
-				//fifoDqR0.clear();
-				//fifoDqR90.clear();
-				//fifoDqR180.clear();
-				//fifoDqR270.clear();
+				fifoDqR0.clear();
+				fifoDqR90.clear();
+				fifoDqR180.clear();
+				fifoDqR270.clear();
 				currState <= SYNC_DONE;
-				$display("@%t\t NandPhy: SYNC_CALIB_CALIBRATE done, clk0sel=0, rLat=%d", $time, rLat);
+				$display("@%t\t NandPhy: SYNC_CALIB_CALIBRATE done, clk0sel=0, rLat=%d", $time, rLat+1);
 			end
-			//else if (fifoDqR180.first()==refDqR || fifoDqR270.first()==refDqR) begin
-			else if (dqR180==refDqR || dqR270==refDqR) begin
+			else if (fifoDqR180.first()==refDqR || fifoDqR270.first()==refDqR) begin
 				//CLK is 180-360 degrees shifted from DQS
 				//Use clk0 at the next cycle edge to capture data
 				rLat <= rLat+1;
 				calibClk0Sel <= 1;
-				//fifoDqR0.clear();
-				//fifoDqR90.clear();
-				//fifoDqR180.clear();
-				//fifoDqR270.clear();
+				fifoDqR0.clear();
+				fifoDqR90.clear();
+				fifoDqR180.clear();
+				fifoDqR270.clear();
 				currState <= SYNC_DONE;
 				$display("@%t\t NandPhy: SYNC_CALIB_CALIBRATE done, clk0sel=1, rLat=%d", $time, rLat+1);
 			end
 			else if (rLat < fromInteger(calibFifoDepth)) begin
 				//Check the next cycle
 				rLat <= rLat + 1;
-				//fifoDqR0.deq();
-				//fifoDqR90.deq();
-				//fifoDqR180.deq();
-				//fifoDqR270.deq();
-				currState <= SYNC_CALIB_DEQ;
+				fifoDqR0.deq();
+				fifoDqR90.deq();
+				fifoDqR180.deq();
+				fifoDqR270.deq();
 			end
 			else begin
 				//Something bad happened. Not capturing data correctly
@@ -815,7 +791,7 @@ module mkNandPhy#(
 		else if (numBurstCntBr < 1) begin //we finished reading data bursts
 			//wait for ( tCKWR - (t_DQSCK+t_ISERDES) )
 			currState <= WAIT_CYCLES;
-			waitCnt <= fromInteger(t_CKWR_DQSCK_ISERDES); //TODO not exactly correct
+			waitCnt <= fromInteger(t_CKWR_DQSCK_IDDR); //TODO too conservative
 			returnState <= SYNC_DONE;
 			cntRdDelay <= 0;
 		end

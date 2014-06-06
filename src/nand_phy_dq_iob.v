@@ -272,7 +272,6 @@ end
 
 
 
-//TODO TODO TODO. Replace IDDR with ISERDES again....!?
 /*
 
   // equalize delays to avoid delta-delay issues

@@ -339,7 +339,8 @@ module mkBusController#(
 		$display("NandCtrl: sync status=%x", status);
 		debugR <= status; //debug
 
-		//TODO: DEBUG calibration
+		//During calibration, get status is used to initialize IDDR regs so that we don't have
+		//DON'T CARES
 		if (rdyReturnState==INIT_CALIB) begin
 			state <= rdyReturnState;
 		end
@@ -444,9 +445,7 @@ module mkBusController#(
 								addrCnt==fromInteger(nactSyncAddr) && 
 								dataCnt==fromInteger(nactSyncData));
 
-		//TODO: testing
-		//state <= INIT_CALIB;
-		//state <= IDLE; //FIXME TODO ml: testing
+		//Go issue a status poll to initialize IDDR to a defined value (instead of DON'T CARE)
 		state <= SYNC_POLL_STATUS;
 		rdyReturnState <= INIT_CALIB;
 		cmdCnt <= 0;

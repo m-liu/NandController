@@ -1,8 +1,10 @@
-- ISERDES frame alignment and valid data cycle capture
 - Separate NAND_CLK and RE#! (need to assert the correct one based on the ce#)
 - DQ reversing because of pin swap of front/back packages
 - initial values of CEN, WPN etc. is incorrect for a bit after power up need to set INIT parameter in FDRE reg
-- Full support for async read/writes
+- Full support for async read/writes. Do this as a test case first
+- Read calibration for each chip
+- DQ-DQS skew calibration
+- Test out chipscope signals
 
 - Remove DQS simulation delay in post implementation sim
 - delay adjustment for DQ line
@@ -15,3 +17,4 @@
 - Separate CE#
 - DQS pull up down resistors or Gating
 - Use fix delay adjustments instead. Sync Delay adjustment to clk0 domain (there are timing errors otherwise). 
+- ISERDES frame alignment and valid data cycle capture (solved using read timing calibration procedure)
