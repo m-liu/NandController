@@ -44,7 +44,7 @@ genvar ce_i;
          .CLR (1'b0),
          .D   (ctrl_cen[ce_i]),
          .PRE (rst0)
-         ) /* synthesis syn_useioff = 1 */;
+         );
     end
   endgenerate
   
@@ -57,7 +57,7 @@ genvar ce_i;
      .CLR (rst0),
      .D   (ctrl_ale),
      .PRE (1'b0)
-     ) /* synthesis syn_useioff = 1 */;
+     );
 
 
 //cle
@@ -69,7 +69,7 @@ genvar ce_i;
      .CLR (rst0),
      .D   (ctrl_cle),
      .PRE (1'b0)
-     ) /* synthesis syn_useioff = 1 */;
+     );
 
 
 //wrn
@@ -81,7 +81,7 @@ genvar ce_i;
      .CLR (1'b0),
      .D   (ctrl_wrn),
      .PRE (rst0)
-     ) /* synthesis syn_useioff = 1 */;
+     );
 
 //wpn
   (* IOB = "FORCE" *) FDCPE #(
@@ -93,7 +93,7 @@ genvar ce_i;
      .CLR (rst0),
      .D   (ctrl_wpn),
      .PRE (1'b0)
-     ) /* synthesis syn_useioff = 1 */;
+     );
 	  
 	  
 	  

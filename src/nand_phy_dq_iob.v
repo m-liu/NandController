@@ -194,8 +194,9 @@ assign rd_data_comb = dq_in;
 
 
 //Synchronize read data from DQS domain to clk0 domain
-//TODO FIXME: may violate timing. May need an opposite edge synchronizer
-
+//We tolerate setup/hold violations here. At least one
+// of these clock edges will capture correct data without
+// timing violations
 always @ (posedge clk0)
 begin
 	if (rst0) begin
@@ -255,6 +256,8 @@ end
 
 
 //Examine all 4 registers for calibration 
+//We may need an opposite edge synchronizer if we violate timing.
+//Min setup time is 2.5ns for clk270
 always @ (posedge clk0)
 begin
 	if (rst0) begin

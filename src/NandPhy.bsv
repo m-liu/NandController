@@ -21,10 +21,8 @@ import NandInfra::*;
 interface PhyUser;
 	method Action sendCmd (PhyCmd cmd);
 	method Action sendAddr (Bit#(8) addr);
-	method Action asyncWrByte (Bit#(8) data);
-	method ActionValue#(Bit#(16)) syncRdWord();
-	method ActionValue#(Bit#(8)) asyncRdByte();
-	method Action syncWrWord (Bit#(16) data);
+	method ActionValue#(Bit#(16)) rdWord();
+	method Action wrWord (Bit#(16) data);
 	method Action setDebug (Bit#(8) d);
 	method Action setDebug90 (Bit#(8) d);
 endinterface
@@ -83,18 +81,13 @@ typedef enum {
 } PhyState deriving (Bits, Eq);
 
 typedef enum {
-	PHY_ASYNC_CHIP_SEL,
-	PHY_ASYNC_CMD,
-	PHY_ASYNC_READ,
-	PHY_ASYNC_WRITE,
-	PHY_ASYNC_ADDR,
-	PHY_SYNC_CALIB,
-	PHY_SYNC_CHIP_SEL,
-	PHY_SYNC_CMD,
-	PHY_SYNC_READ,
-	PHY_SYNC_WRITE,
-	PHY_SYNC_ADDR,
+	PHY_CHIP_SEL,
 	PHY_DESELECT_ALL,
+	PHY_CMD,
+	PHY_READ,
+	PHY_WRITE,
+	PHY_ADDR,
+	PHY_SYNC_CALIB,
 	PHY_ENABLE_NAND_CLK
 } PhyCycle deriving (Bits, Eq);
 
@@ -119,6 +112,7 @@ typedef union tagged {
 } NandCmd deriving (Bits);
 
 typedef struct {
+	Bool inSyncMode;
 	PhyCycle phyCycle;
 	NandCmd nandCmd;
 	Bit#(16) numBurst;
@@ -173,7 +167,6 @@ module mkNandPhy#(
 	//State registers
 	Reg#(PhyState) currState <- mkReg(INIT_WAIT);
 	Reg#(PhyState) returnState <- mkReg(INIT_WAIT);
-	//Reg#(PhyState) currState90 <- mkSyncRegFromCC(INIT_WAIT, clk90);
 
 	//Timing wait counters
 	Reg#(Bit#(32)) waitCnt <- mkReg(0);
@@ -186,7 +179,6 @@ module mkNandPhy#(
 	Reg#(Bit#(1)) wen <- mkReg(1); //WE# = NAND_CLK when wenSel=0
 	Reg#(Bit#(1)) wenSel <- mkReg(1); //WE# by default. until sync mode active
 	Reg#(Bit#(1)) wpn <- mkReg(0);
-	//Reg#(Bit#(1)) cmdSelDQ <- mkReg(1);
 
 	//Registers for write data DQ
 	Reg#(Bit#(8)) wrDataRise <- mkReg(0); 
@@ -230,10 +222,8 @@ module mkNandPhy#(
 	Reg#(Bit#(16)) numBurstCntBr <- mkReg(0);
 
 	//Read/write data FIFO
-	FIFO#(Bit#(8)) asyncRdQ <- mkSizedFIFO(32); //TODO adjust size
-	FIFO#(Bit#(8)) asyncWrQ <- mkSizedFIFO(32); //TODO adjust size
-	FIFO#(Bit#(16)) syncRdQ <- mkSizedFIFO(32); //TODO adjust size
-	FIFO#(Bit#(16)) syncWrQ <- mkSizedFIFO(32); //TODO adjust size
+	FIFO#(Bit#(16)) rdQ <- mkSizedFIFO(32); //TODO adjust size
+	FIFO#(Bit#(16)) wrQ <- mkSizedFIFO(32); //TODO adjust size
 
 	//**********************************************
 	// Buffer phy signals using registers in front
@@ -318,22 +308,30 @@ module mkNandPhy#(
 
 	rule doIdle if (currState==IDLE);
 		let cmd = ctrlCmdQ.first();
-		case(cmd.phyCycle)
-			PHY_ASYNC_CHIP_SEL: currState <= ASYNC_CHIP_SEL;
-			PHY_ASYNC_CMD: currState <= ASYNC_CMD_SET_CMD;
-			PHY_ASYNC_READ: currState <= ASYNC_READ_RE_LOW;
-			PHY_ASYNC_ADDR: currState <= ASYNC_ADDR_WE_LOW;
-			PHY_ASYNC_WRITE: currState <= ASYNC_WRITE_WE_LOW;
-			PHY_DESELECT_ALL: currState <= DESELECT_ALL;
-			PHY_ENABLE_NAND_CLK: currState <= ENABLE_NAND_CLK;
-			PHY_SYNC_CALIB: currState <= SYNC_CALIB_WR_LOW;
-			PHY_SYNC_CMD: currState <= SYNC_CMD_SET;
-			PHY_SYNC_READ: currState <= SYNC_READ_WR_LOW;
-			PHY_SYNC_ADDR: currState <= SYNC_ADDR_SET;
-			PHY_SYNC_WRITE: currState <= SYNC_WRITE_PREAMBLE;
-			PHY_SYNC_CHIP_SEL: currState <= SYNC_CHIP_SEL;
-			default: currState <= IDLE;
-		endcase
+		if (cmd.inSyncMode) begin
+			case(cmd.phyCycle)
+				PHY_CHIP_SEL: currState <= SYNC_CHIP_SEL;
+				PHY_DESELECT_ALL: currState <= DESELECT_ALL;
+				PHY_CMD: currState <= SYNC_CMD_SET;
+				PHY_READ: currState <= SYNC_READ_WR_LOW;
+				PHY_WRITE: currState <= SYNC_WRITE_PREAMBLE;
+				PHY_ADDR: currState <= SYNC_ADDR_SET;
+				PHY_SYNC_CALIB: currState <= SYNC_CALIB_WR_LOW;
+				default: currState <= IDLE;
+			endcase
+		end
+		else begin
+			case(cmd.phyCycle)
+				PHY_CHIP_SEL: currState <= ASYNC_CHIP_SEL;
+				PHY_DESELECT_ALL: currState <= DESELECT_ALL;
+				PHY_CMD: currState <= ASYNC_CMD_SET_CMD;
+				PHY_READ: currState <= ASYNC_READ_RE_LOW;
+				PHY_WRITE: currState <= ASYNC_WRITE_WE_LOW;
+				PHY_ADDR: currState <= ASYNC_ADDR_WE_LOW;
+				PHY_ENABLE_NAND_CLK: currState <= ENABLE_NAND_CLK;
+				default: currState <= IDLE;
+			endcase
+		end
 		numBurstCnt <= cmd.numBurst;
 		numBurstCntBr <= cmd.numBurst;
 		postCmdWaitCnt <= cmd.postCmdWait;
@@ -423,14 +421,14 @@ module mkNandPhy#(
 	rule doAsyncWriteWeLow if (currState==ASYNC_WRITE_WE_LOW);
 		wen <= 0;//select and set WE# low
 		oenDataDQ <= 0; //enable output. Note this signal needs 2 cycles to propogate
-		wrDataRise <= asyncWrQ.first(); //set data output
-		wrDataFall <= asyncWrQ.first(); //set data output
-		asyncWrQ.deq();
+		wrDataRise <= truncate(wrQ.first()); //set data output
+		wrDataFall <= truncate(wrQ.first()); //set data output
+		wrQ.deq();
 		//wait for setup
 		waitCnt <= fromInteger(t_ASYNC_WRITE_SETUP);
 		currState <= WAIT_CYCLES;
 		returnState <= ASYNC_WRITE_WE_HIGH;
-		$display("@%t\t NandPhy: ASYNC_WRITE_WE_LOW set data: %x", $time, asyncWrQ.first);
+		$display("@%t\t NandPhy: ASYNC_WRITE_WE_LOW set data: %x", $time, wrQ.first);
 	endrule
 
 	rule doAsyncWriteWeHigh if (currState==ASYNC_WRITE_WE_HIGH);
@@ -469,7 +467,7 @@ module mkNandPhy#(
 	rule doAsyncReadCapture if (currState==ASYNC_READ_CAPTURE);
 		//get data
 		let rddata = vnandPhy.vphyUser.rdDataCombDQ();
-		asyncRdQ.enq(rddata);
+		rdQ.enq(zeroExtend(rddata));
 		$display("@%t\t NandPhy: ASYNC_READ_CAPTURE async read data %x", $time, rddata);
 		currState <= ASYNC_READ_RE_HIGH;
 	endrule
@@ -704,7 +702,7 @@ module mkNandPhy#(
 	//   in cycles 3, 4 and 5
 	//2) Find the first valid data
 	//3) Use the clock edge 90 to 180 degrees after the first valid 
-	//   byte (clk0 or clk180) to capture data
+	//   byte (clk0 or clk180) to capture data. At least 2.5ns of setup time
 
 	rule doSyncCalib if (currState==SYNC_CALIB_CALIBRATE);
 			$display("@%t\t NandPhy: SYNC_CALIB_CALIBRATE", $time);
@@ -777,14 +775,13 @@ module mkNandPhy#(
 		end
 	endrule
 
-	//Start capturing data t_DQSCK+t_ISERDES after cle/ale is asserted.
+	//Start capturing data rLat after cle/ale is asserted.
 	//Use a separate temp counter here
 	rule doSyncReadCap if (currState==SYNC_READ_LATCH);
-		//if ((cntRdDelay > fromInteger(t_DQSCK + t_ISERDES)) && numBurstCntBr>=1 ) begin
 		if (cntRdDelay >= rLat && numBurstCntBr>=1 ) begin
 			let rdRise = vnandPhy.vphyUser.rdDataRiseDQ();
 			let rdFall = vnandPhy.vphyUser.rdDataFallDQ();
-			syncRdQ.enq({rdRise, rdFall});
+			rdQ.enq({rdRise, rdFall});
 			numBurstCntBr <= numBurstCntBr - 1;
 			$display("@%t\t NandPhy: SYNC_READ_LATCH sync read data %x %x", $time, rdRise, rdFall);
 		end
@@ -833,11 +830,11 @@ module mkNandPhy#(
 	rule doSyncWriteBurst if (currState==SYNC_WRITE_BURST);
 		if (numBurstCntBr >= 1) begin
 			rstnDQS <= 1;
-			Bit#(8) dRise = truncateLSB(syncWrQ.first());
-			Bit#(8) dFall = truncate(syncWrQ.first());
+			Bit#(8) dRise = truncateLSB(wrQ.first());
+			Bit#(8) dFall = truncate(wrQ.first());
 			wrDataRise <= dRise;
 			wrDataFall <= dFall;
-			syncWrQ.deq();
+			wrQ.deq();
 			numBurstCntBr <= numBurstCntBr - 1;
 			$display("@%t\t NandPhy: SYNC_WRITE_BURST #%d: %x %x", $time, numBurstCntBr, dRise, dFall);
 		end
@@ -923,22 +920,13 @@ module mkNandPhy#(
 			addrQ.enq(addr);
 		endmethod
 
-		method Action asyncWrByte (Bit#(8) data);
-			asyncWrQ.enq(data);
+		method ActionValue#(Bit#(16)) rdWord();
+			rdQ.deq();
+			return rdQ.first();
 		endmethod
 
-		method ActionValue#(Bit#(8)) asyncRdByte();
-			asyncRdQ.deq();
-			return asyncRdQ.first();
-		endmethod
-
-		method ActionValue#(Bit#(16)) syncRdWord();
-			syncRdQ.deq();
-			return syncRdQ.first();
-		endmethod
-
-		method Action syncWrWord (Bit#(16) data);
-			syncWrQ.enq(data);
+		method Action wrWord (Bit#(16) data);
+			wrQ.enq(data);
 		endmethod
 
 		method Action setDebug (Bit#(8) d);
