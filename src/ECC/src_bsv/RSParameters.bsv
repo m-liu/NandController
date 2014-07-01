@@ -37,8 +37,9 @@ Polynomial primitive_poly = 8'b00011101;
 Integer max_block_size = 255;
 
 // no. bytes of actual data out of 255 bytes of codeword          
-typedef 223    K; 
+//typedef 223    K; 
+typedef 243    K; 
 
 // 2T = no. byte parity bytes
-typedef 16     T; 
+typedef 12     T; 
 

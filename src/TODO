@@ -10,6 +10,8 @@
 - Timing and FIFO size adjustments
 - Short reset used in the  model right now
 
+- ECC detection bug. cant_correct flag is not being asserted
+- ECC Encoder
 
 /*** DONE ***/
 - Full support for async read/writes. Do this as a test case first
