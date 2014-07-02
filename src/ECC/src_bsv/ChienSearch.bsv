@@ -57,7 +57,8 @@ module mkChienSearch
    #(PipeOut #(Byte) t_in,
      PipeOut #(Byte) k_in,
      PipeOut #(Bool) no_error_flag_in,
-     PipeOut #(Syndrome #(T)) lambda_in)
+     PipeOut #(Syndrome #(T)) lambda_in,
+  	  PipeOut #(Byte) deg_in)
    (Tuple4 #(PipeOut #(Maybe #(Byte)),      // loc
 	     PipeOut #(Maybe #(Byte)),      // alpha_inv
 	     PipeOut #(Bool),               // cant_correct_flag
@@ -85,6 +86,7 @@ module mkChienSearch
    let no_error_flag = no_error_flag_in.first;
    let t = t_in.first;
    let k = k_in.first;
+	let deg = deg_in.first;
    
    // ------------------------------------------------
 
@@ -96,6 +98,7 @@ module mkChienSearch
 	       t_in.deq;
 	       k_in.deq;
 	       no_error_flag_in.deq;
+			 deg_in.deq;
 	       cant_correct_flag_q.enq (False);
 	       block_number <= block_number + 1;
 	    endaction
@@ -119,15 +122,22 @@ module mkChienSearch
 		  $display ("  [chien %0d]  calc_loc, result location = %0d", block_number, result_location);
 		  let is_no_error = (result_location != 0);
       
-		  if (! is_no_error)
+		  if (! is_no_error) begin
 		     count_error <= count_error + 1;
+           $display ("  [chien %0d]  count_error = ", block_number, count_error+1);
+		  end
 
 		  if (i == 0) begin
 		     loop_done <= True;
-		     cant_correct_flag_q.enq (count_error == 0);
+			  //ML: can't correct if 
+			  // (1) the number of roots of lamda is != the degree of lamda
+			  // (2) degree of lamda is > T (note: max # of errors from RSParameters.bsv)
+			  // TODO: can probably fast track the second condition
+		     cant_correct_flag_q.enq ( (count_error != deg) || (deg > fromInteger(valueOf(T))) ); 
 		     t_in.deq;
 		     k_in.deq;
 		     no_error_flag_in.deq;
+			  deg_in.deq;
 		     block_number <= block_number + 1;
                      loc_q.enq (tagged Invalid);
                      alpha_inv_q.enq (tagged Invalid);

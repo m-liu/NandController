@@ -44,13 +44,16 @@ import GFTypes::*;
 
 module mkBerlekamp
    #(PipeOut #(Byte) t_in,  PipeOut #(Syndrome #(TwoT)) syndrome_in)
-   (Tuple3 #(PipeOut #(Bool),
+   (Tuple4 #(
+		  PipeOut #(Byte),
+		  PipeOut #(Bool),
 	     PipeOut #(Syndrome #(T)),
 	     PipeOut #(Syndrome #(T))));
 
    // outputs
    FIFOF #(Syndrome #(T))       c_q             <- mkPipelineFIFOF; // lambda
    FIFOF #(Syndrome #(T))       w_q             <- mkPipelineFIFOF; // omega
+   FIFOF #(Byte)                l_q             <- mkPipelineFIFOF; // l (degree of lambda)
    FIFOF #(Bool)                no_error_flag_q <- mkPipelineFIFOF;
   
    // Local state
@@ -145,6 +148,8 @@ module mkBerlekamp
 	    action    // loop postlude
 	       t_in.deq;
 	       syndrome_in.deq;
+			 l_q.enq(l);
+	       $display ("  [berlekamp_out %0d]  l degree: ", block_number, l);
 	       no_error_flag_q.enq (no_error_flag);
 	       $display ("  [berlekamp_out %0d]  no_error_flag_out : ", block_number, fshow (no_error_flag));
 	       if (! no_error_flag) begin // send lambda and omega only if error
@@ -163,9 +168,11 @@ module mkBerlekamp
       );
 
    // ------------------------------------------------
-   return tuple3 (f_FIFOF_to_PipeOut (no_error_flag_q),
-		  f_FIFOF_to_PipeOut (c_q),
-		  f_FIFOF_to_PipeOut (w_q));
+   return tuple4 (
+			f_FIFOF_to_PipeOut (l_q),
+			f_FIFOF_to_PipeOut (no_error_flag_q),
+			f_FIFOF_to_PipeOut (c_q),
+			f_FIFOF_to_PipeOut (w_q));
 
 endmodule
 

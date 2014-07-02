@@ -80,7 +80,7 @@ module mkReedSolomon (IReedSolomon);
 
    // ---------------- Stage 2 (Berlekamp)
    match { .t_to_berl, .t_to_stage_3 }       <- mkForkAndBufferRight (t_to_stage_2);
-   match { .berl_no_error_flag_out, .berl_lambda_out, .berl_omega_out } <- mkBerlekamp (t_to_berl, syndrome);
+   match { .berl_deg_out, .berl_no_error_flag_out, .berl_lambda_out, .berl_omega_out } <- mkBerlekamp (t_to_berl, syndrome);
    // ---------------- Stage 3 (Chien Search)
    match { .k_to_chien, .k_to_stage_4 } <- mkForkAndBufferRight (k_to_stage_3);
    match { .no_error_flag_to_chien, .no_error_flag_to_stage_4 } <- mkForkAndBufferRight (berl_no_error_flag_out);
@@ -90,7 +90,8 @@ module mkReedSolomon (IReedSolomon);
 	  .chien_lambda_out }           <- mkChienSearch (t_to_stage_3,
 							  k_to_chien,
 							  no_error_flag_to_chien,
-							  berl_lambda_out);
+							  berl_lambda_out,
+						  	  berl_deg_out);
    PipeOut #(Syndrome #(T)) omega_to_errmag <- mkBuffer (berl_omega_out);
    // ---------------- Stage 4 (Error Magnitude)
    match { .k_to_errmag, .k_to_stage_5 } <- mkForkAndBufferRight (k_to_stage_4);
