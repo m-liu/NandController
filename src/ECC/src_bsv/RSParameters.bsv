@@ -41,5 +41,5 @@ Integer max_block_size = 255;
 typedef 243    K; 
 
 // 2T = no. byte parity bytes
-typedef 12     T; 
+typedef 6     T; 
 
