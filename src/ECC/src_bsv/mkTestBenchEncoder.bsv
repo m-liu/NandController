@@ -86,6 +86,13 @@ module mkTestBenchEncoder (Empty);
    endrule
    
 
+	rule input_control_info (state == 1);
+		let k_in <-  getNextStreamByte();
+		rs_enc.rs_k_in.put(k_in);
+		bytes_out_exp <= zeroExtend(k_in + 2 * fromInteger(valueOf(T)));
+		state <= 2;
+	endrule
+
    // -------------------------------------------
 	/*
    rule input_control_info (state == 1 && read_done == False && bytes_in_block == fromInteger(valueOf(K)));
@@ -122,7 +129,7 @@ module mkTestBenchEncoder (Empty);
 	*/
 
    // -------------------------------------------
-   rule input_data (state == 1 && read_done == False && bytes_in_block < fromInteger(valueOf(K)));
+   rule input_data (state == 2 && read_done == False);
       Byte not_eof <- isStreamActive ();
       if (not_eof != 0)
       begin
@@ -146,34 +153,16 @@ module mkTestBenchEncoder (Empty);
 
 
    // -------------------------------------------
-   rule output_data (state == 1);
+   rule output_data (state == 2);
       Byte  next_byte <- rs_enc.rs_enc_out.get ();
       putNextStreamByte (next_byte);
       bytes_out <= bytes_out + 1;
-      $display ("%0d: (TestBench) [bytes out]  %d / %d", cycle_count, bytes_out, bytes_in - 1);
+      $display ("%0d: (TestBench) [bytes out]  %d / %d", cycle_count, bytes_out, bytes_out_exp);
    endrule
 
 
    // -------------------------------------------
-	/*
-   rule output_mac (state == 1 && bytes_out == ff_bytes_out_exp.first ());
-      ff_bytes_out_exp.deq ();
-      ff_n.deq ();
-      ff_t.deq ();
-      putMACData (ff_n.first (), ff_t.first ());
-   endrule
-	*/
-
-   // -------------------------------------------
-	/*
-   rule print_flag (state == 1);
-      Bool cant_correct_flag  <- rs.rs_flag.get ();
-      $display ("%0d: (TestBench) [cant correct flag]  %d", cycle_count, cant_correct_flag);
-   endrule
-   */
-
-   // -------------------------------------------
-   rule watchdog_timer (state == 1);
+   rule watchdog_timer (state == 2);
       if ((last_bytes_out == bytes_out) &&
           (last_bytes_in == bytes_in))
          watchdog <= watchdog + 1;
@@ -196,7 +185,7 @@ module mkTestBenchEncoder (Empty);
 
 
    // -------------------------------------------
-   rule exit (read_done == True && bytes_out==255);
+   rule exit (read_done == True && bytes_out==bytes_out_exp);
       closeOutputFile ();
       $display ("%0d: (TestBench) [bytes written] %d", cycle_count, bytes_out);
       $finish (0);
