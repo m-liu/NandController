@@ -19,8 +19,8 @@ module nand_phy #
 		output v_wpn,
 		output [7:0] v_cen,
 
-		output [7:0] v_debug,
-		output [7:0] v_debug90,
+		output [7:0] v_debug0,
+		output [7:0] v_debug1,
 		
 		//****************************
 		//Controller facing interface 
@@ -32,8 +32,14 @@ module nand_phy #
 		input [7:0] v_ctrl_cen,
 		input v_ctrl_wen, 
 		input v_ctrl_wen_sel,
-		input [7:0] v_ctrl_debug,
-		input [7:0] v_ctrl_debug90,
+		input [15:0] v_ctrl_debug0,
+		input [15:0] v_ctrl_debug1,
+		input [15:0] v_ctrl_debug2,
+		input [15:0] v_ctrl_debug3,
+		input [15:0] v_ctrl_debug4,
+		input [15:0] v_ctrl_debug5,
+		input [15:0] v_ctrl_debug6,
+		input [15:0] v_ctrl_debug7,
 		
 		//DQS iob control and data signals
 		//input v_dlyinc_dqs,
@@ -77,36 +83,40 @@ wire delayed_dqs;
 wire v_rst0 = ~v_rstn0;
 wire v_rst90 = ~v_rstn90;
 
-assign v_debug = v_ctrl_debug;
-assign v_debug90 = v_ctrl_debug90;
+assign v_debug0 = v_ctrl_debug0[7:0];
+assign v_debug1 = v_ctrl_debug1[7:0];
 
-  //***************************************************************************
-  // NAND_CLK (sync) or WE# (async) 
-  //***************************************************************************
-   wire nand_clk_we_d1;
-   wire nand_clk_we_d2;
-	assign nand_clk_we_d1 = (v_ctrl_wen_sel) ? (v_ctrl_wen) : (1'b0);
-	assign nand_clk_we_d2 = (v_ctrl_wen_sel) ? (v_ctrl_wen) : (1'b1);
+//***************************************************************************
+// Mux for NAND_CLK (sync) or WE# (async) 
+//***************************************************************************
+wire nand_clk_we_d1;
+wire nand_clk_we_d2;
+assign nand_clk_we_d1 = (v_ctrl_wen_sel) ? (v_ctrl_wen) : (1'b0);
+assign nand_clk_we_d2 = (v_ctrl_wen_sel) ? (v_ctrl_wen) : (1'b1);
 
-      ODDR #
-        (
-         .SRTYPE       ("SYNC"),
-         .DDR_CLK_EDGE ("OPPOSITE_EDGE")
-         )
-        u_oddr_ck
-          (
-           .Q   (v_nand_clk),
-           .C   (v_clk0),
-           .CE  (1'b1),
-           .D1  (nand_clk_we_d1),
-           .D2  (nand_clk_we_d2),
-           .R   (1'b0),
-           .S   (1'b0)
-           );
+//***************************************************************************
+// NAND CLK ODDR
+//***************************************************************************
+ODDR #
+	(
+	.SRTYPE       ("SYNC"),
+	.DDR_CLK_EDGE ("OPPOSITE_EDGE")
+	)
+	u_oddr_ck
+	(
+		.Q   (v_nand_clk),
+		.C   (v_clk0),
+		.CE  (1'b1),
+		.D1  (nand_clk_we_d1),
+		.D2  (nand_clk_we_d2),
+		.R   (1'b0),
+		.S   (1'b0)
+	);
 
- 
 
-//DQS tri-state inout buffer
+//***************************************************************************
+// DQS IO buffer
+//***************************************************************************
 nand_phy_dqs_iob #
 	(
 	//.DQS_GATE_EN           (DQS_GATE_EN),
@@ -132,43 +142,48 @@ nand_phy_dqs_iob #
 
 
 
-//DQ I/O buffers
-  genvar dq_i;
-  generate
-    for(dq_i = 0; dq_i < DQ_WIDTH; dq_i = dq_i+1) begin: gen_dq
-      nand_phy_dq_iob #
-        (
-         .HIGH_PERFORMANCE_MODE (HIGH_PERFORMANCE_MODE),
-         .IODELAY_GRP           (IODELAY_GRP)
-         )
-        u_iob_dq
-          (
-			  .clk0			 (v_clk0),
-			  .rst0			 (v_rst0),
-           .clk90        (v_clk90),
-           .rst90        (v_rst90),
-           //.dlyinc       (v_dlyinc_dq[dq_i]),
-           //.dlyce        (v_dlyce_dq[dq_i]),
-           //.dlyrst       (/*dlyrst_dq[dq_i]*/), //not sure if needed
-           .dq_oe_n      (v_dq_oe_n),
-			  .dq_iddr_rst	 (v_dq_iddr_rst),
-           .dqs          (delayed_dqs),
-           .wr_data_rise (v_wr_data_rise[dq_i]),
-           .wr_data_fall (v_wr_data_fall[dq_i]),
-           .rd_data_rise (v_rd_data_rise[dq_i]),
-           .rd_data_fall (v_rd_data_fall[dq_i]),
-			  .rd_data_comb (v_rd_data_comb[dq_i]),
-           .ddr_dq       (v_dq[dq_i]),
-			  .calib_dq_rise_0 (v_calib_dq_rise_0[dq_i]),
-			  .calib_dq_rise_90 (v_calib_dq_rise_90[dq_i]),
-			  .calib_dq_rise_180 (v_calib_dq_rise_180[dq_i]),
-			  .calib_dq_rise_270 (v_calib_dq_rise_270[dq_i]),
-			  .calib_clk0_sel (v_calib_clk0_sel)
-           );
-    end
-  endgenerate
+//***************************************************************************
+// DQ IO buffers
+//***************************************************************************
+genvar dq_i;
+generate
+ for(dq_i = 0; dq_i < DQ_WIDTH; dq_i = dq_i+1) begin: gen_dq
+	nand_phy_dq_iob #
+	  (
+		.HIGH_PERFORMANCE_MODE (HIGH_PERFORMANCE_MODE),
+		.IODELAY_GRP           (IODELAY_GRP)
+		)
+	  u_iob_dq
+		 (
+		  .clk0			 (v_clk0),
+		  .rst0			 (v_rst0),
+		  .clk90        (v_clk90),
+		  .rst90        (v_rst90),
+		  //.dlyinc       (v_dlyinc_dq[dq_i]),
+		  //.dlyce        (v_dlyce_dq[dq_i]),
+		  //.dlyrst       (/*dlyrst_dq[dq_i]*/), //not sure if needed
+		  .dq_oe_n      (v_dq_oe_n),
+		  .dq_iddr_rst	 (v_dq_iddr_rst),
+		  .dqs          (delayed_dqs),
+		  .wr_data_rise (v_wr_data_rise[dq_i]),
+		  .wr_data_fall (v_wr_data_fall[dq_i]),
+		  .rd_data_rise (v_rd_data_rise[dq_i]),
+		  .rd_data_fall (v_rd_data_fall[dq_i]),
+		  .rd_data_comb (v_rd_data_comb[dq_i]),
+		  .ddr_dq       (v_dq[dq_i]),
+		  .calib_dq_rise_0 (v_calib_dq_rise_0[dq_i]),
+		  .calib_dq_rise_90 (v_calib_dq_rise_90[dq_i]),
+		  .calib_dq_rise_180 (v_calib_dq_rise_180[dq_i]),
+		  .calib_dq_rise_270 (v_calib_dq_rise_270[dq_i]),
+		  .calib_clk0_sel (v_calib_clk0_sel)
+		  );
+ end
+endgenerate
 
-//Command I/O registers
+
+//***************************************************************************
+// Command I/O registers
+//***************************************************************************
 nand_phy_ctl_io u_io_phy_ctl
 	(
 	
@@ -192,6 +207,34 @@ nand_phy_ctl_io u_io_phy_ctl
 	.rst0(v_rst0)
 	
 	);
+
+
+ 
+//***************************************************************************
+// Chipscope 
+//***************************************************************************
+	wire [35:0] dbg_ctrl;
+
+	chipscope_icon icon (
+		.CONTROL0(dbg_ctrl) // INOUT BUS [35:0]
+	) /* synthesis syn_noprune=1 */;
+
+	chipscope_ila ila (
+		.CONTROL(dbg_ctrl), // INOUT BUS [35:0]
+		.CLK(v_clk0), // IN
+		.TRIG0(v_ctrl_debug0), // IN BUS [15:0]
+		.TRIG1(v_ctrl_debug1), // IN BUS [15:0]
+		.TRIG2(v_ctrl_debug2), // IN BUS [15:0]
+		.TRIG3(v_ctrl_debug3), // IN BUS [15:0]
+		.TRIG4(v_ctrl_debug4), // IN BUS [15:0]
+		.TRIG5(v_ctrl_debug5), // IN BUS [15:0]
+		.TRIG6(v_ctrl_debug6), // IN BUS [15:0]
+		.TRIG7(v_ctrl_debug7) // IN BUS [15:0]
+	) /* synthesis syn_noprune=1 */;
+
+
+
+
 
 endmodule
 

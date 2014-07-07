@@ -23,8 +23,14 @@ interface PhyUser;
 	method Action sendAddr (Bit#(8) addr);
 	method ActionValue#(Bit#(16)) rdWord();
 	method Action wrWord (Bit#(16) data);
-	method Action setDebug (Bit#(8) d);
-	method Action setDebug90 (Bit#(8) d);
+	method Action setDebug0 (Bit#(16) d);
+	method Action setDebug1 (Bit#(16) d);
+	method Action setDebug2 (Bit#(16) d);
+	method Action setDebug3 (Bit#(16) d);
+	method Action setDebug4 (Bit#(16) d);
+	method Action setDebug5 (Bit#(16) d);
+	method Action setDebug6 (Bit#(16) d);
+	method Action setDebug7 (Bit#(16) d);
 endinterface
 
 interface NandPhyIfc;
@@ -208,8 +214,14 @@ module mkNandPhy#(
 
 	//Debug registers
 	//Reg#(Bit#(8)) debugR90 <- mkReg(0, clocked_by clk90, reset_by rst90);
-	Reg#(Bit#(8)) debugR <- mkReg(0);
-	Reg#(Bit#(8)) debugR90 <- mkReg(0); //TODO not actually clk90
+	Reg#(Bit#(16)) debugR0 <- mkReg(0);
+	Reg#(Bit#(16)) debugR1 <- mkReg(0); 
+	Reg#(Bit#(16)) debugR2 <- mkReg(0); 
+	Reg#(Bit#(16)) debugR3 <- mkReg(0); 
+	Reg#(Bit#(16)) debugR4 <- mkReg(0); 
+	Reg#(Bit#(16)) debugR5 <- mkReg(0); 
+	Reg#(Bit#(16)) debugR6 <- mkReg(0); 
+	Reg#(Bit#(16)) debugR7 <- mkReg(0); 
 
 	//Command and address FIFO
 	FIFO#(PhyCmd) ctrlCmdQ <- mkFIFO();
@@ -250,8 +262,14 @@ module mkNandPhy#(
 		vnandPhy.vphyUser.wrDataRiseDQ(wrDataRise);
 		vnandPhy.vphyUser.wrDataFallDQ(wrDataFall);
 		vnandPhy.vphyUser.setCalibClk0Sel(calibClk0Sel);
-		vnandPhy.vphyUser.setDebug(debugR);
-		vnandPhy.vphyUser.setDebug90(debugR90);
+		vnandPhy.vphyUser.setDebug0(debugR0);
+		vnandPhy.vphyUser.setDebug1(debugR1);
+		vnandPhy.vphyUser.setDebug2(debugR2);
+		vnandPhy.vphyUser.setDebug3(debugR3);
+		vnandPhy.vphyUser.setDebug4(debugR4);
+		vnandPhy.vphyUser.setDebug5(debugR5);
+		vnandPhy.vphyUser.setDebug6(debugR6);
+		vnandPhy.vphyUser.setDebug7(debugR7);
 	endrule
 
 	//wait rule. 
@@ -929,14 +947,37 @@ module mkNandPhy#(
 			wrQ.enq(data);
 		endmethod
 
-		method Action setDebug (Bit#(8) d);
-			debugR <= d;
+		method Action setDebug0 (Bit#(16) d);
+			debugR0 <= d;
 		endmethod
 
-		method Action setDebug90 (Bit#(8) d);
-			debugR90 <= d;
+		method Action setDebug1 (Bit#(16) d);
+			debugR1 <= d;
 		endmethod
 
+		method Action setDebug2 (Bit#(16) d);
+			debugR2 <= d;
+		endmethod
+
+		method Action setDebug3 (Bit#(16) d);
+			debugR3 <= d;
+		endmethod
+
+		method Action setDebug4 (Bit#(16) d);
+			debugR4 <= d;
+		endmethod
+
+		method Action setDebug5 (Bit#(16) d);
+			debugR5 <= d;
+		endmethod
+
+		method Action setDebug6 (Bit#(16) d);
+			debugR6 <= d;
+		endmethod
+
+		method Action setDebug7 (Bit#(16) d);
+			debugR7 <= d;
+		endmethod
 	endinterface
 
 	interface nandPins = vnandPhy.nandPins;

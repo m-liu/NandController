@@ -101,7 +101,10 @@ module mkBusController#(
 	Reg#(Bit#(16)) dataCnt <- mkReg(0);
 
 	//Debug
-	Reg#(Bit#(16)) debugR <- mkReg(0);
+	Reg#(Bit#(16)) debugR0 <- mkReg(0);
+	Reg#(Bit#(16)) debugR1 <- mkReg(0);
+	Reg#(Bit#(16)) debugR2 <- mkReg(0);
+	Reg#(Bit#(16)) debugR3 <- mkReg(0);
 
 	//Command/Data FIFOs
 	FIFO#(BusCmd) cmdQ <- mkSizedFIFO(64); //TODO adjust
@@ -223,7 +226,7 @@ module mkBusController#(
 	rule doReadDataDDR if (state==READ_DATA && inSyncMode==True && dataCnt < nDataBursts);
 		let rd <- phy.phyUser.rdWord();
 		readQ.enq(rd);
-		debugR <= rd;
+		debugR0 <= rd;
 		dataCnt <= dataCnt + 1;
 		$display("NandCtrl: read data: %x", rd);
 	endrule
@@ -241,7 +244,7 @@ module mkBusController#(
 		else begin //odd burst, enq into fifo
 			Bit#(16) rdMerged = {rdTmp, rdTrunc};
 			readQ.enq(rdMerged);
-			debugR <= rdMerged;
+			debugR0 <= rdMerged;
 			$display("NandCtrl: read data: %x", rdMerged);
 		end
 	endrule
@@ -384,7 +387,7 @@ module mkBusController#(
 		Bit#(16) status <- phy.phyUser.rdWord();
 		cmdCnt <= 0;
 		$display("NandCtrl: status=%x", status);
-		debugR <= status; //debug
+		debugR0 <= status; //debug
 
 		//During calibration, get status is used to initialize IDDR regs so that we don't have
 		//DON'T CARES
@@ -528,8 +531,8 @@ module mkBusController#(
 	// Debug
 	//******************************************************
 	rule debugStatus;
-		phy.phyUser.setDebug(truncate(debugR));
-		phy.phyUser.setDebug90(truncateLSB(debugR));
+		phy.phyUser.setDebug0(debugR0);
+		phy.phyUser.setDebug1(zeroExtend(pack(state)));
 	endrule
 
 

@@ -21,8 +21,8 @@ module tb;
 	wire b0_wpn;
 	wire [7:0] b0_cen;
 	wire  [3:0] b0_rb;
-	wire [7:0] b0_debug;
-	wire [7:0] b0_debug90;
+	wire [7:0] b0_debug0;
+	wire [7:0] b0_debug1;
 	reg sys_resetn;
 	
 	//debug
@@ -85,8 +85,8 @@ mkFlashController u_flash_controller(
 		 .WPN(b0_wpn),
 
 		 .CEN(b0_cen),
-		 .DEBUG(b0_debug),
-		 .DEBUG90(b0_debug90)
+		 .DEBUG0(b0_debug0),
+		 .DEBUG1(b0_debug1)
 	 );
 
 

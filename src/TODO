@@ -2,8 +2,7 @@
 - DQ reversing because of pin swap of front/back packages
 - Read calibration for each chip
 - DQ-DQS skew calibration
-- Test out chipscope signals
-- Output drive strength?
+- Output drive strength, slew rate (FPGA and NAND)?
 
 - Remove DQS simulation delay in post implementation sim
 - delay adjustment for DQ line
@@ -22,3 +21,4 @@
 - initial values of CEN, WPN etc. is incorrect for a bit after power up need to set INIT parameter in FDRE reg
 - ECC detection bug. cant_correct flag is not being asserted
 - ECC Encoder
+- Test out chipscope signals

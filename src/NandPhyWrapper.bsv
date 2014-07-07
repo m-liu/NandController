@@ -28,10 +28,10 @@ interface NANDPins;
 	(* prefix = "DQS" *)
 	interface Inout#(Bit#(1))   dqs;
 	
-	(* prefix = "", result = "DEBUG" *)
-	method	Bit#(8)				debug;
-	(* prefix = "", result = "DEBUG90" *)
-	method	Bit#(8)				debug90;
+	(* prefix = "", result = "DEBUG0" *)
+	method	Bit#(8)				debug0;
+	(* prefix = "", result = "DEBUG1" *)
+	method	Bit#(8)				debug1;
 endinterface 
 
 (* always_ready, always_enabled *)
@@ -70,8 +70,14 @@ interface VPhyUser;
 	method Bit#(8) calibDqRise270();
 	method Action setCalibClk0Sel (Bit#(1) i);
 
-	method Action setDebug (Bit#(8) i);
-	method Action setDebug90 (Bit#(8) i);
+	method Action setDebug0 (Bit#(16) i);
+	method Action setDebug1 (Bit#(16) i);
+	method Action setDebug2 (Bit#(16) i);
+	method Action setDebug3 (Bit#(16) i);
+	method Action setDebug4 (Bit#(16) i);
+	method Action setDebug5 (Bit#(16) i);
+	method Action setDebug6 (Bit#(16) i);
+	method Action setDebug7 (Bit#(16) i);
 endinterface
 
 
@@ -107,8 +113,8 @@ interface NANDPins nandPins;
 	method    v_wpn 	wpn         clocked_by(no_clock) reset_by(no_reset);
 	method    v_cen 	cen         clocked_by(no_clock) reset_by(no_reset);
 	//debug ports are really just old R/B signals
-	method	 v_debug debug			clocked_by(no_clock) reset_by(no_reset);
-	method	 v_debug90 debug90	clocked_by(no_clock) reset_by(no_reset);
+	method	 v_debug0 debug0			clocked_by(no_clock) reset_by(no_reset);
+	method	 v_debug1 debug1	clocked_by(no_clock) reset_by(no_reset);
 endinterface
 
 
@@ -152,16 +158,22 @@ interface VPhyUser vphyUser;
 	method setCalibClk0Sel (v_calib_clk0_sel) enable((*inhigh*) en20) clocked_by(clk0) reset_by(rstn0);
 
 	//Debug signals
-	method setDebug (v_ctrl_debug) enable((*inhigh*)en14) clocked_by(clk0) reset_by(rstn0);
-	method setDebug90 (v_ctrl_debug90) enable((*inhigh*)en15) clocked_by(clk0) reset_by(rstn0);
+	method setDebug0 (v_ctrl_debug0) enable((*inhigh*)en30) clocked_by(clk0) reset_by(rstn0);
+	method setDebug1 (v_ctrl_debug1) enable((*inhigh*)en31) clocked_by(clk0) reset_by(rstn0);
+	method setDebug2 (v_ctrl_debug2) enable((*inhigh*)en32) clocked_by(clk0) reset_by(rstn0);
+	method setDebug3 (v_ctrl_debug3) enable((*inhigh*)en33) clocked_by(clk0) reset_by(rstn0);
+	method setDebug4 (v_ctrl_debug4) enable((*inhigh*)en34) clocked_by(clk0) reset_by(rstn0);
+	method setDebug5 (v_ctrl_debug5) enable((*inhigh*)en35) clocked_by(clk0) reset_by(rstn0);
+	method setDebug6 (v_ctrl_debug6) enable((*inhigh*)en36) clocked_by(clk0) reset_by(rstn0);
+	method setDebug7 (v_ctrl_debug7) enable((*inhigh*)en37) clocked_by(clk0) reset_by(rstn0);
 
 endinterface
 
 //NAND pins are CF
 schedule 
-(nandPins_nand_clk, nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen, nandPins_debug, nandPins_debug90) 
+(nandPins_nand_clk, nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen, nandPins_debug0, nandPins_debug1) 
 CF
-(nandPins_nand_clk, nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen, nandPins_debug, nandPins_debug90);
+(nandPins_nand_clk, nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen, nandPins_debug0, nandPins_debug1);
 
 //Just set all other signals as CF
 schedule
@@ -171,7 +183,8 @@ vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_set
 vphyUser_setWEN, vphyUser_setWENSel,
 vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDataDQ, vphyUser_iddrRstDQ,
 vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
-vphyUser_setDebug, vphyUser_setDebug90)
+vphyUser_setDebug0, vphyUser_setDebug1, vphyUser_setDebug2, vphyUser_setDebug3, vphyUser_setDebug4, 
+vphyUser_setDebug5, vphyUser_setDebug6, vphyUser_setDebug7)
 CF
 (/*vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ,*/ 
 vphyUser_calibDqRise0, vphyUser_calibDqRise90, vphyUser_calibDqRise180, vphyUser_calibDqRise270, vphyUser_setCalibClk0Sel,
@@ -179,7 +192,8 @@ vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_set
 vphyUser_setWEN, vphyUser_setWENSel,
 vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDataDQ, vphyUser_iddrRstDQ,
 vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
-vphyUser_setDebug, vphyUser_setDebug90);
+vphyUser_setDebug0, vphyUser_setDebug1, vphyUser_setDebug2, vphyUser_setDebug3, vphyUser_setDebug4, 
+vphyUser_setDebug5, vphyUser_setDebug6, vphyUser_setDebug7);
 
 
 endmodule
