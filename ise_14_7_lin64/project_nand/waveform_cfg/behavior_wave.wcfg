@@ -1,0 +1,394 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="/home/mingliu/NandController/ise_14_7_lin64/project_nand/tb_isim_beh.wdb" id="1" type="auto">
+         <top_modules>
+            <top_module name="glbl" />
+            <top_module name="tb" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <WVObjectSize size="23" />
+   <wvobject fp_name="/tb/b0_nand_clk0" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_nand_clk0</obj_property>
+      <obj_property name="ObjectShortName">b0_nand_clk0</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_dq" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_dq[7:0]</obj_property>
+      <obj_property name="ObjectShortName">b0_dq[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_dqs" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_dqs</obj_property>
+      <obj_property name="ObjectShortName">b0_dqs</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_cle" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_cle</obj_property>
+      <obj_property name="ObjectShortName">b0_cle</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_ale" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_ale</obj_property>
+      <obj_property name="ObjectShortName">b0_ale</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_wrn" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_wrn</obj_property>
+      <obj_property name="ObjectShortName">b0_wrn</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_wpn" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_wpn</obj_property>
+      <obj_property name="ObjectShortName">b0_wpn</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_cen" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_cen[1:0]</obj_property>
+      <obj_property name="ObjectShortName">b0_cen[1:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_rb" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_rb[3:0]</obj_property>
+      <obj_property name="ObjectShortName">b0_rb[3:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_debug" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_debug[7:0]</obj_property>
+      <obj_property name="ObjectShortName">b0_debug[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_debug90" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_debug90[7:0]</obj_property>
+      <obj_property name="ObjectShortName">b0_debug90[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/clk_in_p" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">clk_in_p</obj_property>
+      <obj_property name="ObjectShortName">clk_in_p</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/clk_in_n" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">clk_in_n</obj_property>
+      <obj_property name="ObjectShortName">clk_in_n</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/sys_resetn" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">sys_resetn</obj_property>
+      <obj_property name="ObjectShortName">sys_resetn</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/u_iob_dqs/u_idelay_dqs/CNTVALUEOUT" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">CNTVALUEOUT[4:0]</obj_property>
+      <obj_property name="ObjectShortName">CNTVALUEOUT[4:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="group17" type="group">
+      <obj_property name="label">ISERDES_DQ0</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /ISERDESE2_inst/D" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">D</obj_property>
+         <obj_property name="ObjectShortName">D</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /ISERDESE2_inst/DDLY" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">DDLY</obj_property>
+         <obj_property name="ObjectShortName">DDLY</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /ISERDESE2_inst/Q1" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q1</obj_property>
+         <obj_property name="ObjectShortName">Q1</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /ISERDESE2_inst/Q2" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q2</obj_property>
+         <obj_property name="ObjectShortName">Q2</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /ISERDESE2_inst/O" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">O</obj_property>
+         <obj_property name="ObjectShortName">O</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /ISERDESE2_inst/CLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLK</obj_property>
+         <obj_property name="ObjectShortName">CLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /ISERDESE2_inst/CLKDIV" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLKDIV</obj_property>
+         <obj_property name="ObjectShortName">CLKDIV</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /ISERDESE2_inst/OCLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">OCLK</obj_property>
+         <obj_property name="ObjectShortName">OCLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /ISERDESE2_inst/RST" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">RST</obj_property>
+         <obj_property name="ObjectShortName">RST</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject fp_name="group27" type="group">
+      <obj_property name="label">ISERDES_DQ1</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[1].u_iob_dq /ISERDESE2_inst/D" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">D</obj_property>
+         <obj_property name="ObjectShortName">D</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[1].u_iob_dq /ISERDESE2_inst/DDLY" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">DDLY</obj_property>
+         <obj_property name="ObjectShortName">DDLY</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[1].u_iob_dq /ISERDESE2_inst/Q1" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q1</obj_property>
+         <obj_property name="ObjectShortName">Q1</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[1].u_iob_dq /ISERDESE2_inst/Q2" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q2</obj_property>
+         <obj_property name="ObjectShortName">Q2</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[1].u_iob_dq /ISERDESE2_inst/O" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">O</obj_property>
+         <obj_property name="ObjectShortName">O</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[1].u_iob_dq /ISERDESE2_inst/CLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLK</obj_property>
+         <obj_property name="ObjectShortName">CLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[1].u_iob_dq /ISERDESE2_inst/CLKDIV" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLKDIV</obj_property>
+         <obj_property name="ObjectShortName">CLKDIV</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[1].u_iob_dq /ISERDESE2_inst/OCLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">OCLK</obj_property>
+         <obj_property name="ObjectShortName">OCLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[1].u_iob_dq /ISERDESE2_inst/RST" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">RST</obj_property>
+         <obj_property name="ObjectShortName">RST</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject fp_name="group37" type="group">
+      <obj_property name="label">ISERDES_DQ2</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[2].u_iob_dq /ISERDESE2_inst/D" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">D</obj_property>
+         <obj_property name="ObjectShortName">D</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[2].u_iob_dq /ISERDESE2_inst/DDLY" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">DDLY</obj_property>
+         <obj_property name="ObjectShortName">DDLY</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[2].u_iob_dq /ISERDESE2_inst/Q1" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q1</obj_property>
+         <obj_property name="ObjectShortName">Q1</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[2].u_iob_dq /ISERDESE2_inst/Q2" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q2</obj_property>
+         <obj_property name="ObjectShortName">Q2</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[2].u_iob_dq /ISERDESE2_inst/O" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">O</obj_property>
+         <obj_property name="ObjectShortName">O</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[2].u_iob_dq /ISERDESE2_inst/CLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLK</obj_property>
+         <obj_property name="ObjectShortName">CLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[2].u_iob_dq /ISERDESE2_inst/CLKDIV" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLKDIV</obj_property>
+         <obj_property name="ObjectShortName">CLKDIV</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[2].u_iob_dq /ISERDESE2_inst/OCLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">OCLK</obj_property>
+         <obj_property name="ObjectShortName">OCLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[2].u_iob_dq /ISERDESE2_inst/RST" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">RST</obj_property>
+         <obj_property name="ObjectShortName">RST</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject fp_name="group38" type="group">
+      <obj_property name="label">ISERDES_DQ3</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[3].u_iob_dq /ISERDESE2_inst/D" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">D</obj_property>
+         <obj_property name="ObjectShortName">D</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[3].u_iob_dq /ISERDESE2_inst/DDLY" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">DDLY</obj_property>
+         <obj_property name="ObjectShortName">DDLY</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[3].u_iob_dq /ISERDESE2_inst/Q1" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q1</obj_property>
+         <obj_property name="ObjectShortName">Q1</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[3].u_iob_dq /ISERDESE2_inst/Q2" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q2</obj_property>
+         <obj_property name="ObjectShortName">Q2</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[3].u_iob_dq /ISERDESE2_inst/O" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">O</obj_property>
+         <obj_property name="ObjectShortName">O</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[3].u_iob_dq /ISERDESE2_inst/CLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLK</obj_property>
+         <obj_property name="ObjectShortName">CLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[3].u_iob_dq /ISERDESE2_inst/CLKDIV" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLKDIV</obj_property>
+         <obj_property name="ObjectShortName">CLKDIV</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[3].u_iob_dq /ISERDESE2_inst/OCLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">OCLK</obj_property>
+         <obj_property name="ObjectShortName">OCLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[3].u_iob_dq /ISERDESE2_inst/RST" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">RST</obj_property>
+         <obj_property name="ObjectShortName">RST</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject fp_name="group39" type="group">
+      <obj_property name="label">ISERDES_DQ4</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[4].u_iob_dq /ISERDESE2_inst/D" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">D</obj_property>
+         <obj_property name="ObjectShortName">D</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[4].u_iob_dq /ISERDESE2_inst/DDLY" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">DDLY</obj_property>
+         <obj_property name="ObjectShortName">DDLY</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[4].u_iob_dq /ISERDESE2_inst/Q1" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q1</obj_property>
+         <obj_property name="ObjectShortName">Q1</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[4].u_iob_dq /ISERDESE2_inst/Q2" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q2</obj_property>
+         <obj_property name="ObjectShortName">Q2</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[4].u_iob_dq /ISERDESE2_inst/O" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">O</obj_property>
+         <obj_property name="ObjectShortName">O</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[4].u_iob_dq /ISERDESE2_inst/CLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLK</obj_property>
+         <obj_property name="ObjectShortName">CLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[4].u_iob_dq /ISERDESE2_inst/CLKDIV" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLKDIV</obj_property>
+         <obj_property name="ObjectShortName">CLKDIV</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[4].u_iob_dq /ISERDESE2_inst/OCLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">OCLK</obj_property>
+         <obj_property name="ObjectShortName">OCLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[4].u_iob_dq /ISERDESE2_inst/RST" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">RST</obj_property>
+         <obj_property name="ObjectShortName">RST</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject fp_name="group40" type="group">
+      <obj_property name="label">ISERDES_DQ5</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[5].u_iob_dq /ISERDESE2_inst/D" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">D</obj_property>
+         <obj_property name="ObjectShortName">D</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[5].u_iob_dq /ISERDESE2_inst/DDLY" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">DDLY</obj_property>
+         <obj_property name="ObjectShortName">DDLY</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[5].u_iob_dq /ISERDESE2_inst/Q1" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q1</obj_property>
+         <obj_property name="ObjectShortName">Q1</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[5].u_iob_dq /ISERDESE2_inst/Q2" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q2</obj_property>
+         <obj_property name="ObjectShortName">Q2</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[5].u_iob_dq /ISERDESE2_inst/O" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">O</obj_property>
+         <obj_property name="ObjectShortName">O</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[5].u_iob_dq /ISERDESE2_inst/CLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLK</obj_property>
+         <obj_property name="ObjectShortName">CLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[5].u_iob_dq /ISERDESE2_inst/CLKDIV" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLKDIV</obj_property>
+         <obj_property name="ObjectShortName">CLKDIV</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[5].u_iob_dq /ISERDESE2_inst/OCLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">OCLK</obj_property>
+         <obj_property name="ObjectShortName">OCLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[5].u_iob_dq /ISERDESE2_inst/RST" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">RST</obj_property>
+         <obj_property name="ObjectShortName">RST</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject fp_name="group41" type="group">
+      <obj_property name="label">ISERDES_DQ6</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[6].u_iob_dq /ISERDESE2_inst/D" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">D</obj_property>
+         <obj_property name="ObjectShortName">D</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[6].u_iob_dq /ISERDESE2_inst/DDLY" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">DDLY</obj_property>
+         <obj_property name="ObjectShortName">DDLY</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[6].u_iob_dq /ISERDESE2_inst/Q1" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q1</obj_property>
+         <obj_property name="ObjectShortName">Q1</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[6].u_iob_dq /ISERDESE2_inst/Q2" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q2</obj_property>
+         <obj_property name="ObjectShortName">Q2</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[6].u_iob_dq /ISERDESE2_inst/O" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">O</obj_property>
+         <obj_property name="ObjectShortName">O</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[6].u_iob_dq /ISERDESE2_inst/CLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLK</obj_property>
+         <obj_property name="ObjectShortName">CLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[6].u_iob_dq /ISERDESE2_inst/CLKDIV" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLKDIV</obj_property>
+         <obj_property name="ObjectShortName">CLKDIV</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[6].u_iob_dq /ISERDESE2_inst/OCLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">OCLK</obj_property>
+         <obj_property name="ObjectShortName">OCLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[6].u_iob_dq /ISERDESE2_inst/RST" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">RST</obj_property>
+         <obj_property name="ObjectShortName">RST</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject fp_name="group42" type="group">
+      <obj_property name="label">ISERDES_DQ7</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[7].u_iob_dq /ISERDESE2_inst/D" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">D</obj_property>
+         <obj_property name="ObjectShortName">D</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[7].u_iob_dq /ISERDESE2_inst/DDLY" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">DDLY</obj_property>
+         <obj_property name="ObjectShortName">DDLY</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[7].u_iob_dq /ISERDESE2_inst/Q1" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q1</obj_property>
+         <obj_property name="ObjectShortName">Q1</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[7].u_iob_dq /ISERDESE2_inst/Q2" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">Q2</obj_property>
+         <obj_property name="ObjectShortName">Q2</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[7].u_iob_dq /ISERDESE2_inst/O" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">O</obj_property>
+         <obj_property name="ObjectShortName">O</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[7].u_iob_dq /ISERDESE2_inst/CLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLK</obj_property>
+         <obj_property name="ObjectShortName">CLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[7].u_iob_dq /ISERDESE2_inst/CLKDIV" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">CLKDIV</obj_property>
+         <obj_property name="ObjectShortName">CLKDIV</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[7].u_iob_dq /ISERDESE2_inst/OCLK" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">OCLK</obj_property>
+         <obj_property name="ObjectShortName">OCLK</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[7].u_iob_dq /ISERDESE2_inst/RST" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">RST</obj_property>
+         <obj_property name="ObjectShortName">RST</obj_property>
+      </wvobject>
+   </wvobject>
+</wave_config>

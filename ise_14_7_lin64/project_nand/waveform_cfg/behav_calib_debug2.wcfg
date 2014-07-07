@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="/home/mingliu/NandController/ise_14_7_lin64/project_nand/tb_isim_beh.wdb" id="1" type="auto">
+         <top_modules>
+            <top_module name="glbl" />
+            <top_module name="tb" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <WVObjectSize size="28" />
+   <wvobject fp_name="/tb/b0_nand_clk0" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_nand_clk0</obj_property>
+      <obj_property name="ObjectShortName">b0_nand_clk0</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_dq" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_dq[7:0]</obj_property>
+      <obj_property name="ObjectShortName">b0_dq[7:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_dqs" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_dqs</obj_property>
+      <obj_property name="ObjectShortName">b0_dqs</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_cle" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_cle</obj_property>
+      <obj_property name="ObjectShortName">b0_cle</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_ale" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_ale</obj_property>
+      <obj_property name="ObjectShortName">b0_ale</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_wrn" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_wrn</obj_property>
+      <obj_property name="ObjectShortName">b0_wrn</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_wpn" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_wpn</obj_property>
+      <obj_property name="ObjectShortName">b0_wpn</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_cen" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_cen[7:0]</obj_property>
+      <obj_property name="ObjectShortName">b0_cen[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_rb" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_rb[3:0]</obj_property>
+      <obj_property name="ObjectShortName">b0_rb[3:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_debug" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_debug[7:0]</obj_property>
+      <obj_property name="ObjectShortName">b0_debug[7:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/b0_debug90" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">b0_debug90[7:0]</obj_property>
+      <obj_property name="ObjectShortName">b0_debug90[7:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/clk_in_p" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">clk_in_p</obj_property>
+      <obj_property name="ObjectShortName">clk_in_p</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/clk_in_n" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">clk_in_n</obj_property>
+      <obj_property name="ObjectShortName">clk_in_n</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/sys_resetn" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">sys_resetn</obj_property>
+      <obj_property name="ObjectShortName">sys_resetn</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/v_calib_dq_rise_0" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">v_calib_dq_rise_0[7:0]</obj_property>
+      <obj_property name="ObjectShortName">v_calib_dq_rise_0[7:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/v_calib_dq_rise_90" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">v_calib_dq_rise_90[7:0]</obj_property>
+      <obj_property name="ObjectShortName">v_calib_dq_rise_90[7:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/v_calib_dq_rise_180" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">v_calib_dq_rise_180[7:0]</obj_property>
+      <obj_property name="ObjectShortName">v_calib_dq_rise_180[7:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/v_calib_dq_rise_270" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">v_calib_dq_rise_270[7:0]</obj_property>
+      <obj_property name="ObjectShortName">v_calib_dq_rise_270[7:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /IDDR_inst/Q1" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">Q1</obj_property>
+      <obj_property name="ObjectShortName">Q1</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /IDDR_inst/Q2" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">Q2</obj_property>
+      <obj_property name="ObjectShortName">Q2</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /IDDR_inst/C" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">C</obj_property>
+      <obj_property name="ObjectShortName">C</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /IDDR_inst/CE" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">CE</obj_property>
+      <obj_property name="ObjectShortName">CE</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /IDDR_inst/D" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">D</obj_property>
+      <obj_property name="ObjectShortName">D</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /IDDR_inst/R" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">R</obj_property>
+      <obj_property name="ObjectShortName">R</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/vnandPhy/\gen_dq[0].u_iob_dq /IDDR_inst/S" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">S</obj_property>
+      <obj_property name="ObjectShortName">S</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/rLat" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">rLat[7:0]</obj_property>
+      <obj_property name="ObjectShortName">rLat[7:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/calibClk0Sel" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">calibClk0Sel</obj_property>
+      <obj_property name="ObjectShortName">calibClk0Sel</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb/u_flash_controller/busCtrl/phy/currState" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">currState[5:0]</obj_property>
+      <obj_property name="ObjectShortName">currState[5:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+</wave_config>
