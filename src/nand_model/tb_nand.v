@@ -6,87 +6,197 @@ module tb;
 //---------------------------------------------
 	reg clk_in_p;
 	reg clk_in_n;
-	//wire b0_sys_clk_p;
-	//wire b0_sys_clk_n;
-	wire b0_nand_clk0;
-	//wire b0_nand_clk1;
-	//wire b0_nand_clk2;
-	//wire b0_nand_clk3;
 	
-	wire [7:0] b0_dq;
-	wire b0_dqs;
-	wire b0_cle;
-	wire b0_ale;
-	wire b0_wrn;
-	wire b0_wpn;
-	wire [7:0] b0_cen;
-	wire  [3:0] b0_rb;
-	wire [7:0] b0_debug0;
-	wire [7:0] b0_debug1;
+	wire [3:0] b0_0_wen_nclk;
+	wire [7:0] b0_0_dq;
+	wire b0_0_dqs;
+	wire b0_0_cle;
+	wire b0_0_ale;
+	wire b0_0_wrn;
+	wire b0_0_wpn;
+	wire [7:0] b0_0_cen;
+	wire  [7:0] b0_0_rb;
+	wire [7:0] b0_0_debug0;
+	wire [7:0] b0_0_debug1;
 	reg sys_resetn;
 	
-	//debug
-	//wire debug_ctrl;	
-	 
+	//reversed DQ
+	//wire [7:0] b0_0_dq_rev = {b0_0_dq[0], b0_0_dq[1], b0_0_dq[2], b0_0_dq[3], 
+	//								b0_0_dq[4], b0_0_dq[5], b0_0_dq[6], b0_0_dq[7]};
+
 
 //---------------------------------------------
-// Module instantiation
+// Nand model instantiation
 //---------------------------------------------
-nand_model nand_model (
+//Bus 0, Chip 0
+nand_model nand_b0_0 (
 	//clocks
-	.Clk_We_n(b0_nand_clk0),
-	.Clk_We2_n(/*b0_nand_clk0*/),
+	.Clk_We_n(b0_0_wen_nclk[0]), //same connection to both wen/nclk
+	.Clk_We2_n(b0_0_wen_nclk[0]),
 	
 	//CE
-	.Ce_n(b0_cen[0]),
-	.Ce2_n(/*b0_cen[1]*/),
-	.Ce3_n(b0_cen[1]),
-	.Ce4_n(/*b0_cen[3]*/),
+	.Ce_n(b0_0_cen[0]),
+	.Ce2_n(/*b0_1_cen[0]*/),
+	.Ce3_n(b0_0_cen[1]),
+	.Ce4_n(/*b0_1_cen[1]*/),
 	
 	//Ready/busy
-	.Rb_n(b0_rb[0]),
-	.Rb2_n(b0_rb[1]),
-	.Rb3_n(b0_rb[2]),
-	.Rb4_n(b0_rb[3]),
+	.Rb_n(b0_0_rb[0]),
+	.Rb2_n(/*b0_1_rb[0]*/),
+	.Rb3_n(b0_0_rb[1]),
+	.Rb4_n(/*b0_1_rb[1]*/),
 	 
 	//DQ DQS
-	.Dqs(b0_dqs), 
-	.Dq_Io(b0_dq[7:0]), 
-	.Dqs2(/*b0_dqs[1]*/),
-	.Dq_Io2(/*b0_dq[15:8]*/),
+	.Dqs(b0_0_dqs), 
+	.Dq_Io(b0_0_dq[7:0]), 
+	.Dqs2(/*b0_1_dqs*/),
+	.Dq_Io2(/*b0_1_dq[7:0]*/),
 	 
 	//ALE CLE WR WP
-	.Cle(b0_cle), 
-	.Cle2(/*b0_cle[1]*/),
-   .Ale(b0_ale), 
-	.Ale2(/*b0_ale[1]*/),
-	.Wr_Re_n(b0_wrn), 
-	.Wr_Re2_n(/*b0_wrn[1]*/),
-	.Wp_n(b0_wpn), 
-	.Wp2_n(/*b0_wpn[1]*/)
+	.Cle(b0_0_cle), 
+	.Cle2(/*b0_1_cle*/),
+   .Ale(b0_0_ale), 
+	.Ale2(/*b0_1_ale*/),
+	.Wr_Re_n(b0_0_wrn), 
+	.Wr_Re2_n(/*b0_1_wrn*/),
+	.Wp_n(b0_0_wpn), 
+	.Wp2_n(/*b0_1_wpn*/)
 );
 
+//Bus 0, Chip 1
+//nand_model nand_b0_1 (
+//	//clocks
+//	.Clk_We_n(b0_0_wen_nclk[1]), //same connection to both wen/nclk
+//	.Clk_We2_n(b0_0_wen_nclk[1]),
+//	
+//	//CE
+//	.Ce_n(b0_0_cen[2]),
+//	.Ce2_n(/*b0_1_cen[2]*/),
+//	.Ce3_n(b0_0_cen[3]),
+//	.Ce4_n(/*b0_1_cen[3]*/),
+//	
+//	//Ready/busy
+//	.Rb_n(b0_0_rb[2]),
+//	.Rb2_n(/*b0_1_rb[2]*/),
+//	.Rb3_n(b0_0_rb[3]),
+//	.Rb4_n(/*b0_1_rb[3]*/),
+//	 
+//	//DQ DQS
+//	.Dqs(b0_0_dqs), 
+//	.Dq_Io(b0_0_dq[7:0]), 
+//	.Dqs2(/*b0_1_dqs*/),
+//	.Dq_Io2(/*b0_1_dq[7:0]*/),
+//	 
+//	//ALE CLE WR WP
+//	.Cle(b0_0_cle), 
+//	.Cle2(/*b0_1_cle*/),
+//   .Ale(b0_0_ale), 
+//	.Ale2(/*b0_1_ale*/),
+//	.Wr_Re_n(b0_0_wrn), 
+//	.Wr_Re2_n(/*b0_1_wrn*/),
+//	.Wp_n(b0_0_wpn), 
+//	.Wp2_n(/*b0_1_wpn*/)
+//);
+
+//Bus 0, Chip 2. Reversed DQ pins
+nand_model nand_b0_2 (
+	//clocks
+	.Clk_We_n(b0_0_wen_nclk[2]), //same connection to both wen/nclk
+	.Clk_We2_n(b0_0_wen_nclk[2]),
+	
+	//CE
+	.Ce_n(b0_0_cen[4]),
+	.Ce2_n(/*b0_1_cen[4]*/),
+	.Ce3_n(b0_0_cen[5]),
+	.Ce4_n(/*b0_1_cen[5]*/),
+	
+	//Ready/busy
+	.Rb_n(b0_0_rb[4]),
+	.Rb2_n(/*b0_1_rb[4]*/),
+	.Rb3_n(b0_0_rb[5]),
+	.Rb4_n(/*b0_1_rb[5]*/),
+	 
+	//DQ DQS
+	.Dqs(b0_0_dqs), 
+	//.Dq_Io(b0_0_dq_rev[7:0]),	 		//Reversed DQ
+	.Dq_Io({b0_0_dq[0], b0_0_dq[1], b0_0_dq[2], b0_0_dq[3], b0_0_dq[4], b0_0_dq[5], b0_0_dq[6], b0_0_dq[7]}),
+	.Dqs2(/*b0_1_dqs*/),
+	.Dq_Io2(/*b0_1_dq_rev[7:0]*/), 	//Reversed DQ
+	 
+	//ALE CLE WR WP
+	.Cle(b0_0_cle), 
+	.Cle2(/*b0_1_cle*/),
+   .Ale(b0_0_ale), 
+	.Ale2(/*b0_1_ale*/),
+	.Wr_Re_n(b0_0_wrn), 
+	.Wr_Re2_n(/*b0_1_wrn*/),
+	.Wp_n(b0_0_wpn), 
+	.Wp2_n(/*b0_1_wpn*/)
+);
+
+
+//Bus 0, Chip 3. Reversed DQ pins
+//nand_model nand_b0_3 (
+//	//clocks
+//	.Clk_We_n(b0_0_wen_nclk[3]), //same connection to both wen/nclk
+//	.Clk_We2_n(b0_0_wen_nclk[3]),
+//	
+//	//CE
+//	.Ce_n(b0_0_cen[6]),
+//	.Ce2_n(/*b0_1_cen[6]*/),
+//	.Ce3_n(b0_0_cen[7]),
+//	.Ce4_n(/*b0_1_cen[7]*/),
+//	
+//	//Ready/busy
+//	.Rb_n(b0_0_rb[6]),
+//	.Rb2_n(/*b0_1_rb[6]*/),
+//	.Rb3_n(b0_0_rb[7]),
+//	.Rb4_n(/*b0_1_rb[7]*/),
+//	 
+//	//DQ DQS
+//	.Dqs(b0_0_dqs), 
+//	.Dq_Io(b0_0_dq_rev[7:0]),	 		//Reversed DQ
+//	.Dqs2(/*b0_1_dqs*/),
+//	.Dq_Io2(/*b0_1_dq[7:0]*/), 	//Reversed DQ
+//	 
+//	//ALE CLE WR WP
+//	.Cle(b0_0_cle), 
+//	.Cle2(/*b0_1_cle*/),
+//   .Ale(b0_0_ale), 
+//	.Ale2(/*b0_1_ale*/),
+//	.Wr_Re_n(b0_0_wrn), 
+//	.Wr_Re2_n(/*b0_1_wrn*/),
+//	.Wp_n(b0_0_wpn), 
+//	.Wp2_n(/*b0_1_wpn*/)
+//);
+
+
+
+
+//---------------------------------------------
+// Flash controller
+//---------------------------------------------
 mkFlashController u_flash_controller(
 		.CLK_sysClkP(clk_in_p),
-		 .CLK_sysClkN(clk_in_n),
-		 .RST_N_sysRstn(sys_resetn),
+		.CLK_sysClkN(clk_in_n),
+		.RST_N_sysRstn(sys_resetn),
 
-		 .DQ(b0_dq),
-		 .DQS(b0_dqs),
+		.B0_0_DQ(b0_0_dq),
+		.B0_0_DQS(b0_0_dqs),
 
-		 .NAND_CLK(b0_nand_clk0),
+		.B0_0_WEN_NCLK(b0_0_wen_nclk),
 
-		 .CLE(b0_cle),
+		.B0_0_CLE(b0_0_cle),
 
-		 .ALE(b0_ale),
+		.B0_0_ALE(b0_0_ale),
 
-		 .WRN(b0_wrn),
+		.B0_0_WRN(b0_0_wrn),
 
-		 .WPN(b0_wpn),
+		.B0_0_WPN(b0_0_wpn),
 
-		 .CEN(b0_cen),
-		 .DEBUG0(b0_debug0),
-		 .DEBUG1(b0_debug1)
+		.B0_0_CEN(b0_0_cen),
+		.B0_0_DEBUG0(b0_0_debug0),
+		.B0_0_DEBUG1(b0_0_debug1)
 	 );
 
 

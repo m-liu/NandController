@@ -21,7 +21,7 @@ typedef enum {
 
 
 interface FlashControllerIfc;
-	(* prefix = "" *)
+	(* prefix = "B0_0" *)
 	interface NANDPins nandPins;
 endinterface
 
@@ -50,16 +50,17 @@ module mkFlashController#(
 
 	Vector#(16, Reg#(Bool)) pageValid <- replicateM(mkReg(False, clocked_by nandInfra.clk0, 
 																				reset_by nandInfra.rst0)); //for one block
-
+	//Constant for now
+	Bit#(4) chip = 5;
 
 	rule doInit if (state==INIT);
-		busCtrl.busIfc.sendCmd(INIT_BUS, 0, 0, 0);
+		busCtrl.busIfc.sendCmd(INIT_BUS, chip, 0, 0);
 		state <= WRITE;
 	endrule
 
 	//Basic write/read/erase testing
 	rule doWrite if (state==WRITE);
-		busCtrl.busIfc.sendCmd(WRITE_PAGE, 0, blockCnt, pageCnt);
+		busCtrl.busIfc.sendCmd(WRITE_PAGE, chip, blockCnt, pageCnt);
 		state <= WRITE_DATA;
 	endrule
 
@@ -81,7 +82,7 @@ module mkFlashController#(
 	endrule
 
 	rule doRead if (state==READ);
-		busCtrl.busIfc.sendCmd(READ_PAGE, 0, blockCnt, pageCnt);
+		busCtrl.busIfc.sendCmd(READ_PAGE, chip, blockCnt, pageCnt);
 		state <= READ_DATA;
 	endrule
 
@@ -131,7 +132,7 @@ module mkFlashController#(
 
 	//erases the whole block
 	rule doErase if (state==ERASE);
-		busCtrl.busIfc.sendCmd(ERASE_BLOCK, 0, blockCnt, pageCnt);
+		busCtrl.busIfc.sendCmd(ERASE_BLOCK, chip, blockCnt, pageCnt);
 		for (int i=0; i<16; i=i+1) begin
 			pageValid[i] <= False;
 		end
@@ -141,7 +142,7 @@ module mkFlashController#(
 
 
 	rule doActSync if (state==ACT_SYNC);
-		busCtrl.busIfc.sendCmd(INIT_SYNC, 0, 0, 0);
+		busCtrl.busIfc.sendCmd(INIT_SYNC, chip, 0, 0);
 		state <= WRITE;
 		pageCnt <= pageCnt + 1; //write next page
 		$display("FlashController TB: Activate Sync interface");

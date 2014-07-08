@@ -11,8 +11,8 @@ import DefaultValue      ::*;
 
 (* always_enabled, always_ready *)
 interface NANDPins;
-	(* prefix = "", result = "NAND_CLK" *)
-	method    Bit#(1)           nand_clk;
+	(* prefix = "", result = "WEN_NCLK" *)
+	method    Bit#(4)           wen_nclk;
 	(* prefix = "", result = "CLE" *)
 	method    Bit#(1)           cle;
 	(* prefix = "", result = "ALE" *)
@@ -106,7 +106,7 @@ interface NANDPins nandPins;
 	ifc_inout dq(v_dq)             clocked_by(no_clock) reset_by(no_reset);
 	ifc_inout dqs(v_dqs)           clocked_by(no_clock) reset_by(no_reset);
 
-	method    v_nand_clk       nand_clk     clocked_by(no_clock) reset_by(no_reset);
+	method    v_wen_nclk       wen_nclk     clocked_by(no_clock) reset_by(no_reset);
 	method    v_cle 	cle         clocked_by(no_clock) reset_by(no_reset);
 	method    v_ale 	ale         clocked_by(no_clock) reset_by(no_reset);
 	method    v_wrn 	wrn         clocked_by(no_clock) reset_by(no_reset);
@@ -171,9 +171,9 @@ endinterface
 
 //NAND pins are CF
 schedule 
-(nandPins_nand_clk, nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen, nandPins_debug0, nandPins_debug1) 
+(nandPins_wen_nclk, nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen, nandPins_debug0, nandPins_debug1) 
 CF
-(nandPins_nand_clk, nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen, nandPins_debug0, nandPins_debug1);
+(nandPins_wen_nclk, nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen, nandPins_debug0, nandPins_debug1);
 
 //Just set all other signals as CF
 schedule

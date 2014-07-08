@@ -54,7 +54,7 @@ endinterface
 
 interface BusControllerIfc;
 	interface BusIfc busIfc;
-	(* prefix = "" *)
+	//(* prefix = "B0" *)
 	interface NANDPins nandPins;
 endinterface
 

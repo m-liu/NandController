@@ -3,13 +3,14 @@
 module nand_phy #
 	(
 	parameter DQ_WIDTH = 8,
-	parameter DQ_PER_DQS = 8
+	parameter DQ_PER_DQS = 8,
+	parameter NAND_CLK_WIDTH = 4
 	)
 		(
 		//****************************
 		//NAND and FPGA I/O interface
 		//****************************
-		output v_nand_clk,
+		output [3:0] v_wen_nclk,
 		
 		inout [7:0] v_dq,
 		inout v_dqs,
@@ -95,23 +96,28 @@ assign nand_clk_we_d1 = (v_ctrl_wen_sel) ? (v_ctrl_wen) : (1'b0);
 assign nand_clk_we_d2 = (v_ctrl_wen_sel) ? (v_ctrl_wen) : (1'b1);
 
 //***************************************************************************
-// NAND CLK ODDR
+// NAND CLK / WE#  ODDR; tie all WE# together on the same bus
 //***************************************************************************
-ODDR #
-	(
-	.SRTYPE       ("SYNC"),
-	.DDR_CLK_EDGE ("OPPOSITE_EDGE")
-	)
-	u_oddr_ck
-	(
-		.Q   (v_nand_clk),
-		.C   (v_clk0),
-		.CE  (1'b1),
-		.D1  (nand_clk_we_d1),
-		.D2  (nand_clk_we_d2),
-		.R   (1'b0),
-		.S   (1'b0)
-	);
+genvar nclk_i;
+generate
+	for (nclk_i = 0; nclk_i < NAND_CLK_WIDTH; nclk_i=nclk_i+1) begin: gen_nclk_oddr
+		ODDR #
+			(
+			.SRTYPE       ("SYNC"),
+			.DDR_CLK_EDGE ("OPPOSITE_EDGE")
+			)
+			u_oddr_ck
+			(
+				.Q   (v_wen_nclk[nclk_i]),
+				.C   (v_clk0),
+				.CE  (1'b1),
+				.D1  (nand_clk_we_d1),
+				.D2  (nand_clk_we_d2),
+				.R   (1'b0),
+				.S   (1'b0)
+			);
+	end
+endgenerate
 
 
 //***************************************************************************

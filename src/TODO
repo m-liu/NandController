@@ -1,15 +1,21 @@
-- Separate NAND_CLK and RE#! (need to assert the correct one based on the ce#)
-- DQ reversing because of pin swap of front/back packages
+/*** Priority 1: before taiwan ***/
+- IDELAY tap currently fixed in parameter. Need to make adjustable
+- delay adjustment for DQ line
+- UCF verification: double check wen_nclk pins
+
+/*** Priority 2: during/after taiwan ***/
+- WE#-1(NAND_CLKS) and WE#-2 are connected to the same wire (bad choice!). OK in sync mode, but in async mode, must be careful that we only assert a single CE# for two buses
 - Read calibration for each chip
 - DQ-DQS skew calibration
 - Output drive strength, slew rate (FPGA and NAND)?
 
 - Remove DQS simulation delay in post implementation sim
-- delay adjustment for DQ line
 - Timing and FIFO size adjustments
 - Short reset used in the  model right now
 
+/*** Priority 3 ***/
 - ECC integration and blocking
+- Scoreboard and multibus
 
 /*** DONE ***/
 - Full support for async read/writes. Do this as a test case first
@@ -22,3 +28,6 @@
 - ECC detection bug. cant_correct flag is not being asserted
 - ECC Encoder
 - Test out chipscope signals
+- Separate NAND_CLK and WE#! (tied all together)
+- DQ reversing because of pin swap of front/back packages
+- Remap CE#'s *PINS* to half buses

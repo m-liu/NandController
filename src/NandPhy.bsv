@@ -34,7 +34,7 @@ interface PhyUser;
 endinterface
 
 interface NandPhyIfc;
-	(* prefix = "" *)
+	//(* prefix = "" *)
 	interface NANDPins nandPins;
 	interface PhyUser phyUser;
 endinterface
@@ -125,6 +125,14 @@ typedef struct {
 	Bit#(32) postCmdWait; //number of cycles to wait after the command
 } PhyCmd deriving (Bits);
 
+//Reverse DQ for chips on the back of the board
+function Bit#(8) orderDQ (Bit#(8) dq_in, Bit#(8) cen);
+	//if selecting LSB 4 bits of cen, don't reverse DQ
+	if ( reduceAnd(cen[3:0]) == 0 )
+		return dq_in;
+	else //else reverse DQ
+		return reverseBits(dq_in);
+endfunction
 
 //Default clock and resets are: clk0 and rst0
 (* synthesize *)
@@ -382,8 +390,8 @@ module mkNandPhy#(
 		cle <= 1;
 		wen <= 0; 
 		oenDataDQ <= 0; //enable cmd output on DQ
-		wrDataRise <= pack(ctrlCmdQ.first().nandCmd.OnfiCmd); //set command
-		wrDataFall <= pack(ctrlCmdQ.first().nandCmd.OnfiCmd); //set command
+		wrDataRise <= orderDQ(pack(ctrlCmdQ.first().nandCmd.OnfiCmd), cen); //set command
+		wrDataFall <= orderDQ(pack(ctrlCmdQ.first().nandCmd.OnfiCmd), cen); //set command
 		//Wait for setup
 		waitCnt <= fromInteger(t_ASYNC_CMD_SETUP);
 		currState <= WAIT_CYCLES;
@@ -406,8 +414,8 @@ module mkNandPhy#(
 		ale <= 1; //High
 		wen <= 0;//select and set WE# low
 		oenDataDQ <= 0; //enable output. Note this signal needs 2 cycles to propogate
-		wrDataRise <= addrQ.first(); //set address output
-		wrDataFall <= addrQ.first(); //set address output
+		wrDataRise <= orderDQ(addrQ.first(), cen); //set address output
+		wrDataFall <= orderDQ(addrQ.first(), cen); //set address output
 		addrQ.deq();
 		//wait for setup
 		waitCnt <= fromInteger(t_ASYNC_ADDR_SETUP);
@@ -439,8 +447,8 @@ module mkNandPhy#(
 	rule doAsyncWriteWeLow if (currState==ASYNC_WRITE_WE_LOW);
 		wen <= 0;//select and set WE# low
 		oenDataDQ <= 0; //enable output. Note this signal needs 2 cycles to propogate
-		wrDataRise <= truncate(wrQ.first()); //set data output
-		wrDataFall <= truncate(wrQ.first()); //set data output
+		wrDataRise <= orderDQ(truncate(wrQ.first()), cen); //set data output
+		wrDataFall <= orderDQ(truncate(wrQ.first()), cen); //set data output
 		wrQ.deq();
 		//wait for setup
 		waitCnt <= fromInteger(t_ASYNC_WRITE_SETUP);
@@ -484,7 +492,7 @@ module mkNandPhy#(
 
 	rule doAsyncReadCapture if (currState==ASYNC_READ_CAPTURE);
 		//get data
-		let rddata = vnandPhy.vphyUser.rdDataCombDQ();
+		let rddata = orderDQ(vnandPhy.vphyUser.rdDataCombDQ(), cen);
 		rdQ.enq(zeroExtend(rddata));
 		$display("@%t\t NandPhy: ASYNC_READ_CAPTURE async read data %x", $time, rddata);
 		currState <= ASYNC_READ_RE_HIGH;
@@ -602,8 +610,8 @@ module mkNandPhy#(
 	rule doSyncCommandSet if (currState==SYNC_CMD_SET);
 		cle <= 0;
 		oenDataDQ <= 0;
-		wrDataRise <= pack(ctrlCmdQ.first().nandCmd.OnfiCmd);
-		wrDataFall <= pack(ctrlCmdQ.first().nandCmd.OnfiCmd);
+		wrDataRise <= orderDQ(pack(ctrlCmdQ.first().nandCmd.OnfiCmd), cen);
+		wrDataFall <= orderDQ(pack(ctrlCmdQ.first().nandCmd.OnfiCmd), cen);
 		//it takes 2 cycles to appear on DQ
 		currState <= WAIT_CYCLES;
 		waitCnt <= fromInteger(t_CMD_DQ_SYNCREG_DELAY);
@@ -624,8 +632,8 @@ module mkNandPhy#(
 	rule doSyncAddrSet if (currState==SYNC_ADDR_SET);
 		cle <= 0;
 		oenDataDQ <= 0;
-		wrDataRise <= addrQ.first();
-		wrDataFall <= addrQ.first();
+		wrDataRise <= orderDQ(addrQ.first(), cen);
+		wrDataFall <= orderDQ(addrQ.first(), cen);
 		addrQ.deq();
 		//it takes 2 cycles to appear on DQ
 		currState <= WAIT_CYCLES;
@@ -641,8 +649,8 @@ module mkNandPhy#(
 			currState <= SYNC_DONE;
 		end
 		else begin
-			wrDataRise <= addrQ.first();
-			wrDataFall <= addrQ.first();
+			wrDataRise <= orderDQ(addrQ.first(), cen);
+			wrDataFall <= orderDQ(addrQ.first(), cen);
 			addrQ.deq();
 			currState <= SYNC_ADDR_BURST;
 			numBurstCnt <= numBurstCnt - 1;
@@ -797,8 +805,8 @@ module mkNandPhy#(
 	//Use a separate temp counter here
 	rule doSyncReadCap if (currState==SYNC_READ_LATCH);
 		if (cntRdDelay >= rLat && numBurstCntBr>=1 ) begin
-			let rdRise = vnandPhy.vphyUser.rdDataRiseDQ();
-			let rdFall = vnandPhy.vphyUser.rdDataFallDQ();
+			let rdRise = orderDQ(vnandPhy.vphyUser.rdDataRiseDQ(), cen);
+			let rdFall = orderDQ(vnandPhy.vphyUser.rdDataFallDQ(), cen);
 			rdQ.enq({rdRise, rdFall});
 			numBurstCntBr <= numBurstCntBr - 1;
 			$display("@%t\t NandPhy: SYNC_READ_LATCH sync read data %x %x", $time, rdRise, rdFall);
@@ -850,8 +858,8 @@ module mkNandPhy#(
 			rstnDQS <= 1;
 			Bit#(8) dRise = truncateLSB(wrQ.first());
 			Bit#(8) dFall = truncate(wrQ.first());
-			wrDataRise <= dRise;
-			wrDataFall <= dFall;
+			wrDataRise <= orderDQ(dRise, cen);
+			wrDataFall <= orderDQ(dFall, cen);
 			wrQ.deq();
 			numBurstCntBr <= numBurstCntBr - 1;
 			$display("@%t\t NandPhy: SYNC_WRITE_BURST #%d: %x %x", $time, numBurstCntBr, dRise, dFall);
