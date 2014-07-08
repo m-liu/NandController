@@ -701,14 +701,16 @@ module mkNandPhy#(
 	//Buffer a bunch of data bursts in FIFOs
 	rule doSyncCalibCap if (currState==SYNC_CALIB_LATCH);
 		if (numCalibBrCnt > 0) begin
-			fifoDqR0.enq(vnandPhy.vphyUser.calibDqRise0()); 
-			fifoDqR90.enq(vnandPhy.vphyUser.calibDqRise90()); 
-			fifoDqR180.enq(vnandPhy.vphyUser.calibDqRise180()); 
-			fifoDqR270.enq(vnandPhy.vphyUser.calibDqRise270()); 
+			let d0 = orderDQ(vnandPhy.vphyUser.calibDqRise0(), cen); 
+			let d90 = orderDQ(vnandPhy.vphyUser.calibDqRise90(), cen); 
+			let d180 = orderDQ(vnandPhy.vphyUser.calibDqRise180(), cen); 
+			let d270 = orderDQ(vnandPhy.vphyUser.calibDqRise270(), cen); 
+			fifoDqR0.enq(d0);
+			fifoDqR90.enq(d90);
+			fifoDqR180.enq(d180);
+			fifoDqR270.enq(d270);
 			numCalibBrCnt <= numCalibBrCnt-1;
-			$display("@%t\t NandPhy: SYNC_CALIB enq'd dqR %x %x %x %x", $time, 
-					vnandPhy.vphyUser.calibDqRise0(), vnandPhy.vphyUser.calibDqRise90(), 
-					vnandPhy.vphyUser.calibDqRise180(), vnandPhy.vphyUser.calibDqRise270());
+			$display("@%t\t NandPhy: SYNC_CALIB enq'd dqR %x %x %x %x", $time, d0, d90, d180, d270);
 		end
 
 		if (numBurstCntBr > 0) begin
