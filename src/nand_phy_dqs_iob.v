@@ -12,13 +12,13 @@ module nand_phy_dqs_iob #
    input        clk0,
    input        clk90,
    input        rst0,
-   //input        dlyinc_dqs,
-   //input        dlyce_dqs,
-   //input        dlyrst_dqs,
+   input	[4:0]  dlyval_dqs,
+   input        dlyld_dqs,
    input        dqs_oe_n,
    input        dqs_rst_n,
    inout        ddr_dqs,
 
+   output [4:0] dlyvalout_dqs,
    output       delayed_dqs
    );
 
@@ -34,6 +34,22 @@ module nand_phy_dqs_iob #
 
   assign        clk180 = ~clk0;
 
+	reg	[4:0] dlyval_sync_r1;
+	reg	[4:0] dlyval_sync_r2;
+	reg	dlyld_sync_r1, dlyld_sync_r2;
+
+//Synchronize delay adjustment from clk0 -> clk180 -> clk90
+always @ (posedge clk180) 
+begin
+	dlyval_sync_r1 <= dlyval_dqs;
+	dlyld_sync_r1 <= dlyld_dqs;
+end
+
+always @ (posedge clk90)
+begin
+	dlyval_sync_r2 <= dlyval_sync_r1;
+	dlyld_sync_r2 <= dlyld_sync_r1;
+end
 
 
 /* DQS Gating
@@ -56,23 +72,23 @@ http://cache.freescale.com/files/dsp/doc/app_note/AN3992.pdf
    .DELAY_SRC("IDATAIN"),           // Delay input (IDATAIN, DATAIN)
    .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter ("TRUE"), Reduced power ("FALSE")
    //.IDELAY_TYPE("VARIABLE"),           // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
-   .IDELAY_TYPE("FIXED"),           // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
+   .IDELAY_TYPE("VAR_LOAD"),           // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
    .IDELAY_VALUE(IDELAY_TAP),                // Input delay tap setting (0-31)
    .PIPE_SEL("FALSE"),              // Select pipelined mode, FALSE, TRUE
    .REFCLK_FREQUENCY(200.0),        // IDELAYCTRL clock input frequency in MHz (190.0-210.0).
    .SIGNAL_PATTERN("CLOCK")          // DATA, CLOCK input signal
 )
 u_idelay_dqs (
-   .CNTVALUEOUT(), // 5-bit output: Counter value output
+   .CNTVALUEOUT(dlyvalout_dqs), // 5-bit output: Counter value output
    .DATAOUT(dqs_idelay),         // 1-bit output: Delayed data output
    .C(clk90),                     // 1-bit input: Clock input
-   .CE(/*dlyce_dqs*/),                   // 1-bit input: Active high enable increment/decrement input
+   .CE(1'b0),                   // 1-bit input: Active high enable increment/decrement input
    .CINVCTRL(),       // 1-bit input: Dynamic clock inversion input
-   .CNTVALUEIN(),   // 5-bit input: Counter value input
+   .CNTVALUEIN(dlyval_sync_r2),   // 5-bit input: Counter value input
    .DATAIN(),           // 1-bit input: Internal delay data input
    .IDATAIN(dqs_ibuf),         // 1-bit input: Data input from the I/O
    .INC(/*dlyinc_dqs*/),                 // 1-bit input: Increment / Decrement tap delay input
-   .LD(),                   // 1-bit input: Load IDELAY_VALUE input
+   .LD(dlyld_sync_r2),                   // 1-bit input: Load IDELAY_VALUE input
    .LDPIPEEN(),       // 1-bit input: Enable PIPELINE register to load data input
    .REGRST(/*dlyrst_dqs*/)            // 1-bit input: Active-high reset tap-delay input
 );

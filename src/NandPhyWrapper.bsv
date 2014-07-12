@@ -44,9 +44,10 @@ interface VPhyUser;
 	method Action setWEN (Bit#(1) i);
 	method Action setWENSel (Bit#(1) i);
 	
-	//DQS delay control; clk90 domain
-	//method Action dlyIncDQS (Bit#(1) i);
-	//method Action dlyCeDQS (Bit#(1) i);
+	//DQS delay control
+	method Action dlyValDQS (Bit#(5) i);
+	method Action dlyLdDQS (Bit#(1) i);
+	method Bit#(5) dlyValOutDQS();
 
 	//DQS output; clk0 domain
 	method Action oenDQS (Bit#(1) i);
@@ -129,8 +130,9 @@ interface VPhyUser vphyUser;
 	
 	
 	//DQS delay control; clk90 domain
-	//method dlyIncDQS (v_dlyinc_dqs) enable((*inhigh*) en5) clocked_by(clk90) reset_by(rstn90);
-	//method dlyCeDQS (v_dlyce_dqs) enable((*inhigh*) en6) clocked_by(clk90) reset_by(rstn90);
+	method dlyValDQS (v_dlyval_dqs) enable((*inhigh*) en5) clocked_by(clk0) reset_by(rstn90);
+	method dlyLdDQS (v_dlyld_dqs) enable((*inhigh*) en6) clocked_by(clk0) reset_by(rstn0);
+	method v_dlyvalout_dqs dlyValOutDQS clocked_by(clk0) reset_by(rstn0);
 
 	//DQS output; clk0 domain
 	method oenDQS (v_dqs_oe_n) enable((*inhigh*) en7) clocked_by(clk0) reset_by(rstn0); //active low
@@ -177,7 +179,7 @@ CF
 
 //Just set all other signals as CF
 schedule
-(/*vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ, */
+(vphyUser_dlyValDQS, vphyUser_dlyLdDQS, vphyUser_dlyValOutDQS,
 vphyUser_calibDqRise0, vphyUser_calibDqRise90, vphyUser_calibDqRise180, vphyUser_calibDqRise270, vphyUser_setCalibClk0Sel,
 vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
 vphyUser_setWEN, vphyUser_setWENSel,
@@ -186,7 +188,7 @@ vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wr
 vphyUser_setDebug0, vphyUser_setDebug1, vphyUser_setDebug2, vphyUser_setDebug3, vphyUser_setDebug4, 
 vphyUser_setDebug5, vphyUser_setDebug6, vphyUser_setDebug7)
 CF
-(/*vphyUser_dlyIncDQS, vphyUser_dlyCeDQS, vphyUser_dlyIncDQ, vphyUser_dlyCeDQ,*/ 
+(vphyUser_dlyValDQS, vphyUser_dlyLdDQS, vphyUser_dlyValOutDQS,
 vphyUser_calibDqRise0, vphyUser_calibDqRise90, vphyUser_calibDqRise180, vphyUser_calibDqRise270, vphyUser_setCalibClk0Sel,
 vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
 vphyUser_setWEN, vphyUser_setWENSel,

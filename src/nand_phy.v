@@ -43,9 +43,9 @@ module nand_phy #
 		input [15:0] v_ctrl_debug7,
 		
 		//DQS iob control and data signals
-		//input v_dlyinc_dqs,
-		//input v_dlyce_dqs,
-		//input dlyrst_dqs,
+		input [4:0] v_dlyval_dqs,
+		input v_dlyld_dqs,
+		output [4:0] v_dlyvalout_dqs,
 		input v_dqs_oe_n,
 		input v_dqs_rst_n,
 		
@@ -134,14 +134,14 @@ nand_phy_dqs_iob #
 		.clk0           (v_clk0),
 		.clk90          (v_clk90),
 		.rst0           (v_rst0),
-		//.dlyinc_dqs     (v_dlyinc_dqs),
-		//.dlyce_dqs      (v_dlyce_dqs),
-		//.dlyrst_dqs     (), //not sure if this is needed. Seems to only be for pipeline variable mode
+		.dlyval_dqs     (v_dlyval_dqs),
+		.dlyld_dqs      (v_dlyld_dqs),
 
 		.dqs_oe_n       (v_dqs_oe_n),
 		.dqs_rst_n      (v_dqs_rst_n),
 		.ddr_dqs        (v_dqs),
 
+		.dlyvalout_dqs  (v_dlyvalout_dqs),
 		.delayed_dqs    (delayed_dqs)
 	);
 

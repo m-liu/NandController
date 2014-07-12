@@ -166,9 +166,6 @@ module mkNandPhy#(
 	Integer t_WPST = 2; //15ns
 	Integer t_DQSS = 2; //7.5 to 12.5ns
 
-	//IDelay Tap value (0 to 31)
-	Integer idelayDQS = 10;
-	Integer idelayDQ = 0;
 
 	//number of calibration bursts to sample
 	Integer calibFifoDepth = 16;
@@ -184,6 +181,9 @@ module mkNandPhy#(
 
 	//Timing wait counters
 	Reg#(Bit#(32)) waitCnt <- mkReg(0);
+	
+	//DQS IDelay Tap register (0 to 31)
+	Reg#(Bit#(5)) dlyValDQS <- mkReg(16);
 
 	//Registers for command inputs
 	Reg#(Bit#(8)) cen <- mkReg(8'hFF);
