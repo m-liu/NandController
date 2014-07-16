@@ -16,7 +16,6 @@ import DefaultValue      ::*;
 
 
 import NandPhyWrapper::*;
-import NandInfra::*;
 
 interface PhyUser;
 	method Action sendCmd (PhyCmd cmd);
@@ -144,6 +143,7 @@ module mkNandPhy#(
 	//Conservative timing parameters. In clock cycles. a
 	Integer t_SYS_RESET = 1000; //System reset wait
 	//TODO FIXME: power up reduced using SHORT_RESET
+	//Integer t_POWER_UP = 1000000000; //100us. TODO: Reduced to 1us for sim. 
 	Integer t_POWER_UP = 100; //100us. TODO: Reduced to 1us for sim. 
 	Integer t_WW = 20; //100ns. Write protect wait time.
 	Integer t_ASYNC_CMD_SETUP = 8; //Max async cmd/data setup time before WE# latch
@@ -184,6 +184,7 @@ module mkNandPhy#(
 	
 	//DQS IDelay Tap register (0 to 31)
 	Reg#(Bit#(5)) dlyValDQS <- mkReg(16);
+	Reg#(Bit#(1)) dlyLdDQS <- mkReg(0);
 
 	//Registers for command inputs
 	Reg#(Bit#(8)) cen <- mkReg(8'hFF);
@@ -270,6 +271,8 @@ module mkNandPhy#(
 		vnandPhy.vphyUser.wrDataRiseDQ(wrDataRise);
 		vnandPhy.vphyUser.wrDataFallDQ(wrDataFall);
 		vnandPhy.vphyUser.setCalibClk0Sel(calibClk0Sel);
+		vnandPhy.vphyUser.dlyValDQS(dlyValDQS);
+		vnandPhy.vphyUser.dlyLdDQS(dlyLdDQS);
 		vnandPhy.vphyUser.setDebug0(debugR0);
 		vnandPhy.vphyUser.setDebug1(debugR1);
 		vnandPhy.vphyUser.setDebug2(debugR2);

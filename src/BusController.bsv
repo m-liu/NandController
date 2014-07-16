@@ -10,6 +10,7 @@ typedef enum {
 	WAIT_CYCLES,
 
 	INIT,
+	INIT_EN_NANDCLK,
 	INIT_ACT_SYNC,
 	INIT_CALIB,
 
@@ -69,7 +70,7 @@ module mkBusController#(
 	//Timing parameters for timing parameters between different cycle types
 	//using SHORT_RESET for simulation. Doens't matter because we poll
 	// until status is ready
-	Integer t_POR = 1000; //1ms. Power-on Reset time. TODO: reduced
+	Integer t_POR = 1000; //1ms. Power-on Reset time. reduced, but ok since we poll until ready
 	Integer t_ITC = 150; //1us (tITC)
 	Integer t_WHR_ASYNC = 13; //120ns. WE# HIGH to RE# LOW
 	Integer t_WB_ASYNC = 20; //200ns
@@ -86,6 +87,9 @@ module mkBusController#(
 	Integer nAddrBursts = 5; //5 addr bursts is standard
 	Integer nAddrBurstsErase = 3; //3 addr bursts for erase
 	
+	//Bus parameters
+	Integer targetsPerBus = 8; //8 for MLC, 4 for SLC (but may need remapping?)
+
 	//Nand PHY instantiation
 	NandPhyIfc phy <- mkNandPhy(clk90, rst90);
 
@@ -409,18 +413,20 @@ module mkBusController#(
 
 
 	//******************************************************
-	// Power On Initialization
+	// Power On Initialization for all targets on the bus. 
+	// For each target:
 	// 1) Go bus idle
 	// 2) Issue power on reset; wait t_POR
 	//******************************************************
-	
 
-	Integer ninitCmds = 2;
+	Integer ninitCmds = 3;
 	PhyCmd initCmds[ninitCmds] = {
 				PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_CHIP_SEL, nandCmd: tagged ChipSel chipR, 
 	 						numBurst: 0, postCmdWait: 0},
 				PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_CMD, nandCmd: tagged OnfiCmd N_RESET, 
-	 		  				numBurst: 0, postCmdWait: fromInteger(t_POR)}
+	 		  				numBurst: 0, postCmdWait: fromInteger(t_POR)},
+				PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_DESELECT_ALL, nandCmd: ?, 
+							numBurst: 0, postCmdWait: fromInteger(t_ITC)}
 				};
 
 	rule doInitCmd if (state==INIT && cmdCnt < fromInteger(ninitCmds));
@@ -429,8 +435,15 @@ module mkBusController#(
 	endrule
 
 	rule doInitWait if (state==INIT && cmdCnt==fromInteger(ninitCmds));
+		if (chipR < fromInteger(targetsPerBus - 1)) begin
+			chipR <= chipR + 1;
+			rdyReturnState <= INIT;
+		end 
+		else begin
+			chipR <= 0;
+			rdyReturnState <= IDLE;
+		end
 		state <= POLL_STATUS;
-		rdyReturnState <= IDLE;
 	endrule
 
 	//******************************************************
@@ -444,7 +457,7 @@ module mkBusController#(
 	//******************************************************
 
 	Integer nactSyncData = 4;
-	Integer nactSyncCmds = 6;
+	Integer nactSyncCmds = 5;
 	PhyCmd actSyncCmds[nactSyncCmds] = {
 				PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_CHIP_SEL, nandCmd: tagged ChipSel chipR, 
 	 						numBurst: 0, postCmdWait: 0},
@@ -455,9 +468,7 @@ module mkBusController#(
 				PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_WRITE, nandCmd: ?, 
 							numBurst: fromInteger(nactSyncData), postCmdWait: t_WB},
 				PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_DESELECT_ALL, nandCmd: ?, 
-							numBurst: 0, postCmdWait: fromInteger(t_ITC)},
-				PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_ENABLE_NAND_CLK, nandCmd: ?, 
-							numBurst: 0, postCmdWait: fromInteger(t_EN_CLK)}
+							numBurst: 0, postCmdWait: fromInteger(t_ITC)}
 				};
 
 	Integer nactSyncAddr = 1;
@@ -465,6 +476,8 @@ module mkBusController#(
 	//commands for sync mode 5 (0x15)
 	Bit#(8) actSyncData[nactSyncData] = { 8'h15, 8'h00, 8'h00, 8'h00 };
 	
+	PhyCmd enNandclkCmd = PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_ENABLE_NAND_CLK, nandCmd: ?, 
+							numBurst: 0, postCmdWait: fromInteger(t_EN_CLK)};
 
 	Integer ncalibCmds = 5;
 	Integer ncalibIdAddr = 1;
@@ -501,7 +514,20 @@ module mkBusController#(
 	rule doInitDone if (state==INIT_ACT_SYNC && cmdCnt==fromInteger(nactSyncCmds) && 
 								addrCnt==fromInteger(nactSyncAddr) && 
 								dataCnt==fromInteger(nactSyncData));
+		if (chipR < fromInteger(targetsPerBus - 1)) begin
+			chipR <= chipR + 1;
+			//state <= INIT_ACT_SYNC; //stay in same state
+			cmdCnt <= 0;
+			addrCnt <= 0;
+			dataCnt <= 0;
+		end
+		else begin
+			state <= INIT_EN_NANDCLK;
+		end
+	endrule
 
+	rule doEnNandClk if (state==INIT_EN_NANDCLK);
+		phy.phyUser.sendCmd(enNandclkCmd);
 		//Go issue a status poll to initialize IDDR to a defined value (instead of DON'T CARE)
 		state <= POLL_STATUS;
 		rdyReturnState <= INIT_CALIB;

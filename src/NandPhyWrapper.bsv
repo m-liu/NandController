@@ -130,7 +130,7 @@ interface VPhyUser vphyUser;
 	
 	
 	//DQS delay control; clk90 domain
-	method dlyValDQS (v_dlyval_dqs) enable((*inhigh*) en5) clocked_by(clk0) reset_by(rstn90);
+	method dlyValDQS (v_dlyval_dqs) enable((*inhigh*) en5) clocked_by(clk0) reset_by(rstn0);
 	method dlyLdDQS (v_dlyld_dqs) enable((*inhigh*) en6) clocked_by(clk0) reset_by(rstn0);
 	method v_dlyvalout_dqs dlyValOutDQS clocked_by(clk0) reset_by(rstn0);
 
