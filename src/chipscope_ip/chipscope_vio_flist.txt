@@ -1,0 +1,17 @@
+# Output products list for <chipscope_vio>
+_xmsgs\pn_parser.xmsgs
+chipscope_vio.asy
+chipscope_vio.cdc
+chipscope_vio.constraints\chipscope_vio.ucf
+chipscope_vio.constraints\chipscope_vio.xdc
+chipscope_vio.gise
+chipscope_vio.ngc
+chipscope_vio.ucf
+chipscope_vio.v
+chipscope_vio.veo
+chipscope_vio.xco
+chipscope_vio.xdc
+chipscope_vio.xise
+chipscope_vio_flist.txt
+chipscope_vio_readme.txt
+chipscope_vio_xmdf.tcl
