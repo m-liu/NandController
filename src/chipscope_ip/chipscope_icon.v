@@ -5,10 +5,10 @@
 //   ____  ____
 //  /   /\/   /
 // /___/  \  /    Vendor     : Xilinx
-// \   \   \/     Version    : 14.7
+// \   \   \/     Version    : 14.3
 //  \   \         Application: Xilinx CORE Generator
 //  /   /         Filename   : chipscope_icon.v
-// /___/   /\     Timestamp  : Mon Jul 07 14:55:31 EDT 2014
+// /___/   /\     Timestamp  : Thu Jul 17 01:20:44 Eastern Daylight Time 2014
 // \   \  /  \
 //  \___\/\___\
 //
@@ -19,9 +19,11 @@
 `timescale 1ns/1ps
 
 module chipscope_icon(
-    CONTROL0) /* synthesis syn_black_box syn_noprune=1 */;
+    CONTROL0,
+    CONTROL1) /* synthesis syn_black_box syn_noprune=1 */;
 
 
 inout [35 : 0] CONTROL0;
+inout [35 : 0] CONTROL1;
 
 endmodule

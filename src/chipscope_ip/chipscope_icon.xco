@@ -1,7 +1,7 @@
 ##############################################################
 #
-# Xilinx Core Generator version 14.7
-# Date: Mon Jul  7 18:55:00 2014
+# Xilinx Core Generator version 14.3
+# Date: Thu Jul 17 05:20:01 2014
 #
 ##############################################################
 #
@@ -30,7 +30,7 @@ SET foundationsym = false
 SET implementationfiletype = Ngc
 SET package = fbg676
 SET removerpms = false
-SET simulationfiles = Behavioral
+SET simulationfiles = Structural
 SET speedgrade = -2
 SET verilogsim = true
 SET vhdlsim = false
@@ -43,14 +43,14 @@ CSET component_name=chipscope_icon
 CSET constraint_type=external
 CSET enable_jtag_bufg=true
 CSET example_design=false
-CSET number_control_ports=1
+CSET number_control_ports=2
 CSET use_ext_bscan=false
 CSET use_softbscan=false
 CSET use_unused_bscan=false
 CSET user_scan_chain=USER1
 # END Parameters
 # BEGIN Extra information
-MISC pkg_timestamp=2013-10-13T14:12:40Z
+MISC pkg_timestamp=2012-10-12T23:08:10Z
 # END Extra information
 GENERATE
-# CRC: b5ebf272
+# CRC: 65707684
