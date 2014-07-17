@@ -1,13 +1,11 @@
 /*** Priority 1: before taiwan ***/
 - IDELAY tap currently fixed in parameter. Need to make adjustable
 - delay adjustment for DQ line
-- UCF verification: double check wen_nclk pins
 
 /*** Priority 2: during/after taiwan ***/
 - WE#-1(NAND_CLKS) and WE#-2 are connected to the same wire (bad choice!). OK in sync mode, but in async mode, must be careful that we only assert a single CE# for two buses
 - Read calibration for each chip. For now calibrate a single chip and use that calib value for the entire bus
 - DQ-DQS skew calibration
-- Output drive strength, slew rate (FPGA and NAND)?
 
 - Remove DQS simulation delay in post implementation sim
 - Timing and FIFO size adjustments
@@ -31,10 +29,13 @@
 - Separate NAND_CLK and WE#! (tied all together)
 - DQ reversing because of pin swap of front/back packages
 - Remap CE#'s *PINS* to half buses
+- UCF verification: double check wen_nclk pins
+- Output drive strength, slew rate (FPGA and NAND)? <- doesn't seem to be a problem
 
 //Testing
-- High toggle rate data
+- [OK] High toggle rate data
 - All buses
 - Write/readback to just first page of each block. 
 - Cycle counter
 - try different idelay values? 
+- try vio

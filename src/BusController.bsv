@@ -10,6 +10,7 @@ typedef enum {
 	WAIT_CYCLES,
 
 	INIT,
+	INIT_INC,
 	INIT_EN_NANDCLK,
 	INIT_ACT_SYNC,
 	INIT_CALIB,
@@ -429,21 +430,26 @@ module mkBusController#(
 							numBurst: 0, postCmdWait: fromInteger(t_ITC)}
 				};
 
+	//XXX TODO FIXME: bug is that chipR is incremented too early. Poll status is polling the next chip, which is unitialized.
 	rule doInitCmd if (state==INIT && cmdCnt < fromInteger(ninitCmds));
 		phy.phyUser.sendCmd(initCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
 	endrule
 
 	rule doInitWait if (state==INIT && cmdCnt==fromInteger(ninitCmds));
+		state <= POLL_STATUS;
+		rdyReturnState <= INIT_INC;
+	endrule
+
+	rule doInitInc if (state==INIT_INC);
 		if (chipR < fromInteger(targetsPerBus - 1)) begin
 			chipR <= chipR + 1;
-			rdyReturnState <= INIT;
-		end 
+			state <= INIT;
+		end
 		else begin
 			chipR <= 0;
-			rdyReturnState <= IDLE;
+			state <= IDLE;
 		end
-		state <= POLL_STATUS;
 	endrule
 
 	//******************************************************
