@@ -79,6 +79,8 @@ interface VPhyUser;
 	method Action setDebug5 (Bit#(16) i);
 	method Action setDebug6 (Bit#(16) i);
 	method Action setDebug7 (Bit#(16) i);
+	method Action setDebugVin (Bit#(64) i);
+	method Bit#(64) getDebugVout();
 endinterface
 
 
@@ -168,6 +170,8 @@ interface VPhyUser vphyUser;
 	method setDebug5 (v_ctrl_debug5) enable((*inhigh*)en35) clocked_by(clk0) reset_by(rstn0);
 	method setDebug6 (v_ctrl_debug6) enable((*inhigh*)en36) clocked_by(clk0) reset_by(rstn0);
 	method setDebug7 (v_ctrl_debug7) enable((*inhigh*)en37) clocked_by(clk0) reset_by(rstn0);
+	method setDebugVin (v_ctrl_debug_vin) enable((*inhigh*)en38) clocked_by(clk0) reset_by(rstn0);
+	method v_ctrl_debug_vout getDebugVout clocked_by(clk0) reset_by(rstn0);
 
 endinterface
 
@@ -186,7 +190,7 @@ vphyUser_setWEN, vphyUser_setWENSel,
 vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDataDQ, vphyUser_iddrRstDQ,
 vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
 vphyUser_setDebug0, vphyUser_setDebug1, vphyUser_setDebug2, vphyUser_setDebug3, vphyUser_setDebug4, 
-vphyUser_setDebug5, vphyUser_setDebug6, vphyUser_setDebug7)
+vphyUser_setDebug5, vphyUser_setDebug6, vphyUser_setDebug7, vphyUser_setDebugVin, vphyUser_getDebugVout)
 CF
 (vphyUser_dlyValDQS, vphyUser_dlyLdDQS, vphyUser_dlyValOutDQS,
 vphyUser_calibDqRise0, vphyUser_calibDqRise90, vphyUser_calibDqRise180, vphyUser_calibDqRise270, vphyUser_setCalibClk0Sel,
@@ -195,7 +199,7 @@ vphyUser_setWEN, vphyUser_setWENSel,
 vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDataDQ, vphyUser_iddrRstDQ,
 vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
 vphyUser_setDebug0, vphyUser_setDebug1, vphyUser_setDebug2, vphyUser_setDebug3, vphyUser_setDebug4, 
-vphyUser_setDebug5, vphyUser_setDebug6, vphyUser_setDebug7);
+vphyUser_setDebug5, vphyUser_setDebug6, vphyUser_setDebug7, vphyUser_setDebugVin, vphyUser_getDebugVout);
 
 
 endmodule

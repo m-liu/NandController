@@ -22,6 +22,9 @@ interface PhyUser;
 	method Action sendAddr (Bit#(8) addr);
 	method ActionValue#(Bit#(16)) rdWord();
 	method Action wrWord (Bit#(16) data);
+endinterface
+
+interface PhyDebug;
 	method Action setDebug0 (Bit#(16) d);
 	method Action setDebug1 (Bit#(16) d);
 	method Action setDebug2 (Bit#(16) d);
@@ -30,12 +33,15 @@ interface PhyUser;
 	method Action setDebug5 (Bit#(16) d);
 	method Action setDebug6 (Bit#(16) d);
 	method Action setDebug7 (Bit#(16) d);
+	method Action setDebugVin (Bit#(64) d);
+	method Bit#(64) getDebugVout ();
 endinterface
 
 interface NandPhyIfc;
 	//(* prefix = "" *)
 	interface NANDPins nandPins;
 	interface PhyUser phyUser;
+	interface PhyDebug phyDebug;
 endinterface
 
 
@@ -143,8 +149,8 @@ module mkNandPhy#(
 	//Conservative timing parameters. In clock cycles. a
 	Integer t_SYS_RESET = 1000; //System reset wait
 	//TODO FIXME: power up reduced using SHORT_RESET
-	//Integer t_POWER_UP = 1000000000; //100us. TODO: Reduced to 1us for sim. 
-	Integer t_POWER_UP = 100; //100us. TODO: Reduced to 1us for sim. 
+	Integer t_POWER_UP = 1000000000; //100us. TODO: Reduced to 1us for sim. 
+	//Integer t_POWER_UP = 100; //100us. TODO: Reduced to 1us for sim. 
 	Integer t_WW = 20; //100ns. Write protect wait time.
 	Integer t_ASYNC_CMD_SETUP = 8; //Max async cmd/data setup time before WE# latch
 	Integer t_ASYNC_CMD_HOLD = 5; //Max async cmd/data hold time after WE# latch
@@ -223,14 +229,8 @@ module mkNandPhy#(
 
 	//Debug registers
 	//Reg#(Bit#(8)) debugR90 <- mkReg(0, clocked_by clk90, reset_by rst90);
-	Reg#(Bit#(16)) debugR0 <- mkReg(0);
-	Reg#(Bit#(16)) debugR1 <- mkReg(0); 
-	Reg#(Bit#(16)) debugR2 <- mkReg(0); 
-	Reg#(Bit#(16)) debugR3 <- mkReg(0); 
-	Reg#(Bit#(16)) debugR4 <- mkReg(0); 
-	Reg#(Bit#(16)) debugR5 <- mkReg(0); 
-	Reg#(Bit#(16)) debugR6 <- mkReg(0); 
-	Reg#(Bit#(16)) debugR7 <- mkReg(0); 
+	Vector#(8, Reg#(Bit#(16))) debugR <- replicateM(mkReg(0));
+	Reg#(Bit#(64)) debugVin <- mkReg(0);
 
 	//Command and address FIFO
 	FIFO#(PhyCmd) ctrlCmdQ <- mkFIFO();
@@ -273,14 +273,15 @@ module mkNandPhy#(
 		vnandPhy.vphyUser.setCalibClk0Sel(calibClk0Sel);
 		vnandPhy.vphyUser.dlyValDQS(dlyValDQS);
 		vnandPhy.vphyUser.dlyLdDQS(dlyLdDQS);
-		vnandPhy.vphyUser.setDebug0(debugR0);
-		vnandPhy.vphyUser.setDebug1(debugR1);
-		vnandPhy.vphyUser.setDebug2(debugR2);
-		vnandPhy.vphyUser.setDebug3(debugR3);
-		vnandPhy.vphyUser.setDebug4(debugR4);
-		vnandPhy.vphyUser.setDebug5(debugR5);
-		vnandPhy.vphyUser.setDebug6(debugR6);
-		vnandPhy.vphyUser.setDebug7(debugR7);
+		vnandPhy.vphyUser.setDebug0(debugR[0]);
+		vnandPhy.vphyUser.setDebug1(debugR[1]);
+		vnandPhy.vphyUser.setDebug2(debugR[2]);
+		vnandPhy.vphyUser.setDebug3(debugR[3]);
+		vnandPhy.vphyUser.setDebug4(debugR[4]);
+		vnandPhy.vphyUser.setDebug5(debugR[5]);
+		vnandPhy.vphyUser.setDebug6(debugR[6]);
+		vnandPhy.vphyUser.setDebug7(debugR[7]);
+		vnandPhy.vphyUser.setDebugVin(debugVin);
 	endrule
 
 	//wait rule. 
@@ -959,37 +960,46 @@ module mkNandPhy#(
 		method Action wrWord (Bit#(16) data);
 			wrQ.enq(data);
 		endmethod
+	endinterface
 
+	interface PhyDebug phyDebug;
 		method Action setDebug0 (Bit#(16) d);
-			debugR0 <= d;
+			debugR[0] <= d;
 		endmethod
 
 		method Action setDebug1 (Bit#(16) d);
-			debugR1 <= d;
+			debugR[1] <= d;
 		endmethod
 
 		method Action setDebug2 (Bit#(16) d);
-			debugR2 <= d;
+			debugR[2] <= d;
 		endmethod
 
 		method Action setDebug3 (Bit#(16) d);
-			debugR3 <= d;
+			debugR[3] <= d;
 		endmethod
-
+		
 		method Action setDebug4 (Bit#(16) d);
-			debugR4 <= d;
+			debugR[4] <= d;
 		endmethod
 
 		method Action setDebug5 (Bit#(16) d);
-			debugR5 <= d;
+			debugR[5] <= d;
 		endmethod
 
 		method Action setDebug6 (Bit#(16) d);
-			debugR6 <= d;
+			debugR[6] <= d;
 		endmethod
 
 		method Action setDebug7 (Bit#(16) d);
-			debugR7 <= d;
+			debugR[7] <= d;
+		endmethod
+		method Action setDebugVin (Bit#(64) d);
+			debugVin <= d;
+		endmethod
+
+		method Bit#(64) getDebugVout();
+			return vnandPhy.vphyUser.getDebugVout();
 		endmethod
 	endinterface
 

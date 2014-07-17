@@ -56,8 +56,8 @@ endinterface
 
 interface BusControllerIfc;
 	interface BusIfc busIfc;
-	//(* prefix = "B0" *)
 	interface NANDPins nandPins;
+	interface PhyDebug phyDebug;
 endinterface
 
 //(* no_default_clock, no_default_reset *)
@@ -430,7 +430,6 @@ module mkBusController#(
 							numBurst: 0, postCmdWait: fromInteger(t_ITC)}
 				};
 
-	//XXX TODO FIXME: bug is that chipR is incremented too early. Poll status is polling the next chip, which is unitialized.
 	rule doInitCmd if (state==INIT && cmdCnt < fromInteger(ninitCmds));
 		phy.phyUser.sendCmd(initCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
@@ -563,8 +562,8 @@ module mkBusController#(
 	// Debug
 	//******************************************************
 	rule debugStatus;
-		phy.phyUser.setDebug0(debugR0);
-		phy.phyUser.setDebug1(zeroExtend(pack(state)));
+		phy.phyDebug.setDebug0(debugR0);
+		phy.phyDebug.setDebug1(zeroExtend(pack(state)));
 	endrule
 
 
@@ -589,7 +588,7 @@ module mkBusController#(
 
 	endinterface
 
-
+	interface phyDebug = phy.phyDebug;
 
 endmodule
 

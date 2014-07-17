@@ -33,14 +33,6 @@ module nand_phy #
 		input [7:0] v_ctrl_cen,
 		input v_ctrl_wen, 
 		input v_ctrl_wen_sel,
-		input [15:0] v_ctrl_debug0,
-		input [15:0] v_ctrl_debug1,
-		input [15:0] v_ctrl_debug2,
-		input [15:0] v_ctrl_debug3,
-		input [15:0] v_ctrl_debug4,
-		input [15:0] v_ctrl_debug5,
-		input [15:0] v_ctrl_debug6,
-		input [15:0] v_ctrl_debug7,
 		
 		//DQS iob control and data signals
 		input [4:0] v_dlyval_dqs,
@@ -68,11 +60,26 @@ module nand_phy #
  		output [DQ_WIDTH-1:0] v_calib_dq_rise_270,
 		input v_calib_clk0_sel,
 		
+		//debug
+		input [15:0] v_ctrl_debug0,
+		input [15:0] v_ctrl_debug1,
+		input [15:0] v_ctrl_debug2,
+		input [15:0] v_ctrl_debug3,
+		input [15:0] v_ctrl_debug4,
+		input [15:0] v_ctrl_debug5,
+		input [15:0] v_ctrl_debug6,
+		input [15:0] v_ctrl_debug7,
+		input [63:0] v_ctrl_debug_vin,
+		output [63:0] v_ctrl_debug_vout,
+
+
 		//clocks and resets
 		input v_clk0,
 		input v_clk90,
 		input v_rstn0,
 		input v_rstn90
+
+
     );
 
 localparam IODELAY_GRP = "IODELAY_NAND";
@@ -220,9 +227,11 @@ nand_phy_ctl_io u_io_phy_ctl
 // Chipscope 
 //***************************************************************************
 	wire [35:0] dbg_ctrl;
+	wire [35:0] dbg_ctrl_vio;
 
 	chipscope_icon icon (
-		.CONTROL0(dbg_ctrl) // INOUT BUS [35:0]
+		.CONTROL0(dbg_ctrl), // INOUT BUS [35:0]
+		.CONTROL1(dbg_ctrl_vio) // INOUT BUS [35:0]
 	) /* synthesis syn_noprune=1 */;
 
 	chipscope_ila ila (
@@ -238,7 +247,14 @@ nand_phy_ctl_io u_io_phy_ctl
 		.TRIG7(v_ctrl_debug7) // IN BUS [15:0]
 	) /* synthesis syn_noprune=1 */;
 
+	chipscope_vio vio (
+		.CONTROL(dbg_ctrl_vio),
+		.CLK(v_clk0),
+		.SYNC_IN(v_ctrl_debug_vin),
+		.SYNC_OUT(v_ctrl_debug_vout)
+	) /* synthesis syn_noprune=1 */;
 
+		
 
 
 
