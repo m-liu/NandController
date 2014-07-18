@@ -149,7 +149,12 @@ module mkNandPhy#(
 	//Conservative timing parameters. In clock cycles. a
 	Integer t_SYS_RESET = 1000; //System reset wait
 	//TODO FIXME: power up reduced using SHORT_RESET
-	Integer t_POWER_UP = 1000000000; //100us. TODO: Reduced to 1us for sim. 
+	`ifdef NAND_SIM
+		Integer t_POWER_UP = 100; //100us. TODO: Reduced to 1us for sim.
+	`else
+		Integer t_POWER_UP = 1000000000; //100us. TODO: Reduced to 1us for sim
+	`endif
+
 	//Integer t_POWER_UP = 100; //100us. TODO: Reduced to 1us for sim. 
 	Integer t_WW = 20; //100ns. Write protect wait time.
 	Integer t_ASYNC_CMD_SETUP = 8; //Max async cmd/data setup time before WE# latch
