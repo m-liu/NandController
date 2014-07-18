@@ -1,5 +1,5 @@
 The following files were generated for 'chipscope_ila' in directory
-/home/mingliu/NandController/src/chipscope_ip/
+D:\NandController\src\chipscope_ip\
 
 XCO file generator:
    Generate an XCO file for compatibility with legacy flows.
@@ -28,6 +28,7 @@ IP Symbol Generator:
 Generate ISE subproject:
    Create an ISE subproject for use when including this core in ISE designs
 
+   * _xmsgs/pn_parser.xmsgs
    * chipscope_ila.gise
    * chipscope_ila.xise
 
