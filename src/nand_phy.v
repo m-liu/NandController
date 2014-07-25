@@ -10,7 +10,7 @@ module nand_phy #
 		//****************************
 		//NAND and FPGA I/O interface
 		//****************************
-		output [3:0] v_wen_nclk,
+		//output [3:0] v_wen_nclk,
 		
 		inout [7:0] v_dq,
 		inout v_dqs,
@@ -20,8 +20,8 @@ module nand_phy #
 		output v_wpn,
 		output [7:0] v_cen,
 
-		output [7:0] v_debug0,
-		output [7:0] v_debug1,
+		//output [7:0] v_debug0,
+		//output [7:0] v_debug1,
 		
 		//****************************
 		//Controller facing interface 
@@ -31,8 +31,8 @@ module nand_phy #
 		input v_ctrl_wrn,
 		input v_ctrl_wpn,
 		input [7:0] v_ctrl_cen,
-		input v_ctrl_wen, 
-		input v_ctrl_wen_sel,
+		//input v_ctrl_wen, 
+		//input v_ctrl_wen_sel,
 		
 		//DQS iob control and data signals
 		input [4:0] v_dlyval_dqs,
@@ -61,6 +61,8 @@ module nand_phy #
 		input v_calib_clk0_sel,
 		
 		//debug
+		inout [35:0] v_dbg_ctrl_ila,
+		inout [35:0] v_dbg_ctrl_vio,
 		input [15:0] v_ctrl_debug0,
 		input [15:0] v_ctrl_debug1,
 		input [15:0] v_ctrl_debug2,
@@ -91,20 +93,21 @@ wire delayed_dqs;
 wire v_rst0 = ~v_rstn0;
 wire v_rst90 = ~v_rstn90;
 
-assign v_debug0 = v_ctrl_debug0[7:0];
-assign v_debug1 = v_ctrl_debug1[7:0];
+//assign v_debug0 = v_ctrl_debug0[7:0];
+//assign v_debug1 = v_ctrl_debug1[7:0];
 
 //***************************************************************************
 // Mux for NAND_CLK (sync) or WE# (async) 
 //***************************************************************************
-wire nand_clk_we_d1;
-wire nand_clk_we_d2;
-assign nand_clk_we_d1 = (v_ctrl_wen_sel) ? (v_ctrl_wen) : (1'b0);
-assign nand_clk_we_d2 = (v_ctrl_wen_sel) ? (v_ctrl_wen) : (1'b1);
+//wire nand_clk_we_d1;
+//wire nand_clk_we_d2;
+//assign nand_clk_we_d1 = (v_ctrl_wen_sel) ? (v_ctrl_wen) : (1'b0);
+//assign nand_clk_we_d2 = (v_ctrl_wen_sel) ? (v_ctrl_wen) : (1'b1);
 
 //***************************************************************************
 // NAND CLK / WE#  ODDR; tie all WE# together on the same bus
 //***************************************************************************
+/*
 genvar nclk_i;
 generate
 	for (nclk_i = 0; nclk_i < NAND_CLK_WIDTH; nclk_i=nclk_i+1) begin: gen_nclk_oddr
@@ -126,6 +129,7 @@ generate
 	end
 endgenerate
 
+*/
 
 //***************************************************************************
 // DQS IO buffer
@@ -226,29 +230,29 @@ nand_phy_ctl_io u_io_phy_ctl
 //***************************************************************************
 // Chipscope 
 //***************************************************************************
-	wire [35:0] dbg_ctrl;
-	wire [35:0] dbg_ctrl_vio;
+	//wire [35:0] dbg_ctrl;
+	//wire [35:0] dbg_ctrl_vio;
 
-	chipscope_icon icon (
-		.CONTROL0(dbg_ctrl), // INOUT BUS [35:0]
-		.CONTROL1(dbg_ctrl_vio) // INOUT BUS [35:0]
-	) /* synthesis syn_noprune=1 */;
+	//chipscope_icon icon (
+	//	.CONTROL0(dbg_ctrl), // INOUT BUS [35:0]
+	//	.CONTROL1(dbg_ctrl_vio) // INOUT BUS [35:0]
+	//) /* synthesis syn_noprune=1 */;
 
 	chipscope_ila ila (
-		.CONTROL(dbg_ctrl), // INOUT BUS [35:0]
+		.CONTROL(v_dbg_ctrl_ila), // INOUT BUS [35:0]
 		.CLK(v_clk0), // IN
 		.TRIG0(v_ctrl_debug0), // IN BUS [15:0]
 		.TRIG1(v_ctrl_debug1), // IN BUS [15:0]
 		.TRIG2(v_ctrl_debug2), // IN BUS [15:0]
 		.TRIG3(v_ctrl_debug3), // IN BUS [15:0]
-		.TRIG4(v_ctrl_debug4), // IN BUS [15:0]
-		.TRIG5(v_ctrl_debug5), // IN BUS [15:0]
-		.TRIG6(v_ctrl_debug6), // IN BUS [15:0]
-		.TRIG7(v_ctrl_debug7) // IN BUS [15:0]
+		.TRIG4(v_ctrl_debug4) // IN BUS [15:0]
+		//.TRIG5(v_ctrl_debug5), // IN BUS [15:0]
+		//.TRIG6(v_ctrl_debug6), // IN BUS [15:0]
+		//.TRIG7(v_ctrl_debug7) // IN BUS [15:0]
 	) /* synthesis syn_noprune=1 */;
 
 	chipscope_vio vio (
-		.CONTROL(dbg_ctrl_vio),
+		.CONTROL(v_dbg_ctrl_vio),
 		.CLK(v_clk0),
 		.SYNC_IN(v_ctrl_debug_vin),
 		.SYNC_OUT(v_ctrl_debug_vout)

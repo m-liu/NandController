@@ -8,7 +8,7 @@
 // \   \   \/     Version    : 14.3
 //  \   \         Application: Xilinx CORE Generator
 //  /   /         Filename   : chipscope_icon.veo
-// /___/   /\     Timestamp  : Thu Jul 17 01:20:45 Eastern Daylight Time 2014
+// /___/   /\     Timestamp  : Fri Jul 25 03:37:37 Eastern Daylight Time 2014
 // \   \  /  \
 //  \___\/\___\
 //
@@ -22,7 +22,13 @@
 //----------- Begin Cut here for INSTANTIATION Template ---// INST_TAG
 chipscope_icon YourInstanceName (
     .CONTROL0(CONTROL0), // INOUT BUS [35:0]
-    .CONTROL1(CONTROL1) // INOUT BUS [35:0]
+    .CONTROL1(CONTROL1), // INOUT BUS [35:0]
+    .CONTROL2(CONTROL2), // INOUT BUS [35:0]
+    .CONTROL3(CONTROL3), // INOUT BUS [35:0]
+    .CONTROL4(CONTROL4), // INOUT BUS [35:0]
+    .CONTROL5(CONTROL5), // INOUT BUS [35:0]
+    .CONTROL6(CONTROL6), // INOUT BUS [35:0]
+    .CONTROL7(CONTROL7) // INOUT BUS [35:0]
 );
 
 // INST_TAG_END ------ End INSTANTIATION Template ---------

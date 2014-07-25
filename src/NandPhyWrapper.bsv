@@ -11,8 +11,8 @@ import DefaultValue      ::*;
 
 (* always_enabled, always_ready *)
 interface NANDPins;
-	(* prefix = "", result = "WEN_NCLK" *)
-	method    Bit#(4)           wen_nclk;
+	//(* prefix = "", result = "WEN_NCLK" *)
+	//method    Bit#(4)           wen_nclk;
 	(* prefix = "", result = "CLE" *)
 	method    Bit#(1)           cle;
 	(* prefix = "", result = "ALE" *)
@@ -28,10 +28,10 @@ interface NANDPins;
 	(* prefix = "DQS" *)
 	interface Inout#(Bit#(1))   dqs;
 	
-	(* prefix = "", result = "DEBUG0" *)
-	method	Bit#(8)				debug0;
-	(* prefix = "", result = "DEBUG1" *)
-	method	Bit#(8)				debug1;
+	//(* prefix = "", result = "DEBUG0" *)
+	//method	Bit#(8)				debug0;
+	//(* prefix = "", result = "DEBUG1" *)
+	//method	Bit#(8)				debug1;
 endinterface 
 
 (* always_ready, always_enabled *)
@@ -41,8 +41,8 @@ interface VPhyUser;
 	method Action setWRN (Bit#(1) i);
 	method Action setWPN (Bit#(1) i);
 	method Action setCEN (Bit#(8) i);
-	method Action setWEN (Bit#(1) i);
-	method Action setWENSel (Bit#(1) i);
+	//method Action setWEN (Bit#(1) i);
+	//method Action setWENSel (Bit#(1) i);
 	
 	//DQS delay control
 	method Action dlyValDQS (Bit#(5) i);
@@ -70,7 +70,11 @@ interface VPhyUser;
 	method Bit#(8) calibDqRise180();
 	method Bit#(8) calibDqRise270();
 	method Action setCalibClk0Sel (Bit#(1) i);
+endinterface
 
+interface VPhyDebug;
+	interface Inout#(Bit#(36))   dbgCtrlIla;
+	interface Inout#(Bit#(36))   dbgCtrlVio;
 	method Action setDebug0 (Bit#(16) i);
 	method Action setDebug1 (Bit#(16) i);
 	method Action setDebug2 (Bit#(16) i);
@@ -87,14 +91,23 @@ endinterface
 interface VNANDPhy;
 	(* prefix = "" *)
 	interface NANDPins   nandPins;
-	(* prefix = "" *)
 	interface VPhyUser  vphyUser;
+	interface VPhyDebug vphyDebug;
 endinterface
 
 
 
 import "BVI" nand_phy =
-module vMkNandPhy#(Clock clk0, Clock clk90, Reset rstn0, Reset rstn90)(VNANDPhy);
+module vMkNandPhy#(
+	Clock clk0, 
+	Clock clk90, 
+	Reset rstn0, 
+	Reset rstn90
+	)
+	(
+	//Inout#(Bit#(36)) dbgCtrlIla,
+	//Inout#(Bit#(36)) dbgCtrlVio,
+	VNANDPhy ifc);
 
 //no default clock and reset
 default_clock no_clock; 
@@ -105,19 +118,24 @@ input_clock clk90(v_clk90, (*unused*)vclk90_GATE) = clk90;
 input_reset rstn0(v_rstn0) clocked_by (clk0) = rstn0;
 input_reset rstn90(v_rstn90) clocked_by (clk90) = rstn90;
 
+//inout v_dbg_ctrl_ila clocked_by(no_clock) reset_by(no_reset) = dbgCtrlIla;
+//inout v_dbg_ctrl_vio clocked_by(no_clock) reset_by(no_reset) = dbgCtrlVio;
+
+
+
 interface NANDPins nandPins;
 	ifc_inout dq(v_dq)             clocked_by(no_clock) reset_by(no_reset);
 	ifc_inout dqs(v_dqs)           clocked_by(no_clock) reset_by(no_reset);
 
-	method    v_wen_nclk       wen_nclk     clocked_by(no_clock) reset_by(no_reset);
+	//method    v_wen_nclk       wen_nclk     clocked_by(no_clock) reset_by(no_reset);
 	method    v_cle 	cle         clocked_by(no_clock) reset_by(no_reset);
 	method    v_ale 	ale         clocked_by(no_clock) reset_by(no_reset);
 	method    v_wrn 	wrn         clocked_by(no_clock) reset_by(no_reset);
 	method    v_wpn 	wpn         clocked_by(no_clock) reset_by(no_reset);
 	method    v_cen 	cen         clocked_by(no_clock) reset_by(no_reset);
 	//debug ports are really just old R/B signals
-	method	 v_debug0 debug0			clocked_by(no_clock) reset_by(no_reset);
-	method	 v_debug1 debug1	clocked_by(no_clock) reset_by(no_reset);
+	//method	 v_debug0 debug0			clocked_by(no_clock) reset_by(no_reset);
+	//method	 v_debug1 debug1	clocked_by(no_clock) reset_by(no_reset);
 endinterface
 
 
@@ -127,8 +145,8 @@ interface VPhyUser vphyUser;
 	method setWRN (v_ctrl_wrn) enable((*inhigh*)en2) clocked_by(clk0) reset_by(rstn0);
 	method setWPN (v_ctrl_wpn) enable((*inhigh*)en3) clocked_by(clk0) reset_by(rstn0);
 	method setCEN (v_ctrl_cen) enable((*inhigh*)en4) clocked_by(clk0) reset_by(rstn0);
-	method setWEN (v_ctrl_wen) enable((*inhigh*)en16) clocked_by(clk0) reset_by(rstn0);
-	method setWENSel (v_ctrl_wen_sel) enable((*inhigh*)en17) clocked_by(clk0) reset_by(rstn0);
+	//method setWEN (v_ctrl_wen) enable((*inhigh*)en16) clocked_by(clk0) reset_by(rstn0);
+	//method setWENSel (v_ctrl_wen_sel) enable((*inhigh*)en17) clocked_by(clk0) reset_by(rstn0);
 	
 	
 	//DQS delay control; clk90 domain
@@ -160,8 +178,12 @@ interface VPhyUser vphyUser;
 	method v_calib_dq_rise_180 calibDqRise180 clocked_by(clk0) reset_by(rstn0);
 	method v_calib_dq_rise_270 calibDqRise270 clocked_by(clk0) reset_by(rstn0);
 	method setCalibClk0Sel (v_calib_clk0_sel) enable((*inhigh*) en20) clocked_by(clk0) reset_by(rstn0);
+endinterface
 
+interface VPhyDebug vphyDebug;
 	//Debug signals
+	ifc_inout dbgCtrlIla(v_dbg_ctrl_ila) clocked_by(no_clock) reset_by(no_reset);
+	ifc_inout dbgCtrlVio(v_dbg_ctrl_vio) clocked_by(no_clock) reset_by(no_reset);
 	method setDebug0 (v_ctrl_debug0) enable((*inhigh*)en30) clocked_by(clk0) reset_by(rstn0);
 	method setDebug1 (v_ctrl_debug1) enable((*inhigh*)en31) clocked_by(clk0) reset_by(rstn0);
 	method setDebug2 (v_ctrl_debug2) enable((*inhigh*)en32) clocked_by(clk0) reset_by(rstn0);
@@ -177,29 +199,30 @@ endinterface
 
 //NAND pins are CF
 schedule 
-(nandPins_wen_nclk, nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen, nandPins_debug0, nandPins_debug1) 
+(/*nandPins_wen_nclk, */nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen /*, nandPins_debug0, nandPins_debug1*/) 
 CF
-(nandPins_wen_nclk, nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen, nandPins_debug0, nandPins_debug1);
+(/*nandPins_wen_nclk,*/ nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen /*, nandPins_debug0, nandPins_debug1*/);
 
 //Just set all other signals as CF
 schedule
 (vphyUser_dlyValDQS, vphyUser_dlyLdDQS, vphyUser_dlyValOutDQS,
 vphyUser_calibDqRise0, vphyUser_calibDqRise90, vphyUser_calibDqRise180, vphyUser_calibDqRise270, vphyUser_setCalibClk0Sel,
 vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
-vphyUser_setWEN, vphyUser_setWENSel,
+//vphyUser_setWEN, vphyUser_setWENSel,
 vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDataDQ, vphyUser_iddrRstDQ,
 vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
-vphyUser_setDebug0, vphyUser_setDebug1, vphyUser_setDebug2, vphyUser_setDebug3, vphyUser_setDebug4, 
-vphyUser_setDebug5, vphyUser_setDebug6, vphyUser_setDebug7, vphyUser_setDebugVin, vphyUser_getDebugVout)
+vphyDebug_setDebug0, vphyDebug_setDebug1, vphyDebug_setDebug2, vphyDebug_setDebug3, vphyDebug_setDebug4, 
+vphyDebug_setDebug5, vphyDebug_setDebug6, vphyDebug_setDebug7, vphyDebug_setDebugVin, vphyDebug_getDebugVout)
 CF
 (vphyUser_dlyValDQS, vphyUser_dlyLdDQS, vphyUser_dlyValOutDQS,
 vphyUser_calibDqRise0, vphyUser_calibDqRise90, vphyUser_calibDqRise180, vphyUser_calibDqRise270, vphyUser_setCalibClk0Sel,
 vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
-vphyUser_setWEN, vphyUser_setWENSel,
+//vphyUser_setWEN, vphyUser_setWENSel,
 vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDataDQ, vphyUser_iddrRstDQ,
 vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
-vphyUser_setDebug0, vphyUser_setDebug1, vphyUser_setDebug2, vphyUser_setDebug3, vphyUser_setDebug4, 
-vphyUser_setDebug5, vphyUser_setDebug6, vphyUser_setDebug7, vphyUser_setDebugVin, vphyUser_getDebugVout);
+vphyDebug_setDebug0, vphyDebug_setDebug1, vphyDebug_setDebug2, vphyDebug_setDebug3, vphyDebug_setDebug4, 
+vphyDebug_setDebug5, vphyDebug_setDebug6, vphyDebug_setDebug7, vphyDebug_setDebugVin, vphyDebug_getDebugVout);
+
 
 
 endmodule

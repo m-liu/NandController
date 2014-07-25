@@ -19,14 +19,9 @@ compile_sim:
 
 .PHONY: clean
 clean:
-	exec rm -f bscOut/XilinxCells.bo bscOut/FlashController.bo bscOut/NandPhyWrapper.bo bscOut/BusController.bo bscOut/NandInfra.bo bscOut/NandInfraWrapper.bo bscOut/NandPhy.bo
-	exec rm -f bscOut/mkBusController.ba bscOut/mkFlashController.ba bscOut/mkNandInfra.ba bscOut/mkNandPhy.ba
+	exec rm -f bscOut/*
 
 .PHONY: full_clean
 full_clean:
-	rm -f bscOut/XilinxCells.bo bscOut/FlashController.bo bscOut/NandPhyWrapper.bo bscOut/BusController.bo bscOut/NandInfra.bo bscOut/NandInfraWrapper.bo bscOut/NandPhy.bo
-	rm -f bscOut/mkBusController.ba bscOut/mkFlashController.ba bscOut/mkNandInfra.ba bscOut/mkNandPhy.ba
-	rm -f verilog/mkBusController.v
-	rm -f verilog/mkFlashController.v
-	rm -f verilog/mkNandInfra.v
-	rm -f verilog/mkNandPhy.v
+	rm -f bscOut/*
+	rm -f verilog/*

@@ -4,6 +4,7 @@ import Vector            ::*;
 
 import NandPhyWrapper::*;
 import NandPhy::*;
+import NandPhyWenNclkWrapper::*;
 
 typedef enum {
 	IDLE,
@@ -11,8 +12,8 @@ typedef enum {
 
 	INIT,
 	INIT_INC,
+	EN_SYNC,
 	INIT_EN_NANDCLK,
-	INIT_ACT_SYNC,
 	INIT_CALIB,
 
 	READ_PAGE_REQ,
@@ -26,6 +27,7 @@ typedef enum {
 
 typedef enum {
 	INIT_BUS,
+	EN_SYNC,
 	INIT_SYNC,
 	READ_PAGE,
 	WRITE_PAGE,
@@ -51,13 +53,16 @@ interface BusIfc;
 	method Action sendCmd (SsdCmd cmd, Bit#(4) chip, Bit#(16) block, Bit#(8) page);
 	method Action writeWord (Bit#(16) data);
 	method ActionValue#(Bit#(16)) readWord (); 
+	method Bool isIdle();
 endinterface
 
 
 interface BusControllerIfc;
 	interface BusIfc busIfc;
 	interface NANDPins nandPins;
+	interface PhyDebugCtrl phyDebugCtrl;
 	interface PhyDebug phyDebug;
+	interface PhyWenNclkGet phyWenNclkGet;
 endinterface
 
 //(* no_default_clock, no_default_reset *)
@@ -66,7 +71,10 @@ endinterface
 module mkBusController#(
 	Clock clk90, 
 	Reset rst90
-	)(BusControllerIfc);
+	)(
+	//(* clocked_by="no_clock", reset_by="no_reset" *) Inout#(Bit#(36)) dbgCtrlIla, 
+	//(* clocked_by="no_clock", reset_by="no_reset" *) Inout#(Bit#(36)) dbgCtrlVio,
+	BusControllerIfc ifc);
 	
 	//Timing parameters for timing parameters between different cycle types
 	//using SHORT_RESET for simulation. Doens't matter because we poll
@@ -112,7 +120,7 @@ module mkBusController#(
 	Reg#(Bit#(16)) debugR3 <- mkReg(0);
 
 	//Command/Data FIFOs
-	FIFO#(BusCmd) cmdQ <- mkSizedFIFO(64); //TODO adjust
+	FIFOF#(BusCmd) cmdQ <- mkSizedFIFOF(64); //TODO adjust
 	FIFO#(Bit#(16)) writeQ <- mkSizedFIFO(128); //TODO adjust
 	FIFO#(Bit#(16)) readQ <- mkSizedFIFO(128); //TODO adjust
 	Reg#(BusCmd) cmdR <- mkRegU();
@@ -144,7 +152,8 @@ module mkBusController#(
 		cmdR <= cmd;
 		case(cmd.ssdCmd)
 			INIT_BUS: state <= INIT;
-			INIT_SYNC: state <= INIT_ACT_SYNC;
+			EN_SYNC: state <= EN_SYNC;
+			INIT_SYNC: state <= INIT_EN_NANDCLK;
 			READ_PAGE: state <= READ_PAGE_REQ;
 			WRITE_PAGE: state <= WRITE_PAGE;
 			ERASE_BLOCK: state <= ERASE_BLOCK;
@@ -481,6 +490,39 @@ module mkBusController#(
 	//commands for sync mode 5 (0x15)
 	Bit#(8) actSyncData[nactSyncData] = { 8'h15, 8'h00, 8'h00, 8'h00 };
 	
+	rule doInitActSync if (state==EN_SYNC && cmdCnt < fromInteger(nactSyncCmds));
+		phy.phyUser.sendCmd(actSyncCmds[cmdCnt]);
+		cmdCnt <= cmdCnt + 1;
+	endrule
+
+	rule doInitActSyncAddr if (state==EN_SYNC && addrCnt < fromInteger(nactSyncAddr));
+		phy.phyUser.sendAddr(actSyncAddr);
+		addrCnt <= addrCnt + 1;
+	endrule
+
+	rule doInitActSyncData if (state==EN_SYNC && dataCnt < fromInteger(nactSyncData));
+		phy.phyUser.wrWord(zeroExtend(actSyncData[dataCnt]));
+		dataCnt <= dataCnt + 1;
+	endrule
+
+	rule doInitDone if (state==EN_SYNC && cmdCnt==fromInteger(nactSyncCmds) && 
+								addrCnt==fromInteger(nactSyncAddr) && 
+								dataCnt==fromInteger(nactSyncData));
+		if (chipR < fromInteger(targetsPerBus - 1)) begin
+			chipR <= chipR + 1;
+			//state <= EN_SYNC; //stay in same state
+			cmdCnt <= 0;
+			addrCnt <= 0;
+			dataCnt <= 0;
+		end
+		else begin
+			state <= IDLE;
+		end
+	endrule
+
+
+
+
 	PhyCmd enNandclkCmd = PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_ENABLE_NAND_CLK, nandCmd: ?, 
 							numBurst: 0, postCmdWait: fromInteger(t_EN_CLK)};
 
@@ -500,36 +542,6 @@ module mkBusController#(
 				};
 	Bit#(8) calibIdAddr = 8'h00;
 
-
-	rule doInitActSync if (state==INIT_ACT_SYNC && cmdCnt < fromInteger(nactSyncCmds));
-		phy.phyUser.sendCmd(actSyncCmds[cmdCnt]);
-		cmdCnt <= cmdCnt + 1;
-	endrule
-
-	rule doInitActSyncAddr if (state==INIT_ACT_SYNC && addrCnt < fromInteger(nactSyncAddr));
-		phy.phyUser.sendAddr(actSyncAddr);
-		addrCnt <= addrCnt + 1;
-	endrule
-
-	rule doInitActSyncData if (state==INIT_ACT_SYNC && dataCnt < fromInteger(nactSyncData));
-		phy.phyUser.wrWord(zeroExtend(actSyncData[dataCnt]));
-		dataCnt <= dataCnt + 1;
-	endrule
-
-	rule doInitDone if (state==INIT_ACT_SYNC && cmdCnt==fromInteger(nactSyncCmds) && 
-								addrCnt==fromInteger(nactSyncAddr) && 
-								dataCnt==fromInteger(nactSyncData));
-		if (chipR < fromInteger(targetsPerBus - 1)) begin
-			chipR <= chipR + 1;
-			//state <= INIT_ACT_SYNC; //stay in same state
-			cmdCnt <= 0;
-			addrCnt <= 0;
-			dataCnt <= 0;
-		end
-		else begin
-			state <= INIT_EN_NANDCLK;
-		end
-	endrule
 
 	rule doEnNandClk if (state==INIT_EN_NANDCLK);
 		phy.phyUser.sendCmd(enNandclkCmd);
@@ -586,7 +598,15 @@ module mkBusController#(
 			return readQ.first();
 		endmethod
 
+		method Bool isIdle();
+			//idle if in idle state and no pending requests
+			return ((state==IDLE) && (!cmdQ.notEmpty) && (phy.phyUser.isIdle));
+		endmethod
 	endinterface
+
+	interface phyWenNclkGet = phy.phyWenNclkGet;
+	
+	interface phyDebugCtrl = phy.phyDebugCtrl;
 
 	interface phyDebug = phy.phyDebug;
 

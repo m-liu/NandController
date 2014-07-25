@@ -16,13 +16,22 @@ import DefaultValue      ::*;
 
 
 import NandPhyWrapper::*;
+import NandPhyWenNclkWrapper::*;
 
 interface PhyUser;
 	method Action sendCmd (PhyCmd cmd);
 	method Action sendAddr (Bit#(8) addr);
 	method ActionValue#(Bit#(16)) rdWord();
 	method Action wrWord (Bit#(16) data);
+	method Bool isIdle();
 endinterface
+
+
+interface PhyDebugCtrl;
+	interface Inout#(Bit#(36)) dbgCtrlIla;
+	interface Inout#(Bit#(36)) dbgCtrlVio;
+endinterface
+
 
 interface PhyDebug;
 	method Action setDebug0 (Bit#(16) d);
@@ -37,11 +46,17 @@ interface PhyDebug;
 	method Bit#(64) getDebugVout ();
 endinterface
 
+interface PhyWenNclkGet;
+	method Bit#(1) getWEN;
+	method Bit#(1) getWENSel;
+endinterface
+
 interface NandPhyIfc;
-	//(* prefix = "" *)
 	interface NANDPins nandPins;
 	interface PhyUser phyUser;
+	interface PhyDebugCtrl phyDebugCtrl;
 	interface PhyDebug phyDebug;
+	interface PhyWenNclkGet phyWenNclkGet;
 endinterface
 
 
@@ -144,7 +159,10 @@ endfunction
 module mkNandPhy#(
 	Clock clk90, 
 	Reset rst90
-	)(NandPhyIfc);
+	)(	
+	//(* clocked_by="no_clock", reset_by="no_reset" *) Inout#(Bit#(36)) dbgCtrlIlaPhy, 
+	//(* clocked_by="no_clock", reset_by="no_reset" *) Inout#(Bit#(36)) dbgCtrlVioPhy,
+	NandPhyIfc ifc);
 
 	//Conservative timing parameters. In clock cycles. a
 	Integer t_SYS_RESET = 1000; //System reset wait
@@ -238,7 +256,7 @@ module mkNandPhy#(
 	Reg#(Bit#(64)) debugVin <- mkReg(0);
 
 	//Command and address FIFO
-	FIFO#(PhyCmd) ctrlCmdQ <- mkFIFO();
+	FIFOF#(PhyCmd) ctrlCmdQ <- mkFIFOF(); //TODO adjust size
 	FIFO#(Bit#(8)) addrQ <- mkSizedFIFO(32);
 
 	//Counters
@@ -267,8 +285,8 @@ module mkNandPhy#(
 		vnandPhy.vphyUser.setWRN(wrn);
 		vnandPhy.vphyUser.setWPN(wpn);
 		vnandPhy.vphyUser.setCEN(cen);
-		vnandPhy.vphyUser.setWEN(wen);
-		vnandPhy.vphyUser.setWENSel(wenSel);
+		//vnandPhy.vphyUser.setWEN(wen);
+		//vnandPhy.vphyUser.setWENSel(wenSel);
 		vnandPhy.vphyUser.oenDQS(oenDQS);
 		vnandPhy.vphyUser.rstnDQS(rstnDQS);
 		vnandPhy.vphyUser.oenDataDQ(oenDataDQ);
@@ -278,15 +296,15 @@ module mkNandPhy#(
 		vnandPhy.vphyUser.setCalibClk0Sel(calibClk0Sel);
 		vnandPhy.vphyUser.dlyValDQS(dlyValDQS);
 		vnandPhy.vphyUser.dlyLdDQS(dlyLdDQS);
-		vnandPhy.vphyUser.setDebug0(debugR[0]);
-		vnandPhy.vphyUser.setDebug1(debugR[1]);
-		vnandPhy.vphyUser.setDebug2(debugR[2]);
-		vnandPhy.vphyUser.setDebug3(debugR[3]);
-		vnandPhy.vphyUser.setDebug4(debugR[4]);
-		vnandPhy.vphyUser.setDebug5(debugR[5]);
-		vnandPhy.vphyUser.setDebug6(debugR[6]);
-		vnandPhy.vphyUser.setDebug7(debugR[7]);
-		vnandPhy.vphyUser.setDebugVin(debugVin);
+		vnandPhy.vphyDebug.setDebug0(debugR[0]);
+		vnandPhy.vphyDebug.setDebug1(debugR[1]);
+		vnandPhy.vphyDebug.setDebug2(debugR[2]);
+		vnandPhy.vphyDebug.setDebug3(debugR[3]);
+		vnandPhy.vphyDebug.setDebug4(debugR[4]);
+		vnandPhy.vphyDebug.setDebug5(debugR[5]);
+		vnandPhy.vphyDebug.setDebug6(debugR[6]);
+		vnandPhy.vphyDebug.setDebug7(debugR[7]);
+		vnandPhy.vphyDebug.setDebugVin(debugVin);
 	endrule
 
 	//wait rule. 
@@ -309,7 +327,7 @@ module mkNandPhy#(
 		waitCnt <= fromInteger(t_SYS_RESET);
 		currState <= WAIT_CYCLES;
 		returnState <= INIT_NAND_PWR_WAIT;
-		$display("@%t\t NandPhy: INIT_WAIT", $time);
+		$display("@%t\t %m NandPhy: INIT_WAIT", $time);
 	endrule
 
 	/*
@@ -325,7 +343,7 @@ module mkNandPhy#(
 		waitCnt <= fromInteger(t_POWER_UP);
 		currState <= WAIT_CYCLES;
 		returnState <= INIT_WP; 
-		$display("@%t\t NandPhy: INIT_NAND_PWR_WAIT", $time);
+		$display("@%t\t %m NandPhy: INIT_NAND_PWR_WAIT", $time);
 	endrule
 
 	//Turn off Write Protect. Wait tWW (>100ns). WP is always active, thus don't need CE. 
@@ -334,7 +352,7 @@ module mkNandPhy#(
 		waitCnt <= fromInteger(t_WW);
 		currState <= WAIT_CYCLES;
 		returnState <= IDLE; 
-		$display("@%t\t NandPhy: INIT_WP", $time);
+		$display("@%t\t %m NandPhy: INIT_WP", $time);
 	endrule
 
 	//****************************************
@@ -370,7 +388,7 @@ module mkNandPhy#(
 		numBurstCnt <= cmd.numBurst;
 		numBurstCntBr <= cmd.numBurst;
 		postCmdWaitCnt <= cmd.postCmdWait;
-		$display("@%t\t NandPhy: New command received: %x", $time, cmd.phyCycle);
+		$display("@%t\t %m NandPhy: New command received: %x", $time, cmd.phyCycle);
 	endrule
 
 	//****************************************
@@ -389,7 +407,7 @@ module mkNandPhy#(
 		oenDataDQ <= 1; //disable output
 		currState <= IDLE;
 		ctrlCmdQ.deq();
-		$display("@%t\t NandPhy: ASYNC_CHIP_SEL %x", $time, cen_one_hot);
+		$display("@%t\t %m NandPhy: ASYNC_CHIP_SEL %x", $time, cen_one_hot);
 	endrule
 
 	//****************************************
@@ -405,7 +423,7 @@ module mkNandPhy#(
 		waitCnt <= fromInteger(t_ASYNC_CMD_SETUP);
 		currState <= WAIT_CYCLES;
 		returnState <= ASYNC_CMD_LATCH_WE;
-		$display("@%t\t NandPhy: ASYNC_CMD_SET_CMD: %x", $time, ctrlCmdQ.first().nandCmd.OnfiCmd);
+		$display("@%t\t %m NandPhy: ASYNC_CMD_SET_CMD: %x", $time, ctrlCmdQ.first().nandCmd.OnfiCmd);
 	endrule
 
 	rule doAsyncCmdLatch if (currState==ASYNC_CMD_LATCH_WE);
@@ -413,7 +431,7 @@ module mkNandPhy#(
 		waitCnt <= fromInteger(t_ASYNC_CMD_HOLD);
 		currState <= WAIT_CYCLES;
 		returnState <= ASYNC_DONE;
-		$display("@%t\t NandPhy: ASYNC_CMD_LATCH_WE", $time);
+		$display("@%t\t %m NandPhy: ASYNC_CMD_LATCH_WE", $time);
 	endrule
 
 	//****************************************
@@ -430,7 +448,7 @@ module mkNandPhy#(
 		waitCnt <= fromInteger(t_ASYNC_ADDR_SETUP);
 		currState <= WAIT_CYCLES;
 		returnState <= ASYNC_ADDR_WE_HIGH;
-		$display("@%t\t NandPhy: ASYNC_ADDR_WE_LOW set addr: %x", $time, addrQ.first);
+		$display("@%t\t %m NandPhy: ASYNC_ADDR_WE_LOW set addr: %x", $time, addrQ.first);
 	endrule
 
 	rule doAsyncAddrWeHigh if (currState==ASYNC_ADDR_WE_HIGH);
@@ -445,7 +463,7 @@ module mkNandPhy#(
 			returnState <= ASYNC_ADDR_WE_LOW;
 			numBurstCnt <= numBurstCnt - 1;
 		end
-		$display("@%t\t NandPhy: ASYNC_ADDR_WE_HIGH", $time);
+		$display("@%t\t %m NandPhy: ASYNC_ADDR_WE_HIGH", $time);
 	endrule
 
 
@@ -463,7 +481,7 @@ module mkNandPhy#(
 		waitCnt <= fromInteger(t_ASYNC_WRITE_SETUP);
 		currState <= WAIT_CYCLES;
 		returnState <= ASYNC_WRITE_WE_HIGH;
-		$display("@%t\t NandPhy: ASYNC_WRITE_WE_LOW set data: %x", $time, wrQ.first);
+		$display("@%t\t %m NandPhy: ASYNC_WRITE_WE_LOW set data: %x", $time, wrQ.first);
 	endrule
 
 	rule doAsyncWriteWeHigh if (currState==ASYNC_WRITE_WE_HIGH);
@@ -479,9 +497,9 @@ module mkNandPhy#(
 			numBurstCnt <= numBurstCnt - 1;
 		end
 		else begin
-			$display("NandPhy: ERROR: num bursts is incorrect. Must be >1");
+			$display("%m NandPhy: ERROR: num bursts is incorrect. Must be >1");
 		end
-		$display("@%t\t NandPhy: ASYNC_WRITE_WE_HIGH", $time);
+		$display("@%t\t %m NandPhy: ASYNC_WRITE_WE_HIGH", $time);
 	endrule
 
 
@@ -496,14 +514,14 @@ module mkNandPhy#(
 		waitCnt <= fromInteger(t_RP);
 		currState <= WAIT_CYCLES;
 		returnState <= ASYNC_READ_CAPTURE;
-		$display("@%t\t NandPhy: ASYNC_READ_RE_LOW", $time);
+		$display("@%t\t %m NandPhy: ASYNC_READ_RE_LOW", $time);
 	endrule
 
 	rule doAsyncReadCapture if (currState==ASYNC_READ_CAPTURE);
 		//get data
 		let rddata = orderDQ(vnandPhy.vphyUser.rdDataCombDQ(), cen);
 		rdQ.enq(zeroExtend(rddata));
-		$display("@%t\t NandPhy: ASYNC_READ_CAPTURE async read data %x", $time, rddata);
+		$display("@%t\t %m NandPhy: ASYNC_READ_CAPTURE async read data %x", $time, rddata);
 		currState <= ASYNC_READ_RE_HIGH;
 	endrule
 	
@@ -522,9 +540,9 @@ module mkNandPhy#(
 			numBurstCnt <= numBurstCnt - 1;
 		end
 		else begin
-			$display("NandPhy: ERROR: num bursts is incorrect. Must be >1");
+			$display("%m NandPhy: ERROR: num bursts is incorrect. Must be >1");
 		end
-		$display("@%t\t NandPhy: ASYNC_READ_RE_HIGH", $time);
+		$display("@%t\t %m NandPhy: ASYNC_READ_RE_HIGH", $time);
 	endrule
 
 
@@ -549,7 +567,7 @@ module mkNandPhy#(
 			currState <= IDLE;
 		end
 		ctrlCmdQ.deq();
-		$display("@%t\t NandPhy: ASYNC_DONE", $time);
+		$display("@%t\t %m NandPhy: ASYNC_DONE", $time);
 	endrule
 
 	//******************************************************
@@ -567,7 +585,7 @@ module mkNandPhy#(
 			currState <= IDLE;
 		end
 		ctrlCmdQ.deq();
-		$display("@%t\t NandPhy: DESELECT_ALL", $time);
+		$display("@%t\t %m NandPhy: DESELECT_ALL", $time);
 	endrule
 
 
@@ -586,7 +604,7 @@ module mkNandPhy#(
 			currState <= IDLE;
 		end
 		ctrlCmdQ.deq();
-		$display("@%t\t NandPhy: ENABLE_NAND_CLK", $time);
+		$display("@%t\t %m NandPhy: ENABLE_NAND_CLK", $time);
 	endrule
 
 
@@ -606,7 +624,7 @@ module mkNandPhy#(
 		oenDQS <= 1;
 		rstnDQS <= 0; 
 		ctrlCmdQ.deq();
-		$display("@%t\t NandPhy: SYNC_CHIP_SEL %x", $time, cen_one_hot);
+		$display("@%t\t %m NandPhy: SYNC_CHIP_SEL %x", $time, cen_one_hot);
 		//wait t_CAD.
 		currState <= WAIT_CYCLES;
 		waitCnt <= fromInteger(t_CAD);
@@ -625,13 +643,13 @@ module mkNandPhy#(
 		currState <= WAIT_CYCLES;
 		waitCnt <= fromInteger(t_CMD_DQ_SYNCREG_DELAY);
 		returnState <= SYNC_CMD_LATCH;
-		$display("@%t\t NandPhy: SYNC_CMD_SET cmd=%x", $time, ctrlCmdQ.first().nandCmd.OnfiCmd);
+		$display("@%t\t %m NandPhy: SYNC_CMD_SET cmd=%x", $time, ctrlCmdQ.first().nandCmd.OnfiCmd);
 	endrule
 
 	rule doSyncCommandLatch if (currState == SYNC_CMD_LATCH);
 		cle <= 1;
 		currState <= SYNC_DONE;
-		$display("@%t\t NandPhy: SYNC_CMD_LATCH", $time);
+		$display("@%t\t %m NandPhy: SYNC_CMD_LATCH", $time);
 	endrule
 
 	
@@ -648,7 +666,7 @@ module mkNandPhy#(
 		currState <= WAIT_CYCLES;
 		waitCnt <= fromInteger(t_CMD_DQ_SYNCREG_DELAY);
 		returnState <= SYNC_ADDR_LATCH;
-		$display("@%t\t NandPhy: SYNC_ADDR_SET addr=%x", $time, addrQ.first());
+		$display("@%t\t %m NandPhy: SYNC_ADDR_SET addr=%x", $time, addrQ.first());
 	endrule
 
 	rule doSyncAddrLatch if (currState == SYNC_ADDR_LATCH);
@@ -663,7 +681,7 @@ module mkNandPhy#(
 			addrQ.deq();
 			currState <= SYNC_ADDR_BURST;
 			numBurstCnt <= numBurstCnt - 1;
-			$display("@%t\t NandPhy: SYNC_ADDR_LATCH addr=%x", $time, addrQ.first());
+			$display("@%t\t %m NandPhy: SYNC_ADDR_LATCH addr=%x", $time, addrQ.first());
 		end
 	endrule
 
@@ -673,7 +691,7 @@ module mkNandPhy#(
 		currState <= WAIT_CYCLES;
 		waitCnt <= fromInteger(t_CAD);
 		returnState <= SYNC_ADDR_LATCH;
-		$display("@%t\t NandPhy: SYNC_ADDR_BURST", $time);
+		$display("@%t\t %m NandPhy: SYNC_ADDR_BURST", $time);
 	endrule
 
 
@@ -696,7 +714,7 @@ module mkNandPhy#(
 			ale <= 1;
 			iddrRstDQ <= 0; //release reset on IDDR so we capture data
 			numBurstCnt <= numBurstCnt - 1;
-			$display("@%t\t NandPhy: SYNC_CALIB_LATCH asserted cle/ale", $time);
+			$display("@%t\t %m NandPhy: SYNC_CALIB_LATCH asserted cle/ale", $time);
 		end
 		else begin
 			cle <= 0;
@@ -719,7 +737,7 @@ module mkNandPhy#(
 			fifoDqR180.enq(d180);
 			fifoDqR270.enq(d270);
 			numCalibBrCnt <= numCalibBrCnt-1;
-			$display("@%t\t NandPhy: SYNC_CALIB enq'd dqR %x %x %x %x", $time, d0, d90, d180, d270);
+			$display("@%t\t %m NandPhy: SYNC_CALIB enq'd dqR %x %x %x %x", $time, d0, d90, d180, d270);
 		end
 
 		if (numBurstCntBr > 0) begin
@@ -742,7 +760,7 @@ module mkNandPhy#(
 	//   byte (clk0 or clk180) to capture data. At least 2.5ns of setup time
 
 	rule doSyncCalib if (currState==SYNC_CALIB_CALIBRATE);
-			$display("@%t\t NandPhy: SYNC_CALIB_CALIBRATE", $time);
+			$display("@%t\t %m NandPhy: SYNC_CALIB_CALIBRATE", $time);
 			//Find the first valid byte
 			if (fifoDqR0.first()==refDqR || fifoDqR90.first()==refDqR) begin
 				//CLK is 0-180 degrees shifted from DQS
@@ -754,7 +772,7 @@ module mkNandPhy#(
 				fifoDqR180.clear();
 				fifoDqR270.clear();
 				currState <= SYNC_DONE;
-				$display("@%t\t NandPhy: SYNC_CALIB_CALIBRATE done, clk0sel=0, rLat=%d", $time, rLat+1);
+				$display("@%t\t %m NandPhy: SYNC_CALIB_CALIBRATE done, clk0sel=0, rLat=%d", $time, rLat+1);
 			end
 			else if (fifoDqR180.first()==refDqR || fifoDqR270.first()==refDqR) begin
 				//CLK is 180-360 degrees shifted from DQS
@@ -766,7 +784,7 @@ module mkNandPhy#(
 				fifoDqR180.clear();
 				fifoDqR270.clear();
 				currState <= SYNC_DONE;
-				$display("@%t\t NandPhy: SYNC_CALIB_CALIBRATE done, clk0sel=1, rLat=%d", $time, rLat+1);
+				$display("@%t\t %m NandPhy: SYNC_CALIB_CALIBRATE done, clk0sel=1, rLat=%d", $time, rLat+1);
 			end
 			else if (rLat < fromInteger(calibFifoDepth)) begin
 				//Check the next cycle
@@ -778,7 +796,7 @@ module mkNandPhy#(
 			end
 			else begin
 				//Something bad happened. Not capturing data correctly
-				$display("@%t\t NandPhy: SYNC_CALIB_CALIBRATE failed. Possible DQ-DQS skew error", $time);
+				$display("@%t\t %m NandPhy: SYNC_CALIB_CALIBRATE failed. Possible DQ-DQS skew error", $time);
 				currState <= SYNC_CALIB_FAIL;
 				//TODO: adjust DQ/DQS skew
 			end
@@ -803,12 +821,12 @@ module mkNandPhy#(
 			ale <= 1;
 			iddrRstDQ <= 0; //release reset on IDDR so we capture data
 			numBurstCnt <= numBurstCnt - 1;
-			$display("@%t\t NandPhy: SYNC_READ_LATCH asserted cle/ale", $time);
+			$display("@%t\t %m NandPhy: SYNC_READ_LATCH asserted cle/ale", $time);
 		end
 		else begin
 			cle <= 0;
 			ale <= 0;
-			//$display("@%t\t NandPhy: SYNC_READ_LATCH DEasserted cle/ale", $time);
+			//$display("@%t\t %m NandPhy: SYNC_READ_LATCH DEasserted cle/ale", $time);
 		end
 	endrule
 
@@ -820,7 +838,7 @@ module mkNandPhy#(
 			let rdFall = orderDQ(vnandPhy.vphyUser.rdDataFallDQ(), cen);
 			rdQ.enq({rdRise, rdFall});
 			numBurstCntBr <= numBurstCntBr - 1;
-			$display("@%t\t NandPhy: SYNC_READ_LATCH sync read data %x %x", $time, rdRise, rdFall);
+			$display("@%t\t %m NandPhy: SYNC_READ_LATCH sync read data %x %x", $time, rdRise, rdFall);
 		end
 		else if (numBurstCntBr < 1) begin //we finished reading data bursts
 			//wait for ( tCKWR - (t_DQSCK+t_ISERDES) )
@@ -855,12 +873,12 @@ module mkNandPhy#(
 			cle <= 1;
 			ale <= 1;
 			numBurstCnt <= numBurstCnt - 1;
-			$display("@%t\t NandPhy: SYNC_WRITE_ENABLE asserted cle/ale", $time);
+			$display("@%t\t %m NandPhy: SYNC_WRITE_ENABLE asserted cle/ale", $time);
 		end
 		else begin
 			cle <= 0;
 			ale <= 0;
-			//$display("@%t\t NandPhy: SYNC_WRITE_ENABLE DEasserted cle/ale", $time);
+			//$display("@%t\t %m NandPhy: SYNC_WRITE_ENABLE DEasserted cle/ale", $time);
 		end
 	endrule
 
@@ -873,7 +891,7 @@ module mkNandPhy#(
 			wrDataFall <= orderDQ(dFall, cen);
 			wrQ.deq();
 			numBurstCntBr <= numBurstCntBr - 1;
-			$display("@%t\t NandPhy: SYNC_WRITE_BURST #%d: %x %x", $time, numBurstCntBr, dRise, dFall);
+			$display("@%t\t %m NandPhy: SYNC_WRITE_BURST #%d: %x %x", $time, numBurstCntBr, dRise, dFall);
 		end
 		else begin
 			rstnDQS <= 0;
@@ -908,7 +926,7 @@ module mkNandPhy#(
 		else begin
 			waitCnt <= fromInteger(t_CAD);
 		end
-		$display("@%t\t NandPhy: SYNC_DONE", $time);
+		$display("@%t\t %m NandPhy: SYNC_DONE", $time);
 	endrule
 
 	//**************************
@@ -930,7 +948,7 @@ module mkNandPhy#(
 
 	rule doAdjIdelayDQS90 if (currState90==ADJ_IDELAY_DQS);
 		if (incIdelayDQS_90 != fromInteger(idelayDQS)) begin
-			$display("@%t\t NandPhy: incremented dqs idelay", $time);
+			$display("@%t\t %m NandPhy: incremented dqs idelay", $time);
 			dlyIncDQSr <= 1;
 			dlyCeDQSr <= 1;
 			incIdelayDQS_90 <= incIdelayDQS_90 + 1;
@@ -965,6 +983,15 @@ module mkNandPhy#(
 		method Action wrWord (Bit#(16) data);
 			wrQ.enq(data);
 		endmethod
+
+		method Bool isIdle();
+			return ((currState==IDLE) && (!ctrlCmdQ.notEmpty));
+		endmethod
+	endinterface
+
+	interface PhyDebugCtrl phyDebugCtrl;
+		interface dbgCtrlIla = vnandPhy.vphyDebug.dbgCtrlIla;
+		interface dbgCtrlVio = vnandPhy.vphyDebug.dbgCtrlVio;
 	endinterface
 
 	interface PhyDebug phyDebug;
@@ -1004,7 +1031,17 @@ module mkNandPhy#(
 		endmethod
 
 		method Bit#(64) getDebugVout();
-			return vnandPhy.vphyUser.getDebugVout();
+			return vnandPhy.vphyDebug.getDebugVout();
+		endmethod
+	endinterface
+
+	interface PhyWenNclkGet phyWenNclkGet;
+		method Bit#(1) getWEN ();
+			return wen;
+		endmethod
+		
+		method Bit#(1) getWENSel();
+			return wenSel;
 		endmethod
 	endinterface
 

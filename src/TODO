@@ -1,21 +1,27 @@
-/*** Priority 1: before taiwan ***/
-- IDELAY tap currently fixed in parameter. Need to make adjustable
-- delay adjustment for DQ line
-
-/*** Priority 2: during/after taiwan ***/
 - WE#-1(NAND_CLKS) and WE#-2 are connected to the same wire (bad choice!). OK in sync mode, but in async mode, must be careful that we only assert a single CE# for two buses
-- Read calibration for each chip. For now calibrate a single chip and use that calib value for the entire bus
-- DQ-DQS skew calibration
-
-- Remove DQS simulation delay in post implementation sim
 - Timing and FIFO size adjustments
-- Short reset used in the  model right now
-
-/*** Priority 3 ***/
 - ECC integration and blocking
 - Scoreboard and multibus
 
+
+
+/*** Testing ***/
+- All buses
+- Cycle counter
+- [OK] High toggle rate data
+- [OK] Write/readback to just first page of each block. 
+- [OK] vio
+
+/*** May not be needed ***/
+- Read calibration for each chip. For now calibrate a single chip and use that calib value for the entire bus [ok here?]
+- DQ-DQS skew calibration [ok here?]
+- Remove DQS simulation delay in post implementation sim
+- IDELAY tap currently fixed in parameter. Need to make adjustable [don't need?]
+- delay adjustment for DQ line [don't need?]
+
+
 /*** DONE ***/
+- Short reset used in the  model right now
 - Full support for async read/writes. Do this as a test case first
 - Use typedefs for command vector sizes (or arrays)
 - Separate CE#
@@ -32,10 +38,3 @@
 - UCF verification: double check wen_nclk pins
 - Output drive strength, slew rate (FPGA and NAND)? <- doesn't seem to be a problem
 
-//Testing
-- [OK] High toggle rate data
-- All buses
-- Write/readback to just first page of each block. 
-- Cycle counter
-- try different idelay values? 
-- try vio
