@@ -1,46 +1,45 @@
-The following files were generated for 'chipscope_ila' in directory
+The following files were generated for 'chipscope_icon_bscan1' in directory
 D:\NandController\src\chipscope_ip\
 
 XCO file generator:
    Generate an XCO file for compatibility with legacy flows.
 
-   * chipscope_ila.xco
+   * chipscope_icon_bscan1.xco
 
 Creates an implementation netlist:
    Creates an implementation netlist for the IP.
 
-   * chipscope_ila.cdc
-   * chipscope_ila.constraints/chipscope_ila.ucf
-   * chipscope_ila.constraints/chipscope_ila.xdc
-   * chipscope_ila.ncf
-   * chipscope_ila.ngc
-   * chipscope_ila.ucf
-   * chipscope_ila.v
-   * chipscope_ila.veo
-   * chipscope_ila.xdc
-   * chipscope_ila_xmdf.tcl
+   * chipscope_icon_bscan1.constraints/chipscope_icon_bscan1.ucf
+   * chipscope_icon_bscan1.constraints/chipscope_icon_bscan1.xdc
+   * chipscope_icon_bscan1.ngc
+   * chipscope_icon_bscan1.ucf
+   * chipscope_icon_bscan1.v
+   * chipscope_icon_bscan1.veo
+   * chipscope_icon_bscan1.xdc
+   * chipscope_icon_bscan1_xmdf.tcl
 
 IP Symbol Generator:
    Generate an IP symbol based on the current project options'.
 
-   * chipscope_ila.asy
+   * chipscope_icon_bscan1.asy
 
 Generate ISE subproject:
    Create an ISE subproject for use when including this core in ISE designs
 
-   * chipscope_ila.gise
-   * chipscope_ila.xise
+   * _xmsgs/pn_parser.xmsgs
+   * chipscope_icon_bscan1.gise
+   * chipscope_icon_bscan1.xise
 
 Deliver Readme:
    Readme file for the IP.
 
-   * chipscope_ila_readme.txt
+   * chipscope_icon_bscan1_readme.txt
 
 Generate FLIST file:
    Text file listing all of the output files produced when a customized core was
    generated in the CORE Generator.
 
-   * chipscope_ila_flist.txt
+   * chipscope_icon_bscan1_flist.txt
 
 Please see the Xilinx CORE Generator online help for further details on
 generated files and how to use them.

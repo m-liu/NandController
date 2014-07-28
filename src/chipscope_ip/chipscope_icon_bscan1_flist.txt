@@ -1,0 +1,16 @@
+# Output products list for <chipscope_icon_bscan1>
+_xmsgs\pn_parser.xmsgs
+chipscope_icon_bscan1.asy
+chipscope_icon_bscan1.constraints\chipscope_icon_bscan1.ucf
+chipscope_icon_bscan1.constraints\chipscope_icon_bscan1.xdc
+chipscope_icon_bscan1.gise
+chipscope_icon_bscan1.ngc
+chipscope_icon_bscan1.ucf
+chipscope_icon_bscan1.v
+chipscope_icon_bscan1.veo
+chipscope_icon_bscan1.xco
+chipscope_icon_bscan1.xdc
+chipscope_icon_bscan1.xise
+chipscope_icon_bscan1_flist.txt
+chipscope_icon_bscan1_readme.txt
+chipscope_icon_bscan1_xmdf.tcl

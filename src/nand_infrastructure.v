@@ -149,7 +149,7 @@ reg [RST_SYNC_NUM-1:0]     rst90_sync_r /* synthesis syn_maxfan = 20 */;
 		.CONTROL7(dbg_ctrl_7) // INOUT BUS [35:0]
 	) /* synthesis syn_noprune=1 */;
 
-	chipscope_icon icon_1 (
+	chipscope_icon_bscan1 icon_1 (
 		.CONTROL0(dbg_ctrl_8), // INOUT BUS [35:0]
 		.CONTROL1(dbg_ctrl_9), // INOUT BUS [35:0]
 		.CONTROL2(dbg_ctrl_10), // INOUT BUS [35:0]

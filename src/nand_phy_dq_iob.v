@@ -48,8 +48,15 @@ module nand_phy_dq_iob #
   wire    dq_out;
   //wire    iserdes_clk;
   //wire    iserdes_clkb;
-  reg doutR_0, doutR_180, doutR_180_sync;
-  reg doutF_0, doutF_180;
+  reg doutR_0 = 0;
+  reg doutR_180 = 0;
+  reg doutR_180_sync = 0;
+  reg doutF_0 = 0;
+  reg doutF_180 = 0;
+  reg calib_dq_rise_0_sync = 0;
+  reg calib_dq_rise_90_sync = 0;
+  reg calib_dq_rise_180_sync = 0;
+  reg calib_dq_rise_270_sync = 0;
   wire dq_iddr_r, dq_iddr_f;
 
 
@@ -199,37 +206,37 @@ assign rd_data_comb = dq_in;
 // timing violations
 always @ (posedge clk0)
 begin
-	if (rst0) begin
-		doutR_0 <= 0;
-		doutF_180 <= 0;
-		doutR_180 <= 0;
-	end else begin
+	//if (rst0) begin
+	//	doutR_0 <= 0;
+	//	doutF_180 <= 0;
+	//	doutR_180 <= 0;
+	//end else begin
 		doutR_0 <= dq_iddr_r;
 		doutF_180 <= dq_iddr_f;
 		doutR_180 <= doutR_180_sync;
-	end
+	//end
 end
 
 always @ (negedge clk0)
 begin
-	if (rst0) begin
-		doutR_180_sync <= 0;
-		doutF_0 <= 0;
-	end else begin
+	//if (rst0) begin
+	//	doutR_180_sync <= 0;
+	//	doutF_0 <= 0;
+	//end else begin
 		doutR_180_sync <= dq_iddr_r;
 		doutF_0 <= dq_iddr_f;
-	end
+	//end
 end
 
 always @ (posedge clk0)
 begin
-	if (rst0) begin
-		rd_data_fall <= 0;
-		rd_data_rise <= 0;
-	end else begin
+	//if (rst0) begin
+	//	rd_data_fall <= 0;
+	//	rd_data_rise <= 0;
+	//end else begin
 		rd_data_fall <= (calib_clk0_sel==1) ? doutF_0 : doutF_180;
 		rd_data_rise <= (calib_clk0_sel==1) ? doutR_0 : doutR_180;
-	end
+	//end
 end
 
 //For calibration, also examine data at clk90 edges
@@ -238,39 +245,46 @@ reg doutR_270;
 
 always @ (posedge clk90)
 begin
-	if (rst90) begin
-		doutR_90 <= 0;
-	end else begin
+	//if (rst90) begin
+	//	doutR_90 <= 0;
+	//end else begin
 		doutR_90 <= dq_iddr_r;
-	end
+	//end
 end
 
 always @ (negedge clk90)
 begin
-	if (rst90) begin
-		doutR_270 <= 0;
-	end else begin
+	//if (rst90) begin
+	//	doutR_270 <= 0;
+	//end else begin
 		doutR_270 <= dq_iddr_r;
-	end
+	//end
 end
 
 
 //Examine all 4 registers for calibration 
-//We may need an opposite edge synchronizer if we violate timing.
-//Min setup time is 2.5ns for clk270
+// For signals at 0, 90, 180 phases, we capture using clk0
+// For signal at 270 phase, we capture using clk180
+// Min setup time is 5ns
 always @ (posedge clk0)
 begin
-	if (rst0) begin
-		calib_dq_rise_0 <= 0;
-		calib_dq_rise_90 <= 0;
-		calib_dq_rise_180 <= 0;
-		calib_dq_rise_270 <= 0;
-	end else begin
-		calib_dq_rise_0 <= doutR_0;
-		calib_dq_rise_90 <= doutR_90; 
-		calib_dq_rise_180 <= doutR_180_sync;
-		calib_dq_rise_270 <= doutR_270;
-	end
+	calib_dq_rise_0_sync <= doutR_0;
+	calib_dq_rise_90_sync <= doutR_90; 
+	calib_dq_rise_180_sync <= doutR_180_sync;
+end 
+
+always @ (posedge clk180)
+begin
+	calib_dq_rise_270_sync <= doutR_270;
+end
+
+//sync all to clk0 domain
+always @ (posedge clk0)
+begin
+	calib_dq_rise_0 <= calib_dq_rise_0_sync;
+	calib_dq_rise_90 <= calib_dq_rise_90_sync;  
+	calib_dq_rise_180 <= calib_dq_rise_180_sync;
+	calib_dq_rise_270 <= calib_dq_rise_270_sync;
 end
 
 
