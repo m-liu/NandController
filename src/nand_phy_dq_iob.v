@@ -48,6 +48,8 @@ module nand_phy_dq_iob #
   wire    dq_out;
   //wire    iserdes_clk;
   //wire    iserdes_clkb;
+  reg rd_data_rise_buf = 0;
+  reg rd_data_fall_buf = 0;
   reg doutR_0 = 0;
   reg doutR_180 = 0;
   reg doutR_180_sync = 0;
@@ -206,37 +208,26 @@ assign rd_data_comb = dq_in;
 // timing violations
 always @ (posedge clk0)
 begin
-	//if (rst0) begin
-	//	doutR_0 <= 0;
-	//	doutF_180 <= 0;
-	//	doutR_180 <= 0;
-	//end else begin
-		doutR_0 <= dq_iddr_r;
-		doutF_180 <= dq_iddr_f;
-		doutR_180 <= doutR_180_sync;
-	//end
+	doutR_0 <= dq_iddr_r;
+	doutF_180 <= dq_iddr_f;
+	doutR_180 <= doutR_180_sync;
 end
 
 always @ (negedge clk0)
 begin
-	//if (rst0) begin
-	//	doutR_180_sync <= 0;
-	//	doutF_0 <= 0;
-	//end else begin
-		doutR_180_sync <= dq_iddr_r;
-		doutF_0 <= dq_iddr_f;
-	//end
+	doutR_180_sync <= dq_iddr_r;
+	doutF_0 <= dq_iddr_f;
 end
 
 always @ (posedge clk0)
 begin
-	//if (rst0) begin
-	//	rd_data_fall <= 0;
-	//	rd_data_rise <= 0;
-	//end else begin
-		rd_data_fall <= (calib_clk0_sel==1) ? doutF_0 : doutF_180;
-		rd_data_rise <= (calib_clk0_sel==1) ? doutR_0 : doutR_180;
-	//end
+	rd_data_fall_buf <= (calib_clk0_sel==1) ? doutF_0 : doutF_180;
+	rd_data_rise_buf <= (calib_clk0_sel==1) ? doutR_0 : doutR_180;
+	//Add a set of buffer registers so # of stages is the same as 
+	// # calibration regs
+	rd_data_fall <= rd_data_fall_buf;
+	rd_data_rise <= rd_data_rise_buf;
+
 end
 
 //For calibration, also examine data at clk90 edges

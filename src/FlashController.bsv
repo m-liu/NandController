@@ -34,6 +34,20 @@ interface FlashControllerIfc;
 	interface Vector#(NUM_CHIPBUSES, Vector#(BUSES_PER_CHIPBUS, NANDPins)) nandBus;
 endinterface
 
+//Create data by hashing the address
+function Bit#(16) getDataHash (Bit#(16) dataCnt, Bit#(8) page, Bit#(16) block, Bit#(4) chip, Bit#(3) bus);
+		Bit#(8) dataCntTrim = truncate(dataCnt);
+		Bit#(8) blockTrim = truncate(block);
+		Bit#(8) chipTrim = zeroExtend(chip);
+		Bit#(8) busTrim = zeroExtend(bus);
+
+		Bit#(8) dataHi = truncate(dataCntTrim + 8'hA0 + (blockTrim<<4)+ (chipTrim<<2) + (busTrim<<6));
+		Bit#(8) dataLow = truncate( (~dataHi) + blockTrim );
+		Bit#(16) d = {dataHi, dataLow};
+		return d;
+endfunction
+
+
 
 (* no_default_clock, no_default_reset *)
 (*synthesize*)
@@ -182,11 +196,7 @@ module mkFlashController#(
 
 	rule doWriteData if (state==WRITE_DATA);
 		if (dataCnt < fromInteger(pageSize/2)) begin
-			//hash block/page. Add 16'hA000 so the first burst isn't 0.
-			Bit#(8) dataHi = truncate(dataCnt + 16'h00A0 + zeroExtend(block)*7+ zeroExtend(chip)<<1 );
-			Bit#(8) dataLow = truncate( (~dataHi) + truncate(block) );
-			//Bit#(8) dataLow = truncate((dataCnt<<2) + 16'h00DE + zeroExtend(pageCnt)*3);
-			Bit#(16) wData = {dataHi, dataLow};
+			Bit#(16) wData = getDataHash(dataCnt, page, block, chip, bus);
 			busCtrl[bus].busIfc.writeWord(wData);
 			dataCnt <= dataCnt + 1;
 		end
@@ -204,11 +214,7 @@ module mkFlashController#(
 	rule doReadData if (state==READ_DATA);
 		if (dataCnt < fromInteger(pageSize/2)) begin
 			let rdata <- busCtrl[bus].busIfc.readWord();
-			Bit#(8) dataHi = truncate(dataCnt + 16'h00A0 + zeroExtend(block)*7+ zeroExtend(chip)<<1 );
-			Bit#(8) dataLow = truncate( (~dataHi) + truncate(block) );
-			//Bit#(8) dataHi = truncate(dataCnt + 16'h00A0 + zeroExtend(pageCnt)*7);
-			//Bit#(8) dataLow = truncate((dataCnt<<2) + 16'h00DE + zeroExtend(pageCnt)*3);
-			Bit#(16) wData = {dataHi, dataLow};
+			Bit#(16) wData = getDataHash(dataCnt, page, block, chip, bus);
 			dataCnt <= dataCnt + 1;
 
 			//check
