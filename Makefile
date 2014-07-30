@@ -8,13 +8,13 @@ sim: full_clean compile_sim
 .PHONY: compile
 compile:
 	@echo Compiling...
-	bsc -u -verilog -elab -vdir verilog -bdir bscOut -info-dir bscOut -keep-fires -aggressive-conditions -p .:%/Prelude:%/Libraries:%/Libraries/BlueNoC:%/BSVSource/Xilinx:./src -g mkFlashController  src/FlashController.bsv 
+	bsc -u -verilog -elab -vdir verilog -bdir bscOut -info-dir bscOut -keep-fires -aggressive-conditions -p .:%/Prelude:%/Libraries:%/Libraries/BlueNoC:%/BSVSource/Xilinx:./src:./src/ECC/src_bsv -g mkFlashController  src/FlashController.bsv 
 	@echo Compilation finished
 
 .PHONY: compile_sim
 compile_sim:
 	@echo Compiling SIMULATION ONLY...
-	bsc -u -verilog -elab -vdir verilog -bdir bscOut -info-dir bscOut -keep-fires -aggressive-conditions -D NAND_SIM -p .:%/Prelude:%/Libraries:%/Libraries/BlueNoC:%/BSVSource/Xilinx:./src -g mkFlashController  src/FlashController.bsv 
+	bsc -u -verilog -elab -vdir verilog -bdir bscOut -info-dir bscOut -keep-fires -aggressive-conditions -D NAND_SIM -p .:%/Prelude:%/Libraries:%/Libraries/BlueNoC:%/BSVSource/Xilinx:./src:./src/ECC/src_bsv -g mkFlashController  src/FlashController.bsv 
 	@echo Compilation SIMULATION ONLY finished
 
 .PHONY: clean

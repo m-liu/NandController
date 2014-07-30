@@ -8,7 +8,7 @@ import NandPhy::*;
 import BusController::*;
 import NandPhyWenNclkWrapper::*;
 
-typedef 4 NUM_CHIPBUSES; //TODO FIXME XXX
+typedef 1 NUM_CHIPBUSES; //TODO FIXME XXX
 typedef 2 BUSES_PER_CHIPBUS;
 typedef TMul#(NUM_CHIPBUSES, BUSES_PER_CHIPBUS) NUM_BUSES;
 
@@ -195,7 +195,7 @@ module mkFlashController#(
 	endrule
 
 	rule doWriteData if (state==WRITE_DATA);
-		if (dataCnt < fromInteger(pageSize/2)) begin
+		if (dataCnt < fromInteger(pageSizeUser/2)) begin
 			Bit#(16) wData = getDataHash(dataCnt, page, block, chip, bus);
 			busCtrl[bus].busIfc.writeWord(wData);
 			dataCnt <= dataCnt + 1;
@@ -212,7 +212,7 @@ module mkFlashController#(
 	endrule
 
 	rule doReadData if (state==READ_DATA);
-		if (dataCnt < fromInteger(pageSize/2)) begin
+		if (dataCnt < fromInteger(pageSizeUser/2)) begin
 			let rdata <- busCtrl[bus].busIfc.readWord();
 			Bit#(16) wData = getDataHash(dataCnt, page, block, chip, bus);
 			dataCnt <= dataCnt + 1;

@@ -266,8 +266,8 @@ module mkNandPhy#(
 	Reg#(Bit#(16)) numBurstCntBr <- mkReg(0);
 
 	//Read/write data FIFO
-	FIFO#(Bit#(16)) rdQ <- mkSizedFIFO(32); //TODO adjust size
-	FIFO#(Bit#(16)) wrQ <- mkSizedFIFO(32); //TODO adjust size
+	FIFO#(Bit#(16)) rdQ <- mkFIFO(); //TODO adjust size
+	FIFO#(Bit#(16)) wrQ <- mkFIFO(); //TODO adjust size
 
 	//**********************************************
 	// Buffer phy signals using registers in front

@@ -1,10 +1,16 @@
 import FIFOF             ::*;
 import FIFO             ::*;
 import Vector            ::*;
+import GetPut ::*;
 
 import NandPhyWrapper::*;
 import NandPhy::*;
 import NandPhyWenNclkWrapper::*;
+import GFTypes::*;
+//import ReedSolomon::*;
+import RSEncoder::*;
+
+//`include "RSParameters.bsv"
 
 typedef enum {
 	IDLE,
@@ -19,9 +25,11 @@ typedef enum {
 	READ_PAGE_REQ,
 	READ_DATA,
 	WRITE_PAGE,
+	WRITE_PAGE_WAIT,
 	ERASE_BLOCK,
 	POLL_STATUS,
-	POLL_STATUS_POLL
+	POLL_STATUS_POLL,
+	WRITE_ERROR
 } CtrlState deriving (Bits, Eq);
 
 
@@ -43,7 +51,14 @@ typedef struct {
 } BusCmd deriving (Bits, Eq);
 
 //NAND geometry
-Integer pageSize = 8640; //bytes. 8kB + 448B ECC
+//Actual page size is 8640B, but we don't need the last 40B for ECC
+//Valid Data: 2 x (243B x 16 + 208B) = 8192B; 
+//With ECC: 2 x (255B x 16 + 220B) = 8600
+Integer pageSize = 8600; //bytes
+Integer pageSizeUser = 8192; //usable page size is 8k
+Integer pageECCBlks = 17; //16 blocks of k=243; 1 block of k=208
+
+
 //Integer pagesPerBlock = 256;
 //Integer blocksPerPlane = 2048;
 //Integer planesPerLun = 2;
@@ -99,9 +114,6 @@ module mkBusController#(
 	//Bus parameters
 	Integer targetsPerBus = 8; //8 for MLC, 4 for SLC (but may need remapping?)
 
-	//Nand PHY instantiation
-	NandPhyIfc phy <- mkNandPhy(clk90, rst90);
-
 	//States
 	Reg#(CtrlState) state <- mkReg(IDLE);
 	Reg#(CtrlState) returnState <- mkReg(IDLE);
@@ -112,6 +124,9 @@ module mkBusController#(
 	Reg#(Bit#(8)) addrCnt <- mkReg(0);
 	Reg#(Bit#(8)) cmdCnt <- mkReg(0);
 	Reg#(Bit#(16)) dataCnt <- mkReg(0);
+	Reg#(Bit#(16)) wrEnqWordCnt <- mkReg(0);
+	Reg#(Bit#(16)) wrEnqBlkCnt <- mkReg(0);
+	Reg#(Bit#(16)) currK <- mkReg(0);
 
 	//Debug
 	Reg#(Bit#(16)) debugR0 <- mkReg(0);
@@ -121,7 +136,7 @@ module mkBusController#(
 
 	//Command/Data FIFOs
 	FIFOF#(BusCmd) cmdQ <- mkSizedFIFOF(64); //TODO adjust
-	FIFO#(Bit#(16)) writeQ <- mkSizedFIFO(128); //TODO adjust
+	//FIFO#(Bit#(16)) writeQ <- mkSizedFIFO(128); //TODO adjust
 	FIFO#(Bit#(16)) readQ <- mkSizedFIFO(128); //TODO adjust
 	Reg#(BusCmd) cmdR <- mkRegU();
 	Reg#(Bit#(4)) chipR <- mkReg(0);
@@ -139,6 +154,20 @@ module mkBusController#(
 	Bit#(32) t_WB = (inSyncMode) ? fromInteger(t_WB_SYNC) : fromInteger(t_WB_ASYNC);
 	Bit#(32) t_ADL = (inSyncMode) ? fromInteger(t_ADL_SYNC) : fromInteger(t_ADL_ASYNC);
 
+	//Nand PHY instantiation
+	NandPhyIfc phy <- mkNandPhy(clk90, rst90);
+	//ECC decoder and encoder
+	FIFOF#(Bit#(16)) encodeInQ <- mkSizedFIFOF(128); //TODO adjust
+	//Note: the size of this FIFO is very important because during write
+	//bursts, we must make sure this FIFO always has data. 
+	//Size this to be: K-K_LAST=35 + any rs encoder delays between blocks
+	//(should be none)
+	//Don't size it too large. We fill the buffer to start with. More delay. 
+	FIFOF#(Bit#(16)) encodeOutQ <- mkSizedFIFOF(40); 
+	//IReedSolomon rsDecoderHi <- mkReedSolomon();
+	//IReedSolomon rsDecoderLo <- mkReedSolomon();
+	RSEncoderIfc rsEncoderHi <- mkRSEncoder();
+	RSEncoderIfc rsEncoderLo <- mkRSEncoder();
 
 	//******************************************************
 	// Decode command
@@ -155,7 +184,7 @@ module mkBusController#(
 			EN_SYNC: state <= EN_SYNC;
 			INIT_SYNC: state <= INIT_EN_NANDCLK;
 			READ_PAGE: state <= READ_PAGE_REQ;
-			WRITE_PAGE: state <= WRITE_PAGE;
+			WRITE_PAGE: state <= WRITE_PAGE_WAIT;
 			ERASE_BLOCK: state <= ERASE_BLOCK;
 			default: state <= IDLE;
 		endcase
@@ -290,6 +319,12 @@ module mkBusController#(
 			};
 
 
+	rule doWriteDataWait if (state==WRITE_PAGE_WAIT);
+		if (!encodeOutQ.notFull) begin
+			state <= WRITE_PAGE;
+		end
+	endrule
+
 	rule doWritePageCmd if (state==WRITE_PAGE && cmdCnt < fromInteger(nwriteReqCmds));
 		phy.phyUser.sendCmd(writeReqCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
@@ -300,27 +335,38 @@ module mkBusController#(
 		addrCnt <= addrCnt + 1;
 	endrule
 
-	//TODO we need to make sure the write FIFO always has data, otherwise writes won't work
+	//we need to make sure the write FIFO always has data, otherwise writes won't work
 
 	//Sync DDR write
 	rule doWritePageDataDDR if (state==WRITE_PAGE && inSyncMode && dataCnt < nDataBursts);
-		phy.phyUser.wrWord(writeQ.first());
-		writeQ.deq();
-		dataCnt <= dataCnt + 1;
+		if (encodeOutQ.notEmpty) begin
+			phy.phyUser.wrWord(encodeOutQ.first());
+			encodeOutQ.deq();
+			dataCnt <= dataCnt + 1;
+			$display("@%t\t%m: sync DDR write [%d] = %x", $time, dataCnt, encodeOutQ.first());
+		end
+		else begin //encodeOutQ should NEVER be empty 
+			state <= WRITE_ERROR;
+		end
 	endrule
 
 	//Async SDR write
 	rule doWritePageDataSDR if (state==WRITE_PAGE && !inSyncMode && dataCnt < nDataBursts);
-		if (dataCnt[0]==0) begin
-			Bit#(8) wd = truncateLSB(writeQ.first());
-			phy.phyUser.wrWord(zeroExtend(wd));
+		if (encodeOutQ.notEmpty) begin
+			if (dataCnt[0]==0) begin
+				Bit#(8) wd = truncateLSB(encodeOutQ.first());
+				phy.phyUser.wrWord(zeroExtend(wd));
+			end
+			else begin
+				Bit#(8) wd = truncate(encodeOutQ.first());
+				phy.phyUser.wrWord(zeroExtend(wd));
+				encodeOutQ.deq();
+			end
+			dataCnt <= dataCnt + 1;
 		end
-		else begin
-			Bit#(8) wd = truncate(writeQ.first());
-			phy.phyUser.wrWord(zeroExtend(wd));
-			writeQ.deq();
+		else begin //encodeOutQ should NEVER be empty 
+			state <= WRITE_ERROR;
 		end
-		dataCnt <= dataCnt + 1;
 	endrule
 
 		
@@ -578,6 +624,25 @@ module mkBusController#(
 		phy.phyDebug.setDebug1(zeroExtend(pack(state)));
 	endrule
 
+	rule writeError if (state==WRITE_ERROR);
+		$display("@%t, %m: write error!", $time);
+	endrule
+
+	//******************************************************
+	// ECC Rules
+	//******************************************************
+
+	rule doEncoderIn;
+		rsEncoderHi.rs_enc_in.put( truncateLSB(encodeInQ.first()) );
+		rsEncoderLo.rs_enc_in.put( truncate(encodeInQ.first()) );
+		encodeInQ.deq();
+	endrule
+
+	rule doEncoderOut;
+		Byte encDataHi <- rsEncoderHi.rs_enc_out.get();
+		Byte encDataLo <- rsEncoderLo.rs_enc_out.get();
+		encodeOutQ.enq({encDataHi, encDataLo});
+	endrule
 
 	//******************************************************
 	// Interfaces
@@ -590,7 +655,35 @@ module mkBusController#(
 		endmethod
 
 		method Action writeWord (Bit#(16) data);
-			writeQ.enq(data);
+			encodeInQ.enq(data);
+			//enq k into Encoder every k words of data. 16 blocks of k=243; k_last=208
+			if (wrEnqWordCnt == 0)
+			begin
+				wrEnqWordCnt <= wrEnqWordCnt + 1;
+				//We make sure k_in has FIFO of a reasonable size so method fires
+				if (wrEnqBlkCnt == fromInteger(pageECCBlks-1)) begin
+					rsEncoderHi.rs_k_in.put(fromInteger(valueOf(K_LAST)));
+					rsEncoderLo.rs_k_in.put(fromInteger(valueOf(K_LAST)));
+					currK <= fromInteger(valueOf(K_LAST));
+					wrEnqBlkCnt <= 0;
+	//				$display("@%t %m: Enq K=%d, data=%x", $time, valueOf(K_LAST), data);
+				end
+				else begin
+					rsEncoderHi.rs_k_in.put(fromInteger(valueOf(K)));
+					rsEncoderLo.rs_k_in.put(fromInteger(valueOf(K)));
+					currK <= fromInteger(valueOf(K));
+					wrEnqBlkCnt <= wrEnqBlkCnt + 1;
+	//				$display("@%t %m: Enq K=%d, data=%x", $time, valueOf(K), data);
+				end
+			end
+			else if (wrEnqWordCnt == currK-1) 
+			begin
+				wrEnqWordCnt <= 0; 
+	//			$display("@%t %m: Enq last word, data=%x", $time, data);
+			end
+			else begin
+				wrEnqWordCnt <= wrEnqWordCnt + 1;
+			end
 		endmethod 
 
 		method ActionValue#(Bit#(16)) readWord (); 

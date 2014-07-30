@@ -1,4 +1,4 @@
-
+//RS(n, k) = RS(255, 243) 
 import GetPut::*;
 import Vector       :: *;
 import FIFOF        :: *;
@@ -9,6 +9,7 @@ import FShow        :: *;
 
 import GFArith      :: *;
 import GFTypes      :: *;
+`include "RSParameters.bsv"
 
 interface RSEncoderIfc;
 	interface Put#(Byte) rs_k_in;
@@ -19,7 +20,7 @@ endinterface
 (* synthesize *)
 module mkRSEncoder (RSEncoderIfc);
 
-	FIFO#(Byte) k_in <- mkFIFO();
+	FIFO#(Byte) k_in <- mkSizedFIFO(32);
 	FIFO#(Byte) enc_in <- mkFIFO();
 	FIFO#(Byte) enc_out <- mkFIFO();
 
@@ -45,7 +46,7 @@ module mkRSEncoder (RSEncoderIfc);
 			enc_data = 0;
 		end
 
-		$display("RSEncoder: Processing [%d] = %d\n", countIn, enc_data);
+		$display("@%t\t%m: Processing [%d] = %x", $time, countIn, enc_data);
 		let enc_in_sub = gf_add(enc_data, encodeReg[valueOf(TwoT)-1]);
 		//calculation for the first register differs from the rest
 		encodeReg[0] <= gf_mult(enc_in_sub, gen_poly_coeff[0]);
@@ -61,19 +62,22 @@ module mkRSEncoder (RSEncoderIfc);
 	endrule
 
 	rule doOutputParity if (countIn == fromInteger(valueOf(K)));
-		if (countOut < fromInteger(valueOf(TwoT))) begin
+		//if (countOut < fromInteger(valueOf(TwoT))) begin
 			//enq the parity bits
 			Bit#(32) ind = fromInteger(valueOf(TwoT)) - 1 - countOut;
 			enc_out.enq(encodeReg[ind]);
-			//just display for now
-			$display("RSEncoder: Parity [%d] = %d\n", countOut, encodeReg[ind]);
-			countOut <= countOut + 1;
-		end
-		else begin
-			countOut <= 0;
-			countIn <= 0;
-			k_in.deq;
-		end
+			$display("@%t\t%m: Parity [%d] = %x\n", $time, countOut, encodeReg[ind]);
+			if (countOut < fromInteger(valueOf(TwoT) - 1)) begin
+				countOut <= countOut + 1;
+			end
+			else begin
+				countOut <= 0;
+				countIn <= 0;
+				k_in.deq;
+			end
+		//end
+		//else begin
+		//end
 	endrule
 
 	interface Put rs_k_in		= toPut(k_in);
