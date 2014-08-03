@@ -37,6 +37,16 @@ module mkRSEncoder (RSEncoderIfc);
 	rule doEncode if (countIn < fromInteger(valueOf(K)));
 		Byte enc_data;
 		//zero pad if needed
+		if ( fromInteger(valueOf(K)) - zeroExtend(k_in.first) > countIn ) begin
+			enc_data = 0;
+		end
+		else begin
+			enc_data = enc_in.first();
+			enc_out.enq(enc_in.first()); //enq the original data
+			enc_in.deq;
+		end
+
+		/*
 		if (countIn < zeroExtend(k_in.first)) begin
 			enc_data = enc_in.first();
 			enc_out.enq(enc_in.first()); //enq the original data
@@ -45,6 +55,7 @@ module mkRSEncoder (RSEncoderIfc);
 		else begin
 			enc_data = 0;
 		end
+		*/
 
 		$display("@%t\t%m: Processing [%d] = %x", $time, countIn, enc_data);
 		let enc_in_sub = gf_add(enc_data, encodeReg[valueOf(TwoT)-1]);
@@ -74,6 +85,7 @@ module mkRSEncoder (RSEncoderIfc);
 				countOut <= 0;
 				countIn <= 0;
 				k_in.deq;
+				writeVReg(encodeReg, replicate(0));
 			end
 		//end
 		//else begin

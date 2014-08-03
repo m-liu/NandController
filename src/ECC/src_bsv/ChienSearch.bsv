@@ -162,8 +162,8 @@ module mkChienSearch
    function Action fn_show_loc (Maybe #(Byte) loc) =
       $display ("  [chien_out %d]  loc_out : ", block_number, fshow (loc));
 
-   function Action fn_show_alpha_inv (Maybe #(Byte) alpha_inv) =
-      $display ("  [chien_out %d]  alpha_inv_out : ", block_number, fshow (alpha_inv));
+   function Action fn_show_alpha_inv (Maybe #(Byte) alpha_inv_show) =
+      $display ("  [chien_out %d]  alpha_inv_out : ", block_number, fshow (alpha_inv_show));
 
    function Action fn_show_cant_correct_flag (Bool cant_correct_flag) =
       $display ("  [chien_out %d]  Can't Correct Flag : ", block_number, fshow (cant_correct_flag));

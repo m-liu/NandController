@@ -497,7 +497,7 @@ module mkNandPhy#(
 			numBurstCnt <= numBurstCnt - 1;
 		end
 		else begin
-			$display("%m NandPhy: ERROR: num bursts is incorrect. Must be >1");
+			$display("%m *** NandPhy: ERROR: num bursts is incorrect. Must be >1");
 		end
 		$display("@%t\t %m NandPhy: ASYNC_WRITE_WE_HIGH", $time);
 	endrule
@@ -540,7 +540,7 @@ module mkNandPhy#(
 			numBurstCnt <= numBurstCnt - 1;
 		end
 		else begin
-			$display("%m NandPhy: ERROR: num bursts is incorrect. Must be >1");
+			$display("%m *** NandPhy: ERROR: num bursts is incorrect. Must be >1");
 		end
 		$display("@%t\t %m NandPhy: ASYNC_READ_RE_HIGH", $time);
 	endrule
@@ -796,7 +796,7 @@ module mkNandPhy#(
 			end
 			else begin
 				//Something bad happened. Not capturing data correctly
-				$display("@%t\t %m NandPhy: SYNC_CALIB_CALIBRATE failed. Possible DQ-DQS skew error", $time);
+				$display("@%t\t %m *** NandPhy: SYNC_CALIB_CALIBRATE failed. Possible DQ-DQS skew error", $time);
 				currState <= SYNC_CALIB_FAIL;
 				//TODO: adjust DQ/DQS skew
 			end

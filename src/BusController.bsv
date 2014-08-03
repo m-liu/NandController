@@ -7,7 +7,7 @@ import NandPhyWrapper::*;
 import NandPhy::*;
 import NandPhyWenNclkWrapper::*;
 import GFTypes::*;
-//import ReedSolomon::*;
+import ReedSolomon::*;
 import RSEncoder::*;
 
 //`include "RSParameters.bsv"
@@ -29,7 +29,8 @@ typedef enum {
 	ERASE_BLOCK,
 	POLL_STATUS,
 	POLL_STATUS_POLL,
-	WRITE_ERROR
+	WRITE_ERROR,
+	READ_ERROR
 } CtrlState deriving (Bits, Eq);
 
 
@@ -127,6 +128,9 @@ module mkBusController#(
 	Reg#(Bit#(16)) wrEnqWordCnt <- mkReg(0);
 	Reg#(Bit#(16)) wrEnqBlkCnt <- mkReg(0);
 	Reg#(Bit#(16)) currK <- mkReg(0);
+	Reg#(Bit#(16)) rdEnqWordCnt <- mkReg(0);
+	Reg#(Bit#(16)) rdEnqBlkCnt <- mkReg(0);
+	Reg#(Bit#(16)) currN <- mkReg(0);
 
 	//Debug
 	Reg#(Bit#(16)) debugR0 <- mkReg(0);
@@ -137,7 +141,7 @@ module mkBusController#(
 	//Command/Data FIFOs
 	FIFOF#(BusCmd) cmdQ <- mkSizedFIFOF(64); //TODO adjust
 	//FIFO#(Bit#(16)) writeQ <- mkSizedFIFO(128); //TODO adjust
-	FIFO#(Bit#(16)) readQ <- mkSizedFIFO(128); //TODO adjust
+	//FIFO#(Bit#(16)) readQ <- mkSizedFIFO(128); //TODO adjust
 	Reg#(BusCmd) cmdR <- mkRegU();
 	Reg#(Bit#(4)) chipR <- mkReg(0);
 	Vector#(5, Reg#(Bit#(8))) addrDecoded <- replicateM(mkReg(0));
@@ -164,10 +168,18 @@ module mkBusController#(
 	//(should be none)
 	//Don't size it too large. We fill the buffer to start with. More delay. 
 	FIFOF#(Bit#(16)) encodeOutQ <- mkSizedFIFOF(40); 
-	//IReedSolomon rsDecoderHi <- mkReedSolomon();
-	//IReedSolomon rsDecoderLo <- mkReedSolomon();
 	RSEncoderIfc rsEncoderHi <- mkRSEncoder();
 	RSEncoderIfc rsEncoderLo <- mkRSEncoder();
+
+	//On reads, must make sure all FIFOs into decoder always has space to accept
+	//data When starting a read, ensure this FIFO is empty as a precaution
+	FIFOF#(Bit#(16)) decodeInQ <- mkSizedFIFOF(pageSize/2 + 1);
+	//FIFO#(Bit#(16)) decodeOutQ <- mkSizedFIFO(64); //doesn't matter here
+	FIFO#(Byte) decodeKQ <- mkSizedFIFO(pageECCBlks + 1);
+	FIFO#(Byte) decodeTQ <- mkSizedFIFO(pageECCBlks + 1);
+	IReedSolomon rsDecoderHi <- mkReedSolomon();
+	IReedSolomon rsDecoderLo <- mkReedSolomon();
+
 
 	//******************************************************
 	// Decode command
@@ -267,16 +279,63 @@ module mkBusController#(
 
 	//Sync DDR bursts
 	rule doReadDataDDR if (state==READ_DATA && inSyncMode==True && dataCnt < nDataBursts);
-		let rd <- phy.phyUser.rdWord();
-		readQ.enq(rd);
-		debugR0 <= rd;
-		dataCnt <= dataCnt + 1;
-		$display("NandCtrl: read data: %x", rd);
+		if ( (dataCnt==0 && decodeInQ.notEmpty) || (!decodeInQ.notFull) ) begin
+			//throw error if decodeInQ is not empty at the start  //TODO this may be too conservative?
+			// OR
+			//at any point, the Q becomes full
+			state <= READ_ERROR;
+			$display("@%t\t%m: *** read error at dataCnt=%d", $time, dataCnt);
+		end
+		else begin
+
+			Bit#(16) rd <- phy.phyUser.rdWord();
+			
+			//Inject some errors if simulating
+			//TODO FIXME
+			`ifdef NAND_SIM
+				if (dataCnt[6:0]==100) begin //inject every 128 words
+					rd = rd & 16'hFF23; //inject err low
+					$display("@%t\t%m: injected read error LOW rd[%d]=%x", $time, dataCnt, rd);
+				end
+				else if (dataCnt[7:0]==32) begin
+					rd = rd & 16'h89FF; //inject err hi
+					$display("@%t\t%m: injected read error HIGH rd[%d]=%x", $time, dataCnt, rd);
+				end
+			`endif
+
+			decodeInQ.enq(rd);
+			debugR0 <= rd;
+			dataCnt <= dataCnt + 1;
+			$display("@%t\t%m: read raw data: %x", $time, rd);
+			//if it's the first burst of a block, enq the decoder control info
+			if (rdEnqWordCnt == 0) 
+			begin
+				rdEnqWordCnt <= rdEnqWordCnt + 1;
+				if (rdEnqBlkCnt == fromInteger(pageECCBlks-1)) begin
+					decodeKQ.enq(fromInteger(valueOf(K_LAST)));
+					rdEnqBlkCnt <= 0;
+					currN <= fromInteger(valueOf(K_LAST) + 2*valueOf(T)); //K+2T
+				end
+				else begin
+					decodeKQ.enq(fromInteger(valueOf(K)));
+					rdEnqBlkCnt <= rdEnqBlkCnt + 1;
+					currN <= fromInteger(max_block_size); //255
+				end
+				decodeTQ.enq(fromInteger(valueOf(T)));
+			end
+			else if (rdEnqWordCnt == currN-1) begin
+				rdEnqWordCnt <= 0;
+			end
+			else begin
+				rdEnqWordCnt <= rdEnqWordCnt + 1;
+			end
+		end
 	endrule
 
 	//Async SDR bursts
 	Reg#(Bit#(8)) rdTmp <- mkReg(0);
 	rule doReadDataSDR if (state==READ_DATA && inSyncMode==False && dataCnt < nDataBursts);
+		//TODO: ASYNC doesn't have ECC Implemented, so this doesn't work at all
 		Bit#(16) rd <- phy.phyUser.rdWord();
 		Bit#(8) rdTrunc = truncate(rd);
 		dataCnt <= dataCnt + 1;
@@ -286,7 +345,8 @@ module mkBusController#(
 		end
 		else begin //odd burst, enq into fifo
 			Bit#(16) rdMerged = {rdTmp, rdTrunc};
-			readQ.enq(rdMerged);
+			//readQ.enq(rdMerged);
+			
 			debugR0 <= rdMerged;
 			$display("NandCtrl: read data: %x", rdMerged);
 		end
@@ -625,7 +685,11 @@ module mkBusController#(
 	endrule
 
 	rule writeError if (state==WRITE_ERROR);
-		$display("@%t, %m: write error!", $time);
+		$display("@%t, %m: *** write error!", $time);
+	endrule
+
+	rule readError if (state==READ_ERROR);
+		$display("@%t, %m: *** read error!", $time);
 	endrule
 
 	//******************************************************
@@ -643,6 +707,41 @@ module mkBusController#(
 		Byte encDataLo <- rsEncoderLo.rs_enc_out.get();
 		encodeOutQ.enq({encDataHi, encDataLo});
 	endrule
+
+	rule doDecoderDataIn;
+		rsDecoderHi.rs_input.put( truncateLSB(decodeInQ.first()) );
+		rsDecoderLo.rs_input.put( truncate(decodeInQ.first()) );
+		decodeInQ.deq();
+	endrule
+
+	rule doDecoderKIn;
+		rsDecoderHi.rs_k_in.put( decodeKQ.first() );
+		rsDecoderLo.rs_k_in.put( decodeKQ.first() );
+		decodeKQ.deq();
+	endrule
+
+	rule doDecoderTIn;
+		rsDecoderHi.rs_t_in.put( decodeTQ.first() );
+		rsDecoderLo.rs_t_in.put( decodeTQ.first() );
+		decodeTQ.deq();
+	endrule
+
+	//TODO: for now, if encountered an uncorrectable err, just print it
+	rule doDecoderHiCantCorrect;
+		Bool errHi <- rsDecoderHi.rs_flag.get();
+		if (errHi) begin
+			$display("@%t\t%m: *** read error! decoderHi ECC can't correct flag raised", $time);
+		end
+	endrule
+
+	rule doDecoderLoCantCorrect;
+		Bool errLo <- rsDecoderLo.rs_flag.get();
+		if (errLo) begin
+			$display("@%t\t%m: *** read error! decoderLo ECC can't correct flag raised", $time);
+		end
+	endrule
+
+
 
 	//******************************************************
 	// Interfaces
@@ -687,8 +786,11 @@ module mkBusController#(
 		endmethod 
 
 		method ActionValue#(Bit#(16)) readWord (); 
-			readQ.deq();
-			return readQ.first();
+			//readQ.deq();
+			//return readQ.first();
+			Byte rdHi <- rsDecoderHi.rs_output.get();
+			Byte rdLo <- rsDecoderLo.rs_output.get();
+			return {rdHi, rdLo};
 		endmethod
 
 		method Bool isIdle();

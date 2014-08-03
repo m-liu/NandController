@@ -1,13 +1,10 @@
-- WE#-1(NAND_CLKS) and WE#-2 are connected to the same wire (bad choice!). OK in sync mode, but in async mode, must be careful that we only assert a single CE# for two buses
-- Timing and FIFO size adjustments
-- ECC integration and blocking
+- Timing and FIFO size adjustments; ECC fifos sizes and timing too conservative
+- ECC can't correct flag handling
 - Scoreboard and multibus
 
 
-
 /*** Testing ***/
-- All buses
-- Cycle counter
+- [OK] All buses
 - [OK] High toggle rate data
 - [OK] Write/readback to just first page of each block. 
 - [OK] vio
@@ -21,6 +18,8 @@
 
 
 /*** DONE ***/
+- ECC integration and blocking
+- WE#-1(NAND_CLKS) and WE#-2 are connected to the same wire (bad choice!). OK in sync mode, but in async mode, must be careful that we only assert a single CE# for two buses
 - Short reset used in the  model right now
 - Full support for async read/writes. Do this as a test case first
 - Use typedefs for command vector sizes (or arrays)

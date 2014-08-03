@@ -191,7 +191,7 @@ nand_model nand_b0_3 (
 	.Wp2_n(b0_1_wpn)
 );
 
-
+/*
 //-------------------------------------------------------------
 // Bus 1
 //-------------------------------------------------------------
@@ -337,7 +337,7 @@ nand_model nand_b1_3 (
 	.Wp_n(b1_0_wpn), 
 	.Wp2_n(b1_1_wpn)
 );
-
+*/
 
 //---------------------------------------------
 // Flash controller
@@ -361,8 +361,8 @@ mkFlashController u_flash_controller(
 		.B_0_1_ALE(b0_1_ale),
 		.B_0_1_WRN(b0_1_wrn),
 		.B_0_1_WPN(b0_1_wpn),
-		.B_0_1_CEN(b0_1_cen),
-
+		.B_0_1_CEN(b0_1_cen)
+/*
 		.B_SHARED_1_WEN_NCLK(b1_shared_wen_nclk),
 		.B_1_0_DQ(b1_0_dq),
 		.B_1_0_DQS(b1_0_dqs),
@@ -378,6 +378,7 @@ mkFlashController u_flash_controller(
 		.B_1_1_WRN(b1_1_wrn),
 		.B_1_1_WPN(b1_1_wpn),
 		.B_1_1_CEN(b1_1_cen)
+		*/
 	 );
 
 

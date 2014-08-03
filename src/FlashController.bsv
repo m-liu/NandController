@@ -102,6 +102,7 @@ module mkFlashController#(
 	Reg#(Bit#(16)) errCnt <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 	//Reg#(Bit#(16)) berrCnt <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 	Reg#(Bit#(16)) cmdCnt <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
+	Reg#(Bit#(16)) rDataDebug <-  mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 
 	Vector#(4, Bit#(64)) vinTest = newVector();
 	vinTest[0] = 64'h0002010000050000; //wr blk 5, chip0, bus1
@@ -199,6 +200,8 @@ module mkFlashController#(
 			Bit#(16) wData = getDataHash(dataCnt, page, block, chip, bus);
 			busCtrl[bus].busIfc.writeWord(wData);
 			dataCnt <= dataCnt + 1;
+			$display("@%t\t%m: controller write data [%d]: %x", $time, dataCnt, wData);
+
 		end
 		else begin
 			state <= IDLE;
@@ -215,16 +218,17 @@ module mkFlashController#(
 		if (dataCnt < fromInteger(pageSizeUser/2)) begin
 			let rdata <- busCtrl[bus].busIfc.readWord();
 			Bit#(16) wData = getDataHash(dataCnt, page, block, chip, bus);
+			rDataDebug <= rdata;
 			dataCnt <= dataCnt + 1;
 
 			//check
 			if (rdata != wData) begin
-				$display("FlashController TB: readback error on block=%d, page=%d; Expected %x, got %x", 
-								block, page, wData, rdata);
+				$display("@%t\t%m: *** FlashController readback error at [%d] on block=%d, page=%d; Expected %x, got %x",
+			  				$time, dataCnt, block, page, wData, rdata);
 				errCnt <= errCnt + 1;
 			end
 			else begin
-				$display("FlashController TB: readback OK! data=%x", rdata);
+				$display("@%t\t%m: FlashController readback OK! data[%d]=%x", $time, dataCnt, rdata);
 			end
 		end
 		else begin
@@ -244,7 +248,8 @@ module mkFlashController#(
 		rule debugSet;
 			busCtrl[i].phyDebug.setDebug2(zeroExtend(pack(state)));
 			busCtrl[i].phyDebug.setDebug3(errCnt);
-			busCtrl[i].phyDebug.setDebug4(cmdCnt);
+			//busCtrl[i].phyDebug.setDebug4(cmdCnt);
+			busCtrl[i].phyDebug.setDebug4(rDataDebug); //Error corrected data
 			busCtrl[i].phyDebug.setDebugVin(busCtrl[i].phyDebug.getDebugVout());
 		endrule
 	end

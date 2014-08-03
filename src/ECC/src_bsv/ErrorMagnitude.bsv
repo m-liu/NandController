@@ -136,7 +136,7 @@ module mkErrorMagnitude
       $display ("  [errmag_out %0d]  err_out: %h", block_number2, err_val);
    endrule
 
-   rule rl_bypass (no_error_flag);
+   rule rl_bypass (no_error_flag && (i2 < k));
       $display ("  [errMag %0d]  process location %0d bypass which has no error ", block_number2, i2);
       i2 <= k;
    endrule
