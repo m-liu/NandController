@@ -69,14 +69,14 @@ module mkFlashController#(
 	dbgCtrlIfc[5] = nandInfra.dbgCtrl_5;
 	dbgCtrlIfc[6] = nandInfra.dbgCtrl_6;
 	dbgCtrlIfc[7] = nandInfra.dbgCtrl_7;
-	dbgCtrlIfc[8] = nandInfra.dbgCtrl_8;
-	dbgCtrlIfc[9] = nandInfra.dbgCtrl_9;
-	dbgCtrlIfc[10] = nandInfra.dbgCtrl_10;
-	dbgCtrlIfc[11] = nandInfra.dbgCtrl_11;
-	dbgCtrlIfc[12] = nandInfra.dbgCtrl_12;
-	dbgCtrlIfc[13] = nandInfra.dbgCtrl_13;
-	dbgCtrlIfc[14] = nandInfra.dbgCtrl_14;
-	dbgCtrlIfc[15] = nandInfra.dbgCtrl_15;
+//	dbgCtrlIfc[8] = nandInfra.dbgCtrl_8;
+//	dbgCtrlIfc[9] = nandInfra.dbgCtrl_9;
+//	dbgCtrlIfc[10] = nandInfra.dbgCtrl_10;
+//	dbgCtrlIfc[11] = nandInfra.dbgCtrl_11;
+//	dbgCtrlIfc[12] = nandInfra.dbgCtrl_12;
+//	dbgCtrlIfc[13] = nandInfra.dbgCtrl_13;
+//	dbgCtrlIfc[14] = nandInfra.dbgCtrl_14;
+//	dbgCtrlIfc[15] = nandInfra.dbgCtrl_15;
 
 	//Nand WEN/NandClk (because of weird organization, this module is
 	// shared among half buses)
@@ -107,8 +107,8 @@ module mkFlashController#(
 	Vector#(4, Bit#(64)) vinTest = newVector();
 	vinTest[0] = 64'h0002010000050000; //wr blk 5, chip0, bus1
 	vinTest[1] = 64'h0001010000050000; //rd blk 5
-	vinTest[2] = 64'h0003010000050000; //er blk 5
-	vinTest[3] = 64'h0001010000050000; //rd blk 5
+	vinTest[2] = 64'h0002010000060000; //wr blk 6
+	vinTest[3] = 64'h0001010000060000; //rd blk 6
 
 
 	//rule for WEN/NCLK; Shared per chipbus
@@ -246,7 +246,8 @@ module mkFlashController#(
 
 	for (Integer i=0; i < valueOf(NUM_BUSES); i=i+1) begin
 		rule debugSet;
-			busCtrl[i].phyDebug.setDebug2(zeroExtend(pack(state)));
+			//busCtrl[i].phyDebug.setDebug2(zeroExtend(pack(state)));
+			busCtrl[i].phyDebug.setDebug2(dataCnt);
 			busCtrl[i].phyDebug.setDebug3(errCnt);
 			//busCtrl[i].phyDebug.setDebug4(cmdCnt);
 			busCtrl[i].phyDebug.setDebug4(rDataDebug); //Error corrected data

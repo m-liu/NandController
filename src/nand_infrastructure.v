@@ -27,15 +27,15 @@ module nand_infrastructure #
 	inout [35:0] dbg_ctrl_4,
 	inout [35:0] dbg_ctrl_5,
 	inout [35:0] dbg_ctrl_6,
-	inout [35:0] dbg_ctrl_7,
-	inout [35:0] dbg_ctrl_8,
-	inout [35:0] dbg_ctrl_9,
-	inout [35:0] dbg_ctrl_10,
-	inout [35:0] dbg_ctrl_11,
-	inout [35:0] dbg_ctrl_12,
-	inout [35:0] dbg_ctrl_13,
-	inout [35:0] dbg_ctrl_14,
-	inout [35:0] dbg_ctrl_15
+	inout [35:0] dbg_ctrl_7
+//	inout [35:0] dbg_ctrl_8,
+//	inout [35:0] dbg_ctrl_9,
+//	inout [35:0] dbg_ctrl_10,
+//	inout [35:0] dbg_ctrl_11,
+//	inout [35:0] dbg_ctrl_12,
+//	inout [35:0] dbg_ctrl_13,
+//	inout [35:0] dbg_ctrl_14,
+//	inout [35:0] dbg_ctrl_15
 );
   //***************************************************************************
   // IODELAY Group Name: Replication and placement of IDELAYCTRLs will be
@@ -138,27 +138,27 @@ reg [RST_SYNC_NUM-1:0]     rst90_sync_r /* synthesis syn_maxfan = 20 */;
       );
 
 //Instantiate chipscope ICON
-	chipscope_icon icon_0 (
+	chipscope_icon_4ctrl icon_0 (
 		.CONTROL0(dbg_ctrl_0), // INOUT BUS [35:0]
 		.CONTROL1(dbg_ctrl_1), // INOUT BUS [35:0]
 		.CONTROL2(dbg_ctrl_2), // INOUT BUS [35:0]
-		.CONTROL3(dbg_ctrl_3), // INOUT BUS [35:0]
-		.CONTROL4(dbg_ctrl_4), // INOUT BUS [35:0]
-		.CONTROL5(dbg_ctrl_5), // INOUT BUS [35:0]
-		.CONTROL6(dbg_ctrl_6), // INOUT BUS [35:0]
-		.CONTROL7(dbg_ctrl_7) // INOUT BUS [35:0]
+		.CONTROL3(dbg_ctrl_3) // INOUT BUS [35:0]
+//		.CONTROL4(dbg_ctrl_4), // INOUT BUS [35:0]
+//		.CONTROL5(dbg_ctrl_5), // INOUT BUS [35:0]
+//		.CONTROL6(dbg_ctrl_6), // INOUT BUS [35:0]
+//		.CONTROL7(dbg_ctrl_7) // INOUT BUS [35:0]
 	) /* synthesis syn_noprune=1 */;
 
-	chipscope_icon_bscan1 icon_1 (
-		.CONTROL0(dbg_ctrl_8), // INOUT BUS [35:0]
-		.CONTROL1(dbg_ctrl_9), // INOUT BUS [35:0]
-		.CONTROL2(dbg_ctrl_10), // INOUT BUS [35:0]
-		.CONTROL3(dbg_ctrl_11), // INOUT BUS [35:0]
-		.CONTROL4(dbg_ctrl_12), // INOUT BUS [35:0]
-		.CONTROL5(dbg_ctrl_13), // INOUT BUS [35:0]
-		.CONTROL6(dbg_ctrl_14), // INOUT BUS [35:0]
-		.CONTROL7(dbg_ctrl_15) // INOUT BUS [35:0]
-	) /* synthesis syn_noprune=1 */;
+//	chipscope_icon_bscan1 icon_1 (
+//		.CONTROL0(dbg_ctrl_8), // INOUT BUS [35:0]
+//		.CONTROL1(dbg_ctrl_9), // INOUT BUS [35:0]
+//		.CONTROL2(dbg_ctrl_10), // INOUT BUS [35:0]
+//		.CONTROL3(dbg_ctrl_11), // INOUT BUS [35:0]
+//		.CONTROL4(dbg_ctrl_12), // INOUT BUS [35:0]
+//		.CONTROL5(dbg_ctrl_13), // INOUT BUS [35:0]
+//		.CONTROL6(dbg_ctrl_14), // INOUT BUS [35:0]
+//		.CONTROL7(dbg_ctrl_15) // INOUT BUS [35:0]
+//	) /* synthesis syn_noprune=1 */;
 
 endmodule
 

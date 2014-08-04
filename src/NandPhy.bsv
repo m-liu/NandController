@@ -166,14 +166,13 @@ module mkNandPhy#(
 
 	//Conservative timing parameters. In clock cycles. a
 	Integer t_SYS_RESET = 1000; //System reset wait
-	//TODO FIXME: power up reduced using SHORT_RESET
+	//Power up wait time; In simulation, use SHORT_RESET param in nand model to reduce wait
 	`ifdef NAND_SIM
-		Integer t_POWER_UP = 100; //100us. TODO: Reduced to 1us for sim.
+		Integer t_POWER_UP = 100; //100us. Reduced to 1us for sim.
 	`else
-		Integer t_POWER_UP = 1000000000; //100us. TODO: Reduced to 1us for sim
+		Integer t_POWER_UP = 1000000000; //100us.
 	`endif
 
-	//Integer t_POWER_UP = 100; //100us. TODO: Reduced to 1us for sim. 
 	Integer t_WW = 20; //100ns. Write protect wait time.
 	Integer t_ASYNC_CMD_SETUP = 8; //Max async cmd/data setup time before WE# latch
 	Integer t_ASYNC_CMD_HOLD = 5; //Max async cmd/data hold time after WE# latch
@@ -187,8 +186,6 @@ module mkNandPhy#(
 	Integer t_CAD = 3; //25ns 
 	Integer t_CMD_DQ_SYNCREG_DELAY = 2; //2 sync regs used for DQ cmd path
 	Integer t_WRCK_DQSD = 4; //20ns. Chose a safe value to wait until NAND drives DQS
-	//Integer t_DQSCK = 2; //Self calibrated
-	//Integer t_ISERDES = 4; //cycs for data to appear from DQ to output of ISERDESE2 TODO: tweak
 	Integer t_CKWR = 3; 
 	Integer t_CKWR_DQSCK_IDDR = 2; //( tCKWR - (t_DQSCK+t_ISERDES) ) Num of cycs to wait after read bursting
 	Integer t_WPRE = 2; //15ns

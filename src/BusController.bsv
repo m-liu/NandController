@@ -2,6 +2,7 @@ import FIFOF             ::*;
 import FIFO             ::*;
 import Vector            ::*;
 import GetPut ::*;
+import BRAMFIFO::*;
 
 import NandPhyWrapper::*;
 import NandPhy::*;
@@ -134,9 +135,10 @@ module mkBusController#(
 
 	//Debug
 	Reg#(Bit#(16)) debugR0 <- mkReg(0);
-	Reg#(Bit#(16)) debugR1 <- mkReg(0);
-	Reg#(Bit#(16)) debugR2 <- mkReg(0);
-	Reg#(Bit#(16)) debugR3 <- mkReg(0);
+	Reg#(Bit#(8)) debugFlagLo <- mkReg(0);
+	Reg#(Bit#(8)) debugFlagHi <- mkReg(0);
+//	Reg#(Bit#(16)) debugR2 <- mkReg(0);
+//	Reg#(Bit#(16)) debugR3 <- mkReg(0);
 
 	//Command/Data FIFOs
 	FIFOF#(BusCmd) cmdQ <- mkSizedFIFOF(64); //TODO adjust
@@ -173,8 +175,9 @@ module mkBusController#(
 
 	//On reads, must make sure all FIFOs into decoder always has space to accept
 	//data When starting a read, ensure this FIFO is empty as a precaution
-	FIFOF#(Bit#(16)) decodeInQ <- mkSizedFIFOF(pageSize/2 + 1);
-	//FIFO#(Bit#(16)) decodeOutQ <- mkSizedFIFO(64); //doesn't matter here
+	FIFOF#(Bit#(16)) decodeInQ <- mkSizedBRAMFIFOF(pageSize/2 + 1);
+	FIFO#(Bit#(8)) decodeOutHiQ <- mkSizedFIFO(16); //doesn't matter here
+	FIFO#(Bit#(8)) decodeOutLoQ <- mkSizedFIFO(16); //doesn't matter here
 	FIFO#(Byte) decodeKQ <- mkSizedFIFO(pageECCBlks + 1);
 	FIFO#(Byte) decodeTQ <- mkSizedFIFO(pageECCBlks + 1);
 	IReedSolomon rsDecoderHi <- mkReedSolomon();
@@ -293,12 +296,12 @@ module mkBusController#(
 			//Inject some errors if simulating
 			//TODO FIXME
 			`ifdef NAND_SIM
-				if (dataCnt[6:0]==100) begin //inject every 128 words
-					rd = rd & 16'hFF23; //inject err low
+				if (dataCnt[7:0]==100) begin //inject every 128 words
+					rd = rd & 16'hFFFF; //inject err low
 					$display("@%t\t%m: injected read error LOW rd[%d]=%x", $time, dataCnt, rd);
 				end
 				else if (dataCnt[7:0]==32) begin
-					rd = rd & 16'h89FF; //inject err hi
+					rd = rd & 16'hFFFF; //inject err hi
 					$display("@%t\t%m: injected read error HIGH rd[%d]=%x", $time, dataCnt, rd);
 				end
 			`endif
@@ -682,6 +685,7 @@ module mkBusController#(
 	rule debugStatus;
 		phy.phyDebug.setDebug0(debugR0);
 		phy.phyDebug.setDebug1(zeroExtend(pack(state)));
+		//phy.phyDebug.setDebug1({debugFlagHi, debugFlagLo});
 	endrule
 
 	rule writeError if (state==WRITE_ERROR);
@@ -726,9 +730,20 @@ module mkBusController#(
 		decodeTQ.deq();
 	endrule
 
+	rule doDecoderOutHi;
+		Bit#(8) dataHi <- rsDecoderHi.rs_output.get();
+		decodeOutHiQ.enq(dataHi);
+	endrule
+
+	rule doDecoderOutLo;
+		Bit#(8) dataLo <- rsDecoderLo.rs_output.get();
+		decodeOutLoQ.enq(dataLo);
+	endrule
+
 	//TODO: for now, if encountered an uncorrectable err, just print it
 	rule doDecoderHiCantCorrect;
 		Bool errHi <- rsDecoderHi.rs_flag.get();
+		debugFlagHi <= zeroExtend(pack(errHi));
 		if (errHi) begin
 			$display("@%t\t%m: *** read error! decoderHi ECC can't correct flag raised", $time);
 		end
@@ -736,6 +751,7 @@ module mkBusController#(
 
 	rule doDecoderLoCantCorrect;
 		Bool errLo <- rsDecoderLo.rs_flag.get();
+		debugFlagLo <= zeroExtend(pack(errLo));
 		if (errLo) begin
 			$display("@%t\t%m: *** read error! decoderLo ECC can't correct flag raised", $time);
 		end
@@ -788,9 +804,12 @@ module mkBusController#(
 		method ActionValue#(Bit#(16)) readWord (); 
 			//readQ.deq();
 			//return readQ.first();
-			Byte rdHi <- rsDecoderHi.rs_output.get();
-			Byte rdLo <- rsDecoderLo.rs_output.get();
-			return {rdHi, rdLo};
+			//Byte rdHi <- rsDecoderHi.rs_output.get();
+			//Byte rdLo <- rsDecoderLo.rs_output.get();
+			Bit#(16) dataAll = {decodeOutHiQ.first, decodeOutLoQ.first};
+			decodeOutHiQ.deq;
+			decodeOutLoQ.deq;
+			return dataAll;
 		endmethod
 
 		method Bool isIdle();
