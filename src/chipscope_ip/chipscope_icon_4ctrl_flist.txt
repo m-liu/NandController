@@ -1,0 +1,16 @@
+# Output products list for <chipscope_icon_4ctrl>
+_xmsgs/pn_parser.xmsgs
+chipscope_icon_4ctrl.asy
+chipscope_icon_4ctrl.constraints/chipscope_icon_4ctrl.ucf
+chipscope_icon_4ctrl.constraints/chipscope_icon_4ctrl.xdc
+chipscope_icon_4ctrl.gise
+chipscope_icon_4ctrl.ngc
+chipscope_icon_4ctrl.ucf
+chipscope_icon_4ctrl.v
+chipscope_icon_4ctrl.veo
+chipscope_icon_4ctrl.xco
+chipscope_icon_4ctrl.xdc
+chipscope_icon_4ctrl.xise
+chipscope_icon_4ctrl_flist.txt
+chipscope_icon_4ctrl_readme.txt
+chipscope_icon_4ctrl_xmdf.tcl
