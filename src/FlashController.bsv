@@ -2,15 +2,13 @@ import FIFOF		::*;
 import Vector		::*;
 import Connectable ::*;
 
+import ControllerTypes::*;
 import NandPhyWrapper::*;
 import NandInfraWrapper::*;
 import NandPhy::*;
 import BusController::*;
 import NandPhyWenNclkWrapper::*;
 
-typedef 1 NUM_CHIPBUSES; //TODO FIXME XXX
-typedef 2 BUSES_PER_CHIPBUS;
-typedef TMul#(NUM_CHIPBUSES, BUSES_PER_CHIPBUS) NUM_BUSES;
 
 typedef enum {
 	INIT = 0,
@@ -35,7 +33,7 @@ interface FlashControllerIfc;
 endinterface
 
 //Create data by hashing the address
-function Bit#(16) getDataHash (Bit#(16) dataCnt, Bit#(8) page, Bit#(16) block, Bit#(4) chip, Bit#(3) bus);
+function Bit#(16) getDataHash (Bit#(16) dataCnt, Bit#(8) page, Bit#(16) block, ChipT chip, Bit#(3) bus);
 		Bit#(8) dataCntTrim = truncate(dataCnt);
 		Bit#(8) blockTrim = truncate(block);
 		Bit#(8) chipTrim = zeroExtend(chip);
@@ -93,7 +91,7 @@ module mkFlashController#(
 	Reg#(TbState) state <- mkReg(INIT, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 	Reg#(TbState) returnState <- mkReg(INIT, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 	Reg#(Bit#(64)) vinPrev <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
-	Reg#(Bit#(4)) chip <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
+	Reg#(ChipT) chip <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 	Reg#(Bit#(3)) bus <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 	Reg#(Bit#(16)) block <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 	//Note: random page programming NOT ALLOWED!! Must program sequentially within a block
@@ -126,10 +124,10 @@ module mkFlashController#(
 	//Initialization: must perform each init op one bus at a time 
 	// due to shared WEN/NCLK
 	//(1) INIT_BUS (2)EN_SYNC (3)INIT_SYNC
-	Reg#(SsdCmd) initCmd <- mkReg(INIT_BUS, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
+	Reg#(FlashOp) initCmd <- mkReg(INIT_BUS, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 
 	rule doInit if (state==INIT);
-		busCtrl[bus].busIfc.sendCmd(initCmd, 0, 0, 0);
+		busCtrl[bus].busIfc.sendCmd( FlashCmd {tag: 0, op: initCmd, chip: 0, block: 0, page: 0} );
 		state <= INIT_WAIT;
 	endrule
 
@@ -191,7 +189,7 @@ module mkFlashController#(
 
 	//Basic write/read/erase testing
 	rule doWrite if (state==WRITE);
-		busCtrl[bus].busIfc.sendCmd(WRITE_PAGE, chip, block, page);
+		busCtrl[bus].busIfc.sendCmd( FlashCmd {tag: 0, op: WRITE_PAGE, chip: chip, block: block, page: page} );
 		state <= WRITE_DATA;
 	endrule
 
@@ -210,7 +208,7 @@ module mkFlashController#(
 	endrule
 
 	rule doRead if (state==READ);
-		busCtrl[bus].busIfc.sendCmd(READ_PAGE, chip, block, page);
+		busCtrl[bus].busIfc.sendCmd( FlashCmd {tag: 0, op: READ_PAGE, chip: chip, block: block, page: page});
 		state <= READ_DATA;
 	endrule
 
@@ -239,7 +237,7 @@ module mkFlashController#(
 
 	//erases the whole block
 	rule doErase if (state==ERASE);
-		busCtrl[bus].busIfc.sendCmd(ERASE_BLOCK, chip, block, page);
+		busCtrl[bus].busIfc.sendCmd( FlashCmd{tag:0, op:ERASE_BLOCK, chip:chip, block:block, page:page});
 		state <= IDLE;
 		cmdCnt <= cmdCnt + 1;
 	endrule

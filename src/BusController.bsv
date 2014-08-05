@@ -10,13 +10,14 @@ import NandPhyWenNclkWrapper::*;
 import GFTypes::*;
 import ReedSolomon::*;
 import RSEncoder::*;
+import ControllerTypes::*;
 
-//`include "RSParameters.bsv"
 
 typedef enum {
 	IDLE,
 	WAIT_CYCLES,
 
+	UNINIT,
 	INIT,
 	INIT_INC,
 	EN_SYNC,
@@ -25,49 +26,19 @@ typedef enum {
 
 	READ_PAGE_REQ,
 	READ_DATA,
+	READ_PAGE_WAIT,
 	WRITE_PAGE,
 	WRITE_PAGE_WAIT,
 	ERASE_BLOCK,
 	POLL_STATUS,
 	POLL_STATUS_POLL,
+	GET_STATUS,
 	WRITE_ERROR,
 	READ_ERROR
 } CtrlState deriving (Bits, Eq);
 
-
-typedef enum {
-	INIT_BUS,
-	EN_SYNC,
-	INIT_SYNC,
-	READ_PAGE,
-	WRITE_PAGE,
-	ERASE_BLOCK
-} SsdCmd deriving (Bits, Eq);
-
-
-typedef struct {
-	SsdCmd ssdCmd;
-	Bit#(4) chip;
-	Bit#(16) block;
-	Bit#(8) page;
-} BusCmd deriving (Bits, Eq);
-
-//NAND geometry
-//Actual page size is 8640B, but we don't need the last 40B for ECC
-//Valid Data: 2 x (243B x 16 + 208B) = 8192B; 
-//With ECC: 2 x (255B x 16 + 220B) = 8600
-Integer pageSize = 8600; //bytes
-Integer pageSizeUser = 8192; //usable page size is 8k
-Integer pageECCBlks = 17; //16 blocks of k=243; 1 block of k=208
-
-
-//Integer pagesPerBlock = 256;
-//Integer blocksPerPlane = 2048;
-//Integer planesPerLun = 2;
-//Integer lunsPerTarget = 1; //1 for SLC, 2 for MLC
-
 interface BusIfc;
-	method Action sendCmd (SsdCmd cmd, Bit#(4) chip, Bit#(16) block, Bit#(8) page);
+	method Action sendCmd (FlashCmd cmd);
 	method Action writeWord (Bit#(16) data);
 	method ActionValue#(Bit#(16)) readWord (); 
 	method Bool isIdle();
@@ -113,9 +84,6 @@ module mkBusController#(
 	Integer nAddrBursts = 5; //5 addr bursts is standard
 	Integer nAddrBurstsErase = 3; //3 addr bursts for erase
 	
-	//Bus parameters
-	Integer targetsPerBus = 8; //8 for MLC, 4 for SLC (but may need remapping?)
-
 	//States
 	Reg#(CtrlState) state <- mkReg(IDLE);
 	Reg#(CtrlState) returnState <- mkReg(IDLE);
@@ -141,11 +109,9 @@ module mkBusController#(
 //	Reg#(Bit#(16)) debugR3 <- mkReg(0);
 
 	//Command/Data FIFOs
-	FIFOF#(BusCmd) cmdQ <- mkSizedFIFOF(64); //TODO adjust
-	//FIFO#(Bit#(16)) writeQ <- mkSizedFIFO(128); //TODO adjust
-	//FIFO#(Bit#(16)) readQ <- mkSizedFIFO(128); //TODO adjust
-	Reg#(BusCmd) cmdR <- mkRegU();
-	Reg#(Bit#(4)) chipR <- mkReg(0);
+	FIFOF#(FlashCmd) flashCmdQ <- mkSizedFIFOF(64); //TODO adjust
+	FIFOF#(BusCmd) busCmdQPLACEHOLDER <- mkSizedFIFOF(64); //TODO adjust
+	Reg#(ChipT) chipR <- mkReg(0);
 	Vector#(5, Reg#(Bit#(8))) addrDecoded <- replicateM(mkReg(0));
 
 	//Sync or async mode
@@ -183,6 +149,49 @@ module mkBusController#(
 	IReedSolomon rsDecoderHi <- mkReedSolomon();
 	IReedSolomon rsDecoderLo <- mkReedSolomon();
 
+	//******************************************************
+	// Initialization
+	//******************************************************
+	rule doUninitialized if (state==UNINIT);
+		cmdCnt <= 0;
+		addrCnt <= 0;
+		dataCnt <= 0;
+		flashCmdQ.deq();
+		FlashCmd cmd = flashCmdQ.first();
+		chipR <= cmd.chip;
+		case(cmd.op)
+			INIT_BUS: state <= INIT;
+			EN_SYNC: state <= EN_SYNC;
+			INIT_SYNC: state <= INIT_EN_NANDCLK;
+			default: state <= UNINIT;
+		endcase
+		$display("BusController: Executing INITIALIZATION command=%x", cmd.op);
+	endrule
+
+	//******************************************************
+	// Scoreboard
+	//******************************************************
+	//After Bus is initialized, push all commands to scoreboard
+	rule doSBCmd if (state!=UNINIT);
+		//TODO placeholder
+		flashCmdQ.deq();
+		FlashCmd fcmd = flashCmdQ.first();
+		BusOp op;
+		case(fcmd.op) 
+			READ_PAGE: op = READ_CMD;
+			WRITE_PAGE: op = WRITE_CMD_DATA;
+			ERASE_BLOCK: op = ERASE_CMD;
+			default: op = INVALID;
+		endcase
+		busCmdQPLACEHOLDER.enq( BusCmd { 	
+											tag: fcmd.tag,
+											busOp: op,
+											chip: fcmd.chip,
+											block: fcmd.block,
+											page: fcmd.page } );
+	endrule
+
+		
 
 	//******************************************************
 	// Decode command
@@ -191,18 +200,17 @@ module mkBusController#(
 		cmdCnt <= 0;
 		addrCnt <= 0;
 		dataCnt <= 0;
-		let cmd = cmdQ.first();
-		cmdQ.deq();
-		cmdR <= cmd;
-		case(cmd.ssdCmd)
-			INIT_BUS: state <= INIT;
-			EN_SYNC: state <= EN_SYNC;
-			INIT_SYNC: state <= INIT_EN_NANDCLK;
-			READ_PAGE: state <= READ_PAGE_REQ;
-			WRITE_PAGE: state <= WRITE_PAGE_WAIT;
-			ERASE_BLOCK: state <= ERASE_BLOCK;
+		BusCmd cmd = busCmdQPLACEHOLDER.first();
+		busCmdQPLACEHOLDER.deq();
+		case(cmd.busOp)
+			READ_CMD: state <= READ_PAGE_REQ;
+			GET_STATUS_READ_DATA: state <= READ_PAGE_WAIT;
+			WRITE_CMD_DATA: state <= WRITE_PAGE_WAIT;
+			ERASE_CMD: state <= ERASE_BLOCK;
+			GET_STATUS: state <= GET_STATUS;
 			default: state <= IDLE;
 		endcase
+		rdyReturnState <= IDLE;
 		//decode addr
 		chipR <= cmd.chip;
 		addrDecoded[0] <= 0; //column addr
@@ -210,7 +218,7 @@ module mkBusController#(
 		addrDecoded[2] <= cmd.page;
 		addrDecoded[3] <= truncate(cmd.block);
 		addrDecoded[4] <= truncateLSB(cmd.block);
-		$display("BusController: Executing command=%x", cmd.ssdCmd);
+		$display("BusController: Executing command=%x", cmd.busOp);
 	endrule	
 
 
@@ -265,9 +273,14 @@ module mkBusController#(
 		addrCnt <= addrCnt + 1;
 	endrule
 
-	rule doReadPageWait if (state==READ_PAGE_REQ && 
+
+	rule doReadPageCmdDone if (state==READ_PAGE_REQ && 
 									addrCnt==fromInteger(nAddrBursts) && 
 									cmdCnt==fromInteger(nreadReqCmds));
+		state <= IDLE;
+	endrule
+
+	rule doReadPageWait if (state==READ_PAGE_WAIT);
 		state <= POLL_STATUS;
 		rdyReturnState <= READ_DATA;
 		cmdCnt <= 0;
@@ -530,6 +543,26 @@ module mkBusController#(
 		end
 	endrule
 
+	//Get status; does not poll
+	rule doGetStatusOnlyCmd if (state==GET_STATUS && cmdCnt < fromInteger(nstatusCmds));
+		phy.phyUser.sendCmd(statusCmds[cmdCnt]);
+		cmdCnt <= cmdCnt + 1;
+	endrule
+
+	rule doGetStatusData if (state==GET_STATUS && cmdCnt==fromInteger(nstatusCmds));
+		Bit#(16) status <- phy.phyUser.rdWord();
+		$display("NandCtrl: GET status=%x", status);
+		debugR0 <= status; //debug
+
+		if (status[7:0]==8'hE0) begin 
+			//TODO: pass status to SB
+			state <= rdyReturnState;
+		end
+		else begin
+			//TODO: pass status to SB
+			state <= IDLE; //always return to idle if busy
+		end
+	endrule
 
 	//******************************************************
 	// Power On Initialization for all targets on the bus. 
@@ -559,13 +592,14 @@ module mkBusController#(
 	endrule
 
 	rule doInitInc if (state==INIT_INC);
-		if (chipR < fromInteger(targetsPerBus - 1)) begin
+		if (chipR < fromInteger(valueOf(ChipsPerBus) - 1)) begin
 			chipR <= chipR + 1;
 			state <= INIT;
 		end
 		else begin
 			chipR <= 0;
-			state <= IDLE;
+			//state <= IDLE;
+			state <= UNINIT;
 		end
 	endrule
 
@@ -614,10 +648,10 @@ module mkBusController#(
 		dataCnt <= dataCnt + 1;
 	endrule
 
-	rule doInitDone if (state==EN_SYNC && cmdCnt==fromInteger(nactSyncCmds) && 
+	rule doSyncInitDone if (state==EN_SYNC && cmdCnt==fromInteger(nactSyncCmds) && 
 								addrCnt==fromInteger(nactSyncAddr) && 
 								dataCnt==fromInteger(nactSyncData));
-		if (chipR < fromInteger(targetsPerBus - 1)) begin
+		if (chipR < fromInteger(valueOf(ChipsPerBus) - 1)) begin
 			chipR <= chipR + 1;
 			//state <= EN_SYNC; //stay in same state
 			cmdCnt <= 0;
@@ -625,7 +659,7 @@ module mkBusController#(
 			dataCnt <= 0;
 		end
 		else begin
-			state <= IDLE;
+			state <= UNINIT;
 		end
 	endrule
 
@@ -765,8 +799,8 @@ module mkBusController#(
 	interface nandPins = phy.nandPins;
 
 	interface BusIfc busIfc;
-		method Action sendCmd (SsdCmd cmd, Bit#(4) chip, Bit#(16) block, Bit#(8) page);
-			cmdQ.enq( BusCmd { ssdCmd: cmd, chip: chip, block: block, page: page } );
+		method Action sendCmd (FlashCmd cmd);
+			flashCmdQ.enq( cmd );
 		endmethod
 
 		method Action writeWord (Bit#(16) data);
@@ -814,7 +848,7 @@ module mkBusController#(
 
 		method Bool isIdle();
 			//idle if in idle state and no pending requests
-			return ((state==IDLE) && (!cmdQ.notEmpty) && (phy.phyUser.isIdle));
+			return ((state==IDLE) && (!flashCmdQ.notEmpty) && (phy.phyUser.isIdle));
 		endmethod
 	endinterface
 

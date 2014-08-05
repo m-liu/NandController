@@ -14,7 +14,7 @@ import Vector            ::*;
 import Counter           ::*;
 import DefaultValue      ::*;
 
-
+import ControllerTypes::*;
 import NandPhyWrapper::*;
 import NandPhyWenNclkWrapper::*;
 
@@ -105,45 +105,6 @@ typedef enum {
 
 
 } PhyState deriving (Bits, Eq);
-
-typedef enum {
-	PHY_CHIP_SEL,
-	PHY_DESELECT_ALL,
-	PHY_CMD,
-	PHY_READ,
-	PHY_WRITE,
-	PHY_ADDR,
-	PHY_SYNC_CALIB,
-	PHY_ENABLE_NAND_CLK
-} PhyCycle deriving (Bits, Eq);
-
-typedef enum {
-	N_RESET = 8'hFF,
-	N_READ_STATUS = 8'h70,
-	N_SET_FEATURES = 8'hEF,
-	N_PROGRAM_PAGE = 8'h80,
-	N_PROGRAM_PAGE_END = 8'h10,
-	N_READ_MODE = 8'h00,
-	N_READ_PAGE_END = 8'h30,
-	N_ERASE_BLOCK = 8'h60,
-	N_ERASE_BLOCK_END = 8'hD0,
-	N_READ_ID = 8'h90
-
-} ONFICmd deriving (Bits, Eq);
-
-//using tagged union
-typedef union tagged {
-	ONFICmd OnfiCmd;
-	Bit#(4) ChipSel;
-} NandCmd deriving (Bits);
-
-typedef struct {
-	Bool inSyncMode;
-	PhyCycle phyCycle;
-	NandCmd nandCmd;
-	Bit#(16) numBurst;
-	Bit#(32) postCmdWait; //number of cycles to wait after the command
-} PhyCmd deriving (Bits);
 
 //Reverse DQ for chips on the back of the board
 function Bit#(8) orderDQ (Bit#(8) dq_in, Bit#(8) cen);
@@ -393,7 +354,7 @@ module mkNandPhy#(
 	//****************************************
 	rule doAsyncCmdBusIdle if (currState==ASYNC_CHIP_SEL);
 		//one hot encode CE#
-		Bit#(4) ce_encoded = ctrlCmdQ.first().nandCmd.ChipSel;
+		ChipT ce_encoded = ctrlCmdQ.first().nandCmd.ChipSel;
 		Bit#(8) cen_one_hot = ~(1 << ce_encoded);
 		cen <= cen_one_hot; //CE# low
 		cle <= 0; //DC
@@ -610,7 +571,7 @@ module mkNandPhy#(
 	//******************************************************
 	rule doSyncBusIdle if (currState==SYNC_CHIP_SEL);
 		//one hot encode CE#
-		Bit#(4) ce_encoded = ctrlCmdQ.first().nandCmd.ChipSel;
+		ChipT ce_encoded = ctrlCmdQ.first().nandCmd.ChipSel;
 		Bit#(8) cen_one_hot = ~(1 << ce_encoded);
 		cen <= cen_one_hot; //CE# low
 		ale <= 0;

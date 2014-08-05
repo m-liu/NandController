@@ -2,12 +2,12 @@
 - ECC can't correct flag handling
 - Scoreboard and multibus
 
-trying:
-- keep hierarchy
-- define FPGA_TARGET
-- large fifo after decoder
-could try:
-- using original bsv implementation: need to adjust equation, size etc; fix can't correct flag; pipeline bug?
+- Scoreboard: 
+	- ECC decoder in buffer resizing; 
+	- change POLL_STATUS to GET_STATUS and return status to sb
+	- request for write data from flashcotnroller before a write
+
+
 
 
 /*** Testing ***/
