@@ -1,3 +1,5 @@
+import FShow::*;
+
 //**********************************************************
 // Type definitions of the flash controller and submodules
 //**********************************************************
@@ -117,5 +119,18 @@ typedef struct {
 	Bit#(8) page;
 } FlashCmd deriving (Bits, Eq);
 
+
+instance FShow#(BusOp);
+	function Fmt fshow (BusOp label);
+		case(label)
+			READ_CMD: return fshow("BUSOP READ_CMD");
+			GET_STATUS_READ_DATA: return fshow("BUSOP GET_STATUS_READ_DATA");
+			WRITE_CMD_DATA: return fshow("BUSOP WRITE_CMD_DATA");
+			ERASE_CMD: return fshow("BUSOP ERASE_CMD");
+			GET_STATUS: return fshow("BUSOP GET_STATUS");
+			INVALID: return fshow("BUSOP INVALID");
+		endcase
+	endfunction
+endinstance
 
 

@@ -1,11 +1,14 @@
 - Timing and FIFO size adjustments; ECC fifos sizes and timing too conservative
 - ECC can't correct flag handling
 - Scoreboard and multibus
+- May need additional ECC decoders to max bandwidth
+- modify tb for testing parallel accesses
 
 - Scoreboard: 
 	- ECC decoder in buffer resizing; 
-	- change POLL_STATUS to GET_STATUS and return status to sb
+	- [ok] change POLL_STATUS to GET_STATUS and return status to sb
 	- request for write data from flashcotnroller before a write
+	- need to wait for FIFO empty before starting a read. Either wait for it or do something else and come back to it
 
 
 
