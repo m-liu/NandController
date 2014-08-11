@@ -2,12 +2,22 @@
 - ECC can't correct flag handling
 - Scoreboard and multibus
 - May need additional ECC decoders to max bandwidth
-- modify tb for testing parallel accesses
+
+- Test erases, r/w/e mixed 
+- debug signals for simultaneous access
+- create a fixed test input, use vin as "go" signal. Erase, write, then readback
+- fix CE not deselected after issuing read cmd
+
+- Increase number of tags
+- increase input command fifo depth
+- increase cmdoutQ in sb
+- increase per chip command fifo depth
+
 
 - Scoreboard: 
 	- ECC decoder in buffer resizing; 
 	- [ok] change POLL_STATUS to GET_STATUS and return status to sb
-	- request for write data from flashcotnroller before a write
+	- [ok] request for write data from flashcotnroller before a write
 	- need to wait for FIFO empty before starting a read. Either wait for it or do something else and come back to it
 
 
@@ -28,6 +38,7 @@
 
 
 /*** DONE ***/
+- modify tb for testing parallel accesses
 - ECC integration and blocking
 - WE#-1(NAND_CLKS) and WE#-2 are connected to the same wire (bad choice!). OK in sync mode, but in async mode, must be careful that we only assert a single CE# for two buses
 - Short reset used in the  model right now

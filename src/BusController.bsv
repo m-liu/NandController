@@ -4,44 +4,46 @@ import Vector            ::*;
 import GetPut ::*;
 import BRAMFIFO::*;
 
+import ControllerTypes::*;
 import NandPhyWrapper::*;
 import NandPhy::*;
 import NandPhyWenNclkWrapper::*;
 import GFTypes::*;
 import ReedSolomon::*;
 import RSEncoder::*;
-import ControllerTypes::*;
+import Scoreboard::*;
 
 
 typedef enum {
-	IDLE,
-	WAIT_CYCLES,
+	IDLE, 				//0
+	WAIT_CYCLES,		//1
 
-	UNINIT,
-	INIT,
-	INIT_INC,
-	EN_SYNC,
-	INIT_EN_NANDCLK,
-	INIT_CALIB,
+	UNINIT,				//2
+	INIT,					//3
+	INIT_INC,			//4
+	EN_SYNC,				//5
+	INIT_EN_NANDCLK,	//6
+	INIT_CALIB,			//7
 
-	READ_PAGE_REQ,
-	READ_DATA,
-	READ_PAGE_WAIT,
-	WRITE_PAGE,
-	WRITE_PAGE_WAIT,
-	ERASE_BLOCK,
-	POLL_STATUS,
-	POLL_STATUS_POLL,
-	GET_STATUS,
-	WRITE_ERROR,
-	READ_ERROR
+	READ_PAGE_REQ,		//8
+	READ_DATA,			//9
+	READ_PAGE_WAIT,	//10
+	WRITE_PAGE,			//11
+	WRITE_PAGE_WAIT,	//12
+	ERASE_BLOCK,		//13
+	POLL_STATUS,		//14
+	POLL_STATUS_POLL,	//15
+	GET_STATUS,			//16
+	WRITE_ERROR,		//17
+	READ_ERROR			//18
 } CtrlState deriving (Bits, Eq);
 
 interface BusIfc;
 	method Action sendCmd (FlashCmd cmd);
+	method ActionValue#(TagT) writeDataReq(); 
 	method Action writeWord (Bit#(16) data);
-	method ActionValue#(Bit#(16)) readWord (); 
-	method Bool isIdle();
+	method ActionValue#(Tuple2#(Bit#(16), TagT)) readWord (); 
+	method Bool isInitIdle();
 endinterface
 
 
@@ -85,7 +87,7 @@ module mkBusController#(
 	Integer nAddrBurstsErase = 3; //3 addr bursts for erase
 	
 	//States
-	Reg#(CtrlState) state <- mkReg(IDLE);
+	Reg#(CtrlState) state <- mkReg(UNINIT);
 	Reg#(CtrlState) returnState <- mkReg(IDLE);
 	Reg#(CtrlState) rdyReturnState <- mkReg(IDLE);
 
@@ -110,9 +112,15 @@ module mkBusController#(
 
 	//Command/Data FIFOs
 	FIFOF#(FlashCmd) flashCmdQ <- mkSizedFIFOF(64); //TODO adjust
-	FIFOF#(BusCmd) busCmdQPLACEHOLDER <- mkSizedFIFOF(64); //TODO adjust
 	Reg#(ChipT) chipR <- mkReg(0);
 	Vector#(5, Reg#(Bit#(8))) addrDecoded <- replicateM(mkReg(0));
+	FIFO#(TagT) wrDataReqQ <- mkFIFO();
+
+	//Tag management
+	FIFO#(TagT) readTagQ <- mkSizedFIFO(4); //each time we do a 8k read burst, we enq the tag in this fifo
+	Reg#(Bit#(16)) rdWdCnt <- mkReg(0);
+	Reg#(TagT) cmdTagR <- mkReg(0);
+
 
 	//Sync or async mode
 	Reg#(Bool) inSyncMode <- mkReg(False);
@@ -149,6 +157,9 @@ module mkBusController#(
 	IReedSolomon rsDecoderHi <- mkReedSolomon();
 	IReedSolomon rsDecoderLo <- mkReedSolomon();
 
+	//Scoreboard instantiation
+	SBIfc sb <- mkScoreboard();
+
 	//******************************************************
 	// Initialization
 	//******************************************************
@@ -173,22 +184,22 @@ module mkBusController#(
 	//******************************************************
 	//After Bus is initialized, push all commands to scoreboard
 	rule doSBCmd if (state!=UNINIT);
-		//TODO placeholder
 		flashCmdQ.deq();
 		FlashCmd fcmd = flashCmdQ.first();
-		BusOp op;
-		case(fcmd.op) 
-			READ_PAGE: op = READ_CMD;
-			WRITE_PAGE: op = WRITE_CMD_DATA;
-			ERASE_BLOCK: op = ERASE_CMD;
-			default: op = INVALID;
-		endcase
-		busCmdQPLACEHOLDER.enq( BusCmd { 	
-											tag: fcmd.tag,
-											busOp: op,
-											chip: fcmd.chip,
-											block: fcmd.block,
-											page: fcmd.page } );
+		sb.cmdIn.put(fcmd);
+	//	BusOp op;
+	//	case(fcmd.op) 
+	//		READ_PAGE: op = READ_CMD;
+	//		WRITE_PAGE: op = WRITE_CMD_DATA;
+	//		ERASE_BLOCK: op = ERASE_CMD;
+	//		default: op = INVALID;
+	//	endcase
+	//	busCmdQPLACEHOLDER.enq( BusCmd { 	
+	//										tag: fcmd.tag,
+	//										busOp: op,
+	//										chip: fcmd.chip,
+	//										block: fcmd.block,
+	//										page: fcmd.page } );
 	endrule
 
 		
@@ -200,12 +211,16 @@ module mkBusController#(
 		cmdCnt <= 0;
 		addrCnt <= 0;
 		dataCnt <= 0;
-		BusCmd cmd = busCmdQPLACEHOLDER.first();
-		busCmdQPLACEHOLDER.deq();
+		//BusCmd cmd = busCmdQPLACEHOLDER.first();
+		//busCmdQPLACEHOLDER.deq();
+		BusCmd cmd <- sb.cmdOut.get();
 		case(cmd.busOp)
 			READ_CMD: state <= READ_PAGE_REQ;
 			GET_STATUS_READ_DATA: state <= READ_PAGE_WAIT;
-			WRITE_CMD_DATA: state <= WRITE_PAGE_WAIT;
+			WRITE_CMD_DATA: begin
+			  	state <= WRITE_PAGE_WAIT;
+				wrDataReqQ.enq(cmd.tag); //request for write data ASAP
+			end
 			ERASE_CMD: state <= ERASE_BLOCK;
 			GET_STATUS: state <= GET_STATUS;
 			default: state <= IDLE;
@@ -218,6 +233,7 @@ module mkBusController#(
 		addrDecoded[2] <= cmd.page;
 		addrDecoded[3] <= truncate(cmd.block);
 		addrDecoded[4] <= truncateLSB(cmd.block);
+		cmdTagR <= cmd.tag;
 		$display("BusController: Executing command=%x", cmd.busOp);
 	endrule	
 
@@ -281,7 +297,8 @@ module mkBusController#(
 	endrule
 
 	rule doReadPageWait if (state==READ_PAGE_WAIT);
-		state <= POLL_STATUS;
+		//state <= POLL_STATUS;
+		state <= GET_STATUS;
 		rdyReturnState <= READ_DATA;
 		cmdCnt <= 0;
 		addrCnt <= 0;
@@ -295,7 +312,7 @@ module mkBusController#(
 
 	//Sync DDR bursts
 	rule doReadDataDDR if (state==READ_DATA && inSyncMode==True && dataCnt < nDataBursts);
-		if ( (dataCnt==0 && decodeInQ.notEmpty) || (!decodeInQ.notFull) ) begin
+		if ( /*(dataCnt==0 && decodeInQ.notEmpty) ||*/ (!decodeInQ.notFull) ) begin
 			//throw error if decodeInQ is not empty at the start  //TODO this may be too conservative?
 			// OR
 			//at any point, the Q becomes full
@@ -303,18 +320,22 @@ module mkBusController#(
 			$display("@%t\t%m: *** read error at dataCnt=%d", $time, dataCnt);
 		end
 		else begin
+			if (dataCnt==0) begin
+				//enq the tag for this 8k burst
+				readTagQ.enq(cmdTagR);
+			end
 
 			Bit#(16) rd <- phy.phyUser.rdWord();
 			
 			//Inject some errors if simulating
 			//TODO FIXME
 			`ifdef NAND_SIM
-				if (dataCnt[7:0]==100) begin //inject every 128 words
-					rd = rd & 16'hFFFF; //inject err low
+				if (dataCnt[7:0]<6) begin //injection frequency
+					rd = rd & 16'hFF00; //inject err low
 					$display("@%t\t%m: injected read error LOW rd[%d]=%x", $time, dataCnt, rd);
 				end
 				else if (dataCnt[7:0]==32) begin
-					rd = rd & 16'hFFFF; //inject err hi
+					rd = rd & 16'h00FF; //inject err hi
 					$display("@%t\t%m: injected read error HIGH rd[%d]=%x", $time, dataCnt, rd);
 				end
 			`endif
@@ -450,8 +471,9 @@ module mkBusController#(
 								&& cmdCnt==fromInteger(nwriteReqCmds) && 
 								addrCnt==fromInteger(nAddrBursts));
 		//wait for write to finish
-		state <= POLL_STATUS;
-		rdyReturnState <= IDLE;
+		//state <= POLL_STATUS;
+		//rdyReturnState <= IDLE;
+		state <= IDLE;
 	endrule
 
 
@@ -489,8 +511,9 @@ module mkBusController#(
 
 	rule doEraseBlockPoll if (state==ERASE_BLOCK && addrCnt==fromInteger(nAddrBurstsErase) && cmdCnt==fromInteger(neraseCmds));
 		//wait for write to finish
-		state <= POLL_STATUS;
-		rdyReturnState <= IDLE;
+		//state <= POLL_STATUS;
+		//rdyReturnState <= IDLE;
+		state <= IDLE;
 	endrule
 
 
@@ -556,10 +579,13 @@ module mkBusController#(
 
 		if (status[7:0]==8'hE0) begin 
 			//TODO: pass status to SB
+			sb.busyIn.put(tuple2(chipR, False)); //not busy
+			cmdCnt <= 0;
 			state <= rdyReturnState;
 		end
 		else begin
 			//TODO: pass status to SB
+			sb.busyIn.put(tuple2(chipR, True)); //still busy
 			state <= IDLE; //always return to idle if busy
 		end
 	endrule
@@ -803,6 +829,12 @@ module mkBusController#(
 			flashCmdQ.enq( cmd );
 		endmethod
 
+		//Requests for the write data of a particular tagged request
+		method ActionValue#(TagT) writeDataReq(); 
+			wrDataReqQ.deq();
+			return wrDataReqQ.first();
+		endmethod
+
 		method Action writeWord (Bit#(16) data);
 			encodeInQ.enq(data);
 			//enq k into Encoder every k words of data. 16 blocks of k=243; k_last=208
@@ -835,20 +867,28 @@ module mkBusController#(
 			end
 		endmethod 
 
-		method ActionValue#(Bit#(16)) readWord (); 
-			//readQ.deq();
-			//return readQ.first();
-			//Byte rdHi <- rsDecoderHi.rs_output.get();
-			//Byte rdLo <- rsDecoderLo.rs_output.get();
+
+
+		method ActionValue#(Tuple2#(Bit#(16), TagT)) readWord (); 
+			if (rdWdCnt < fromInteger(pageSizeUser/2 - 1)) begin
+				rdWdCnt <= rdWdCnt + 1;
+			end
+			else begin
+				rdWdCnt <= 0;
+				readTagQ.deq();
+			end
+			TagT rtag = readTagQ.first();
 			Bit#(16) dataAll = {decodeOutHiQ.first, decodeOutLoQ.first};
 			decodeOutHiQ.deq;
 			decodeOutLoQ.deq;
-			return dataAll;
+			return tuple2(dataAll, rtag);
 		endmethod
 
-		method Bool isIdle();
+		method Bool isInitIdle();
+			//This method only works to tell the flash controller that it can issue the next
+			// initialization command
 			//idle if in idle state and no pending requests
-			return ((state==IDLE) && (!flashCmdQ.notEmpty) && (phy.phyUser.isIdle));
+			return ((state==UNINIT || state==IDLE) && (!flashCmdQ.notEmpty) && (phy.phyUser.isIdle));
 		endmethod
 	endinterface
 

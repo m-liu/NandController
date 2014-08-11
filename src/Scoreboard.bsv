@@ -27,6 +27,7 @@ interface SBIfc;
 	interface Put#(FlashCmd) cmdIn;
 	interface Get#(BusCmd) cmdOut;
 	interface Put#(Tuple2#(ChipT, Bool)) busyIn;
+	//method Bool isSBIdle();
 endinterface
 
 (* synthesize *)
@@ -44,7 +45,7 @@ module mkScoreboard(SBIfc);
 	Vector#(ChipsPerBus, FIFO#(Bool)) chipBusy <- replicateM(mkFIFO());
 	Vector#(ChipsPerBus, Reg#(Bit#(64))) busyTimers <- replicateM(mkReg(0));
 	Vector#(ChipsPerBus, Reg#(Stage)) chipStages <- replicateM(mkReg(INIT));
-	FIFOF#(BusCmd) cmdOutQ <- mkSizedFIFOF(16); //TODO what size here?
+	FIFO#(BusCmd) cmdOutQ <- mkSizedFIFO(16); //TODO what size here?
 	Reg#(ChipT) currChip <- mkReg(0);
 	Reg#(BusCmd) currCmdOut <- mkRegU();
 	Reg#(SBState) state <- mkReg(NEXT_REQ);
@@ -159,11 +160,17 @@ module mkScoreboard(SBIfc);
 	endrule
 
 	for (Integer i=0; i<valueOf(ChipsPerBus); i=i+1) begin
-		//TODO: specify urgency to be low
-		(* descending_urgency = "doServiceReq, decBusyTimer" *)
-		rule decBusyTimer; 
+		//specify urgency to be low
+		//(* descending_urgency = "doServiceReq, decBusyTimer" *)
+		//(* execution_order = "doServiceReq, decBusyTimer" *)
+
+		//Generates warnings because two rules writes to busyTimers. Ok to ignore. 
+		//Specifying urgency doesn't quite work. When doServiceReq fires, none of the
+		// counters decrement anymore. Scheduling is not aggressive enough
+		rule decBusyTimer; //if (busyTimers[i] > 0); 
 			if (busyTimers[i] > 0) begin
 				busyTimers[i] <= busyTimers[i] - 1;
+			//	$display("@%t\t%m: busy timer [%d] = %d decrement", $time, i, busyTimers[i]);
 			end
 		endrule
 	end
@@ -191,7 +198,8 @@ module mkScoreboard(SBIfc);
 		endmethod
 	endinterface
 
-
+//	method isSBIdle();
+//		return ( state==NEXT_REQ &&
 
 
 endmodule

@@ -47,16 +47,16 @@ module mkSBTB();
 		end
 	endrule
 
-	rule enqCmd if (cmdCnt < 7);
+	rule enqCmd; //if (cmdCnt < 7);
 		sb.cmdIn.put(cmdTest[cmdCnt]);
 		let c = cmdTest[cmdCnt];
 		//if (cmdCnt < fromInteger(valueOf(NUM_CMDS)-1)) begin
-		//if (cmdCnt < 1) begin
+		if (cmdCnt < 6) begin
 	   	cmdCnt <= cmdCnt + 1;
-		//end
-		//else begin
-	   	//cmdCnt <= 0;
-		//end
+		end
+		else begin
+	   	cmdCnt <= 0;
+		end
 		$display("@%t: flashCmd Enq: tag=%x, op=%d, chip=%d, block=%d, page=%d", $time, c.tag, c.op, c.chip, c.block, c.page);
 	endrule
 
