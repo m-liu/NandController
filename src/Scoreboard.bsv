@@ -41,7 +41,7 @@ module mkScoreboard(SBIfc);
 	Integer t_PROG_PollWait = 5000; //50us; Wait between status polls if busy
 	Integer t_BERS_PollWait = 10000; //100us; Wait between status polls if busy
 
-	Vector#(ChipsPerBus, FIFOF#(SBElem)) chipQs <- replicateM(mkSizedFIFOF(16));
+	Vector#(ChipsPerBus, FIFOF#(SBElem)) chipQs <- replicateM(mkSizedFIFOF(16)); //TODO adjust size
 	Vector#(ChipsPerBus, FIFO#(Bool)) chipBusy <- replicateM(mkFIFO());
 	Vector#(ChipsPerBus, Reg#(Bit#(64))) busyTimers <- replicateM(mkReg(0));
 	Vector#(ChipsPerBus, Reg#(Stage)) chipStages <- replicateM(mkReg(INIT));

@@ -24,7 +24,7 @@ Integer pageECCBlks = 17; //16 blocks of k=243; 1 block of k=208
 //Integer planesPerLun = 2;
 //Integer lunsPerTarget = 1; //1 for SLC, 2 for MLC
 
-typedef 64 NumTags;
+typedef 128 NumTags;
 typedef Bit#(TLog#(NumTags)) TagT;
 typedef Bit#(TLog#(ChipsPerBus)) ChipT;
 

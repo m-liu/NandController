@@ -1,33 +1,14 @@
 - Timing and FIFO size adjustments; ECC fifos sizes and timing too conservative
 - ECC can't correct flag handling
-- Scoreboard and multibus
 - May need additional ECC decoders to max bandwidth
 
-- Test erases, r/w/e mixed 
-- debug signals for simultaneous access
-- create a fixed test input, use vin as "go" signal. Erase, write, then readback
-- fix CE not deselected after issuing read cmd
+- Sim test erases, r/w/e mixed 
+- FIX LATENCY COUNTER (keep two 64bit counters, one for lat one for bytes read)
+- SB optimization: prioritize read command issuing
+- Possible issue: decodeInQ is full if there are too many errors. Not sure about this
 
-- Increase number of tags
-- increase input command fifo depth
-- increase cmdoutQ in sb
-- increase per chip command fifo depth
+- [at 128] Increase number of tags
 
-
-- Scoreboard: 
-	- ECC decoder in buffer resizing; 
-	- [ok] change POLL_STATUS to GET_STATUS and return status to sb
-	- [ok] request for write data from flashcotnroller before a write
-	- need to wait for FIFO empty before starting a read. Either wait for it or do something else and come back to it
-
-
-
-
-/*** Testing ***/
-- [OK] All buses
-- [OK] High toggle rate data
-- [OK] Write/readback to just first page of each block. 
-- [OK] vio
 
 /*** May not be needed ***/
 - Read calibration for each chip. For now calibrate a single chip and use that calib value for the entire bus [ok here?]
@@ -38,6 +19,18 @@
 
 
 /*** DONE ***/
+- Scoreboard: 
+	- [ok] ECC decoder in buffer resizing; 
+	- [ok] change POLL_STATUS to GET_STATUS and return status to sb
+	- [ok] request for write data from flashcotnroller before a write
+	- [meh] need to wait for FIFO empty before starting a read. Either wait for it or do something else and come back to it
+
+- Scoreboard and multibus
+- [good] try RegFile for tag table
+- [ok?] increase cmdoutQ in sb
+- [ok?] increase per chip command fifo depth
+- [ok] create a fixed test input, use vin as "go" signal. Erase, write, then readback
+- fix CE not deselected after issuing read cmd
 - modify tb for testing parallel accesses
 - ECC integration and blocking
 - WE#-1(NAND_CLKS) and WE#-2 are connected to the same wire (bad choice!). OK in sync mode, but in async mode, must be careful that we only assert a single CE# for two buses
@@ -58,3 +51,8 @@
 - UCF verification: double check wen_nclk pins
 - Output drive strength, slew rate (FPGA and NAND)? <- doesn't seem to be a problem
 
+/*** Testing ***/
+- [OK] All buses
+- [OK] High toggle rate data
+- [OK] Write/readback to just first page of each block. 
+- [OK] vio

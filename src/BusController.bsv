@@ -255,7 +255,7 @@ module mkBusController#(
 	//******************************************************
 	// Read Page (Sync or Async)
 	//******************************************************
-	Integer nreadReqCmds = 4;
+	Integer nreadReqCmds = 5;
 	PhyCmd readReqCmds[nreadReqCmds] = {
 			PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_CHIP_SEL, nandCmd: tagged ChipSel chipR,
 						numBurst: 0, postCmdWait: 0},
@@ -264,7 +264,9 @@ module mkBusController#(
 			PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_ADDR, nandCmd: ?, 
 						numBurst: fromInteger(nAddrBursts), postCmdWait: 0},
 			PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_CMD, nandCmd: tagged OnfiCmd N_READ_PAGE_END, 
-						numBurst: 0, postCmdWait: t_WB}
+						numBurst: 0, postCmdWait: t_WB},
+			PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_DESELECT_ALL, nandCmd: ?, 
+						numBurst: 0, postCmdWait: 0}
 			};
 	
 	Integer nreadDataCmds = 4;
@@ -578,13 +580,11 @@ module mkBusController#(
 		debugR0 <= status; //debug
 
 		if (status[7:0]==8'hE0) begin 
-			//TODO: pass status to SB
 			sb.busyIn.put(tuple2(chipR, False)); //not busy
 			cmdCnt <= 0;
 			state <= rdyReturnState;
 		end
 		else begin
-			//TODO: pass status to SB
 			sb.busyIn.put(tuple2(chipR, True)); //still busy
 			state <= IDLE; //always return to idle if busy
 		end
