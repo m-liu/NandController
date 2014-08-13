@@ -1,7 +1,7 @@
 ##############################################################
 #
-# Xilinx Core Generator version 14.3
-# Date: Fri Jul 25 07:36:46 2014
+# Xilinx Core Generator version 14.7
+# Date: Tue Aug 12 21:00:18 2014
 #
 ##############################################################
 #
@@ -43,14 +43,14 @@ CSET component_name=chipscope_icon
 CSET constraint_type=external
 CSET enable_jtag_bufg=true
 CSET example_design=false
-CSET number_control_ports=8
+CSET number_control_ports=5
 CSET use_ext_bscan=false
 CSET use_softbscan=false
 CSET use_unused_bscan=false
 CSET user_scan_chain=USER1
 # END Parameters
 # BEGIN Extra information
-MISC pkg_timestamp=2012-10-12T23:08:10Z
+MISC pkg_timestamp=2013-10-13T14:12:40Z
 # END Extra information
 GENERATE
-# CRC: c1646708
+# CRC: 1c26b68b

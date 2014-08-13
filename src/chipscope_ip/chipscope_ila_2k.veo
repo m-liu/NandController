@@ -7,8 +7,8 @@
 // /___/  \  /    Vendor     : Xilinx
 // \   \   \/     Version    : 14.7
 //  \   \         Application: Xilinx CORE Generator
-//  /   /         Filename   : chipscope_icon.veo
-// /___/   /\     Timestamp  : Tue Aug 12 17:00:55 EDT 2014
+//  /   /         Filename   : chipscope_ila_2k.veo
+// /___/   /\     Timestamp  : Mon Aug 11 21:37:59 EDT 2014
 // \   \  /  \
 //  \___\/\___\
 //
@@ -20,12 +20,14 @@
 // (in parentheses) to your own signal names.
 
 //----------- Begin Cut here for INSTANTIATION Template ---// INST_TAG
-chipscope_icon YourInstanceName (
-    .CONTROL0(CONTROL0), // INOUT BUS [35:0]
-    .CONTROL1(CONTROL1), // INOUT BUS [35:0]
-    .CONTROL2(CONTROL2), // INOUT BUS [35:0]
-    .CONTROL3(CONTROL3), // INOUT BUS [35:0]
-    .CONTROL4(CONTROL4) // INOUT BUS [35:0]
+chipscope_ila_2k YourInstanceName (
+    .CONTROL(CONTROL), // INOUT BUS [35:0]
+    .CLK(CLK), // IN
+    .TRIG0(TRIG0), // IN BUS [15:0]
+    .TRIG1(TRIG1), // IN BUS [15:0]
+    .TRIG2(TRIG2), // IN BUS [15:0]
+    .TRIG3(TRIG3), // IN BUS [15:0]
+    .TRIG4(TRIG4) // IN BUS [15:0]
 );
 
 // INST_TAG_END ------ End INSTANTIATION Template ---------
