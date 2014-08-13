@@ -44,14 +44,16 @@ interface BusIfc;
 	method Action writeWord (Bit#(16) data);
 	method ActionValue#(Tuple2#(Bit#(16), TagT)) readWord (); 
 	method Bool isInitIdle();
+	method Bit#(16) getDebugR0;
+	method Bit#(16) getDebugR1;
 endinterface
 
 
 interface BusControllerIfc;
 	interface BusIfc busIfc;
 	interface NANDPins nandPins;
-	interface PhyDebugCtrl phyDebugCtrl;
-	interface PhyDebug phyDebug;
+	//interface PhyDebugCtrl phyDebugCtrl;
+	//interface PhyDebug phyDebug;
 	interface PhyWenNclkGet phyWenNclkGet;
 endinterface
 
@@ -111,7 +113,7 @@ module mkBusController#(
 //	Reg#(Bit#(16)) debugR3 <- mkReg(0);
 
 	//Command/Data FIFOs
-	FIFOF#(FlashCmd) flashCmdQ <- mkSizedFIFOF(64); //TODO adjust
+	FIFOF#(FlashCmd) flashCmdQ <- mkFIFOF(); //TODO adjust
 	Reg#(ChipT) chipR <- mkReg(0);
 	Vector#(5, Reg#(Bit#(8))) addrDecoded <- replicateM(mkReg(0));
 	FIFO#(TagT) wrDataReqQ <- mkFIFO();
@@ -137,21 +139,21 @@ module mkBusController#(
 	//Nand PHY instantiation
 	NandPhyIfc phy <- mkNandPhy(clk90, rst90);
 	//ECC decoder and encoder
-	FIFOF#(Bit#(16)) encodeInQ <- mkSizedFIFOF(128); //TODO adjust
+	FIFO#(Bit#(16)) encodeInQ <- mkSizedBRAMFIFO(64); //TODO adjust
 	//Note: the size of this FIFO is very important because during write
 	//bursts, we must make sure this FIFO always has data. 
 	//Size this to be: K-K_LAST=35 + any rs encoder delays between blocks
 	//(should be none)
 	//Don't size it too large. We fill the buffer to start with. More delay. 
-	FIFOF#(Bit#(16)) encodeOutQ <- mkSizedFIFOF(40); 
+	FIFOF#(Bit#(16)) encodeOutQ <- mkSizedBRAMFIFOF(40); 
 	RSEncoderIfc rsEncoderHi <- mkRSEncoder();
 	RSEncoderIfc rsEncoderLo <- mkRSEncoder();
 
 	//On reads, must make sure all FIFOs into decoder always has space to accept
 	//data When starting a read, ensure this FIFO is empty as a precaution
 	FIFOF#(Bit#(16)) decodeInQ <- mkSizedBRAMFIFOF(pageSize/2 + 1);
-	FIFO#(Bit#(8)) decodeOutHiQ <- mkSizedFIFO(16); //doesn't matter here
-	FIFO#(Bit#(8)) decodeOutLoQ <- mkSizedFIFO(16); //doesn't matter here
+	//FIFO#(Bit#(8)) decodeOutHiQ <- mkSizedFIFO(4); //doesn't matter here
+	//FIFO#(Bit#(8)) decodeOutLoQ <- mkSizedFIFO(4); //doesn't matter here
 	FIFO#(Byte) decodeKQ <- mkSizedFIFO(pageECCBlks + 1);
 	FIFO#(Byte) decodeTQ <- mkSizedFIFO(pageECCBlks + 1);
 	IReedSolomon rsDecoderHi <- mkReedSolomon();
@@ -440,6 +442,7 @@ module mkBusController#(
 	rule doWritePageDataDDR if (state==WRITE_PAGE && inSyncMode && dataCnt < nDataBursts);
 		if (encodeOutQ.notEmpty) begin
 			phy.phyUser.wrWord(encodeOutQ.first());
+			debugR0 <= encodeOutQ.first();
 			encodeOutQ.deq();
 			dataCnt <= dataCnt + 1;
 			$display("@%t\t%m: sync DDR write [%d] = %x", $time, dataCnt, encodeOutQ.first());
@@ -742,11 +745,11 @@ module mkBusController#(
 	//******************************************************
 	// Debug
 	//******************************************************
-	rule debugStatus;
-		phy.phyDebug.setDebug0(debugR0);
-		phy.phyDebug.setDebug1(zeroExtend(pack(state)));
+	//rule debugStatus;
+		//phy.phyDebug.setDebug0(debugR0);
+		//phy.phyDebug.setDebug1(zeroExtend(pack(state)));
 		//phy.phyDebug.setDebug1({debugFlagHi, debugFlagLo});
-	endrule
+	//endrule
 
 	rule writeError if (state==WRITE_ERROR);
 		$display("@%t, %m: *** write error!", $time);
@@ -790,15 +793,15 @@ module mkBusController#(
 		decodeTQ.deq();
 	endrule
 
-	rule doDecoderOutHi;
-		Bit#(8) dataHi <- rsDecoderHi.rs_output.get();
-		decodeOutHiQ.enq(dataHi);
-	endrule
+	//rule doDecoderOutHi;
+	//	Bit#(8) dataHi <- rsDecoderHi.rs_output.get();
+	//	decodeOutHiQ.enq(dataHi);
+	//endrule
 
-	rule doDecoderOutLo;
-		Bit#(8) dataLo <- rsDecoderLo.rs_output.get();
-		decodeOutLoQ.enq(dataLo);
-	endrule
+	//rule doDecoderOutLo;
+	//	Bit#(8) dataLo <- rsDecoderLo.rs_output.get();
+	//	decodeOutLoQ.enq(dataLo);
+	//endrule
 
 	//TODO: for now, if encountered an uncorrectable err, just print it
 	rule doDecoderHiCantCorrect;
@@ -878,9 +881,12 @@ module mkBusController#(
 				readTagQ.deq();
 			end
 			TagT rtag = readTagQ.first();
-			Bit#(16) dataAll = {decodeOutHiQ.first, decodeOutLoQ.first};
-			decodeOutHiQ.deq;
-			decodeOutLoQ.deq;
+			//Bit#(16) dataAll = {decodeOutHiQ.first, decodeOutLoQ.first};
+			//decodeOutHiQ.deq;
+			//decodeOutLoQ.deq;
+			Bit#(8) dataHi <- rsDecoderHi.rs_output.get();
+			Bit#(8) dataLo <- rsDecoderLo.rs_output.get();
+			Bit#(16) dataAll = {dataHi, dataLo};
 			return tuple2(dataAll, rtag);
 		endmethod
 
@@ -890,13 +896,21 @@ module mkBusController#(
 			//idle if in idle state and no pending requests
 			return ((state==UNINIT || state==IDLE) && (!flashCmdQ.notEmpty) && (phy.phyUser.isIdle));
 		endmethod
+	
+		method Bit#(16) getDebugR0;
+			return debugR0;
+		endmethod
+
+		method Bit#(16) getDebugR1;
+			return (zeroExtend(pack(state)));
+		endmethod
 	endinterface
 
 	interface phyWenNclkGet = phy.phyWenNclkGet;
 	
-	interface phyDebugCtrl = phy.phyDebugCtrl;
+	//interface phyDebugCtrl = phy.phyDebugCtrl;
 
-	interface phyDebug = phy.phyDebug;
+	//interface phyDebug = phy.phyDebug;
 
 endmodule
 

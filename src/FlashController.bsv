@@ -10,7 +10,7 @@ import NandInfraWrapper::*;
 import NandPhy::*;
 import BusController::*;
 import NandPhyWenNclkWrapper::*;
-
+import ChipscopeWrapper::*;
 
 typedef enum {
 	INIT = 0,
@@ -66,8 +66,8 @@ endfunction
 function Tuple2#(Bit#(16), Bit#(64)) getTestSetVin (Bit#(8) testSetSel, Bit#(16) cmdCnt);
 	//Mapping: cmd = [63:48], bus = [47:40], chip = [39:32], block = [31:16], tag = [15:0]
 	//Vector#(nTestCmds, Bit#(64)) vinTest = newVector();
-	Integer nTestCmds = 12;
-	Bit#(64) testSet1[nTestCmds] = {
+	Integer nTestCmds1 = 12;
+	Bit#(64) testSet1[nTestCmds1] = {
 		64'h0102010000050000, //wr blk 5, chip0, bus1, tag 0
 		64'h0102010100050001, //wr blk 5, chip1, bus1, tag 1
 		64'h0102010200050002, //wr blk 5, chip2, bus1, tag 1
@@ -81,7 +81,8 @@ function Tuple2#(Bit#(16), Bit#(64)) getTestSetVin (Bit#(8) testSetSel, Bit#(16)
 		64'h010101040005000A, //wr blk 5, chip4, bus1, tag 1
 		64'h010101050005000B //wr blk 5, chip5, bus1, tag 1
 	};
-	Bit#(64) testSet2[nTestCmds] = {
+	Integer nTestCmds2 = 12;
+	Bit#(64) testSet2[nTestCmds2] = {
 		64'h0201010000050000, //rd blk 0, chip0, bus1, tag 0
 		64'h0201010100050001, //rd blk 0, chip1, bus1, tag 1
 		64'h0201010200050002, //rd blk 0, chip2, bus1, tag 1
@@ -95,10 +96,38 @@ function Tuple2#(Bit#(16), Bit#(64)) getTestSetVin (Bit#(8) testSetSel, Bit#(16)
 		64'h020101020005000A, //rd blk 0, chip2, bus1, tag 1
 		64'h020101030005000B	 //rd blk 0, chip3, bus1, tag 1
 	};
+	Integer nTestCmds3 = 6;
+	Bit#(64) testSet3[nTestCmds3] = {
+		64'h0102010000050000, //wr blk 5, chip0, bus1, tag 0
+		64'h0102010100050001, //wr blk 5, chip1, bus1, tag 1
+		64'h0102010200050002, //wr blk 5, chip2, bus1, tag 1
+		64'h0102010300050003, //wr blk 5, chip3, bus1, tag 1
+		64'h0102010400050004, //wr blk 5, chip4, bus1, tag 1
+		64'h0102010500050005 //wr blk 5, chip5, bus1, tag 1
+	};
+	
+	Integer nTestCmds4 = 12;
+	Bit#(64) testSet4[nTestCmds4] = {
+		64'h0101010000050006, //rd blk 5, chip0, bus1, tag 1
+		64'h0101010100050007, //rd blk 5, chip1, bus1, tag 1
+		64'h0101020200050008, //rd blk 5, chip2, bus1
+		64'h0101010300050009, //rd blk 5, chip3, bus1
+		64'h010102040005000A, //wr blk 5, chip4, bus1, tag 1
+		64'h010101050005000B, //wr blk 5, chip5, bus1, tag 1
+		64'h0101020000050006, //rd blk 5, chip0, bus1, tag 1
+		64'h0101010100050007, //rd blk 5, chip1, bus1, tag 1
+		64'h0101020200050008, //rd blk 5, chip2, bus1
+		64'h0101010300050009, //rd blk 5, chip3, bus1
+		64'h010102040005000A, //wr blk 5, chip4, bus1, tag 1
+		64'h010101050005000B //wr blk 5, chip5, bus1, tag 1
+	};
+
 	Tuple2#(Bit#(16), Bit#(64)) vinRet;
 	case (testSetSel)
-		1: vinRet = tuple2(fromInteger(nTestCmds), testSet1[cmdCnt]);
-		2: vinRet = tuple2(fromInteger(nTestCmds), testSet2[cmdCnt]);
+		1: vinRet = tuple2(fromInteger(nTestCmds1), testSet1[cmdCnt]);
+		2: vinRet = tuple2(fromInteger(nTestCmds2), testSet2[cmdCnt]);
+		3: vinRet = tuple2(fromInteger(nTestCmds3), testSet3[cmdCnt]);
+		4: vinRet = tuple2(fromInteger(nTestCmds4), testSet4[cmdCnt]);
 		default:	vinRet = tuple2(0,0);
 	endcase
 	return vinRet;
@@ -115,16 +144,39 @@ module mkFlashController#(
 
 	//Controller Infrastructure (clock, reset)
 	VNandInfra nandInfra <- vMkNandInfra(sysClkP, sysClkN, sysRstn);
+
+	//chipscope debug
+	CSDebugIfc csDebug <- mkChipscopeDebug(clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
+	//Vectorize
+	Vector#(4, DebugILA) csDebugIla = newVector();
+	csDebugIla[0] = csDebug.ila0;
+	csDebugIla[1] = csDebug.ila1;
+	csDebugIla[2] = csDebug.ila2;
+	csDebugIla[3] = csDebug.ila3;
+
+	rule setILAZero;
+		csDebugIla[2].setDebug0(0);
+		csDebugIla[2].setDebug1(0);
+		csDebugIla[2].setDebug2(0);
+		csDebugIla[2].setDebug3(0);
+		csDebugIla[2].setDebug4(0);
+		csDebugIla[3].setDebug0(0);
+		csDebugIla[3].setDebug1(0);
+		csDebugIla[3].setDebug2(0);
+		csDebugIla[3].setDebug3(0);
+		csDebugIla[3].setDebug4(0);
+	endrule
+
 	//Vectorize the debug control interfaces so we can use loops later
-	Vector#(16, Inout#(Bit#(36))) dbgCtrlIfc = newVector();
-	dbgCtrlIfc[0] = nandInfra.dbgCtrl_0;
-	dbgCtrlIfc[1] = nandInfra.dbgCtrl_1;
-	dbgCtrlIfc[2] = nandInfra.dbgCtrl_2;
-	dbgCtrlIfc[3] = nandInfra.dbgCtrl_3;
-	dbgCtrlIfc[4] = nandInfra.dbgCtrl_4;
-	dbgCtrlIfc[5] = nandInfra.dbgCtrl_5;
-	dbgCtrlIfc[6] = nandInfra.dbgCtrl_6;
-	dbgCtrlIfc[7] = nandInfra.dbgCtrl_7;
+//	Vector#(16, Inout#(Bit#(36))) dbgCtrlIfc = newVector();
+// dbgCtrlIfc[0] = nandInfra.dbgCtrl_0;
+// dbgCtrlIfc[1] = nandInfra.dbgCtrl_1;
+// dbgCtrlIfc[2] = nandInfra.dbgCtrl_2;
+// dbgCtrlIfc[3] = nandInfra.dbgCtrl_3;
+// dbgCtrlIfc[4] = nandInfra.dbgCtrl_4;
+// dbgCtrlIfc[5] = nandInfra.dbgCtrl_5;
+// dbgCtrlIfc[6] = nandInfra.dbgCtrl_6;
+// dbgCtrlIfc[7] = nandInfra.dbgCtrl_7;
 //	dbgCtrlIfc[8] = nandInfra.dbgCtrl_8;
 //	dbgCtrlIfc[9] = nandInfra.dbgCtrl_9;
 //	dbgCtrlIfc[10] = nandInfra.dbgCtrl_10;
@@ -142,13 +194,20 @@ module mkFlashController#(
 	Vector#(NUM_BUSES, BusControllerIfc) busCtrl = newVector();
 	for (Integer i=0; i<valueOf(NUM_BUSES); i=i+1) begin
 		busCtrl[i] <- mkBusController(nandInfra.clk90, nandInfra.rst90, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
-		mkConnection(busCtrl[i].phyDebugCtrl.dbgCtrlIla, dbgCtrlIfc[i*2]);
-		mkConnection(busCtrl[i].phyDebugCtrl.dbgCtrlVio, dbgCtrlIfc[i*2+1]);
+		//mkConnection(busCtrl[i].phyDebugCtrl.dbgCtrlIla, dbgCtrlIfc[i*2]);
+		//mkConnection(busCtrl[i].phyDebugCtrl.dbgCtrlVio, dbgCtrlIfc[i*2+1]);
 	end
 
 	//Tag to command mapping table
 	//Vector#(NumTags, Reg#(FlashCmd)) tagTable <- replicateM(mkRegU(clocked_by nandInfra.clk0, reset_by nandInfra.rst0));
-	RegFile#(TagT, FlashCmd) tagTable <- mkRegFileFull(clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
+	//Reg#(FlashCmd) tagTable[valueOf(NumTags)];
+	//Since the BSV library Regfile only has 5 read ports, we'll just replicate it for each bus
+	Vector#(NUM_BUSES, RegFile#(TagT, FlashCmd)) tagTable <- replicateM(mkRegFileFull(clocked_by nandInfra.clk0, reset_by nandInfra.rst0));
+
+	//for (Integer i=0; i<valueOf(NumTags); i=i+1) begin
+	//	tagTable[i]	<- mkRegU(clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
+	//end
+	//RegFile#(TagT, FlashCmd) tagTable <- mkRegFileFull(clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 
 
 	Reg#(TbState) state <- mkReg(INIT, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
@@ -231,7 +290,8 @@ module mkFlashController#(
 			//use fixed test inputs for sim
 		   vin = 64'h0100000000000000; //choose the first set of test inputs for sim
 		`else
-			vin = busCtrl[0].phyDebug.getDebugVout();
+			//vin = busCtrl[0].phyDebug.getDebugVout();
+			vin = csDebug.vio.getDebugVout();
 		`endif
 
 		//select a test set
@@ -242,7 +302,11 @@ module mkFlashController#(
 				FlashCmd cmd = decodeVin(vin);
 				Bit#(3) b = truncate(vin[47:40]);
 				busCtrl[b].busIfc.sendCmd(cmd); //send cmd
-				tagTable.upd(cmd.tag, cmd); //insert in tag table
+				for (Integer i=0; i < valueOf(NUM_BUSES); i=i+1) begin
+					tagTable[i].upd(cmd.tag, cmd);
+				end
+				//tagTable[cmd.tag] <= cmd;
+				//tagTable.upd(cmd.tag, cmd); //insert in tag table
 				//dataCnt <= 0;
 				//errCnt <= 0;
 				//cmdCnt <= cmdCnt + 1;
@@ -256,16 +320,22 @@ module mkFlashController#(
 			Bit#(64) vinTest = tpl_2(ts);
 			FlashCmd cmd = decodeVin(vinTest);
 			Bit#(3) b = truncate(vinTest[47:40]);
-			busCtrl[b].busIfc.sendCmd(cmd);
-			tagTable.upd(cmd.tag, cmd); //insert in tag table
-			if (cmdCnt==tpl_1(ts)-1) begin
-				latencyCnt <= 0; //latency counter
-				cmdCnt <= 0;
-			end
-			else begin
+			
+			if (cmdCnt<tpl_1(ts)-1) begin //intentionally one less command
+
+				busCtrl[b].busIfc.sendCmd(cmd);
+				//tagTable[cmd.tag] <= cmd;
+				//tagTable.upd(cmd.tag, cmd); //insert in tag table
+				for (Integer i=0; i < valueOf(NUM_BUSES); i=i+1) begin
+					tagTable[i].upd(cmd.tag, cmd);
+				end
 				cmdCnt <= cmdCnt + 1;
+				$display("@%t\t%m: controller sent cmd: %x", $time, vinTest);
 			end
-			$display("@%t\t%m: controller sent cmd: %x", $time, vinTest);
+			//else begin
+			//	latencyCnt <= 0; //latency counter
+			//	cmdCnt <= 0;
+			//end
 		end
 	endrule
 
@@ -277,7 +347,8 @@ module mkFlashController#(
 	for (Integer i=0; i < valueOf(NUM_BUSES); i=i+1) begin
 		rule doWriteDataReq if (wrState[i] == 0);
 			TagT tag <- busCtrl[i].busIfc.writeDataReq();
-			tagCmd[i] <= tagTable.sub(tag);
+			tagCmd[i] <= tagTable[i].sub(tag);
+			//tagCmd[i] <= tagTable[tag];
 			wdataCnt[i] <= 0;
 			wrState[i] <= 1;
 		endrule
@@ -301,7 +372,8 @@ module mkFlashController#(
 			Bit#(16) rdata = tpl_1(taggedRData);
 			rDataDebug[i] <= rdata;
 			TagT rTag = tpl_2(taggedRData);
-			FlashCmd cmd = tagTable.sub(rTag);
+			FlashCmd cmd = tagTable[i].sub(rTag);
+			//FlashCmd cmd = tagTable[rTag];
 			rdata2check[i].enq(rdata);
 			rcmd2check[i].enq(cmd);
 		endrule
@@ -336,13 +408,22 @@ module mkFlashController#(
 		rule debugSet;
 			//busCtrl[i].phyDebug.setDebug2(zeroExtend(pack(state)));
 			//busCtrl[i].phyDebug.setDebug2(rdataCnt[i]);
-			busCtrl[i].phyDebug.setDebug2(latencyCnt[25:10]); //approximate to 1024 accuracy
-			busCtrl[i].phyDebug.setDebug3(errCnt[i]);
+			//busCtrl[i].phyDebug.setDebug2(latencyCnt[25:10]); //approximate to 1024 accuracy
+			//busCtrl[i].phyDebug.setDebug3(errCnt[i]);
 			//busCtrl[i].phyDebug.setDebug4(cmdCnt);
-			busCtrl[i].phyDebug.setDebug4(rDataDebug[i]); //Error corrected data
-			busCtrl[i].phyDebug.setDebugVin(busCtrl[i].phyDebug.getDebugVout());
+			//busCtrl[i].phyDebug.setDebug4(rDataDebug[i]); //Error corrected data
+			//busCtrl[i].phyDebug.setDebugVin(busCtrl[i].phyDebug.getDebugVout());
+			csDebugIla[i].setDebug0(busCtrl[i].busIfc.getDebugR0); 
+			csDebugIla[i].setDebug1(busCtrl[i].busIfc.getDebugR1); 
+			csDebugIla[i].setDebug2(latencyCnt[25:10]); //approximate to 1024 accuracy
+			csDebugIla[i].setDebug3(errCnt[i]);
+			csDebugIla[i].setDebug4(rDataDebug[i]); //Error corrected data
 		endrule
 	end
+
+	rule debugSetVio;
+		csDebug.vio.setDebugVin(csDebug.vio.getDebugVout());
+	endrule
 
 	Vector#(NUM_CHIPBUSES, Vector#(BUSES_PER_CHIPBUS, NANDPins)) nandBusVec = newVector();
 	Vector#(NUM_CHIPBUSES, NANDWenNclk) nandBusSharedVec = newVector();

@@ -72,6 +72,7 @@ interface VPhyUser;
 	method Action setCalibClk0Sel (Bit#(1) i);
 endinterface
 
+/*
 interface VPhyDebug;
 	interface Inout#(Bit#(36))   dbgCtrlIla;
 	interface Inout#(Bit#(36))   dbgCtrlVio;
@@ -86,13 +87,13 @@ interface VPhyDebug;
 	method Action setDebugVin (Bit#(64) i);
 	method Bit#(64) getDebugVout();
 endinterface
-
+*/
 
 interface VNANDPhy;
 	(* prefix = "" *)
 	interface NANDPins   nandPins;
 	interface VPhyUser  vphyUser;
-	interface VPhyDebug vphyDebug;
+	//interface VPhyDebug vphyDebug;
 endinterface
 
 
@@ -179,7 +180,7 @@ interface VPhyUser vphyUser;
 	method v_calib_dq_rise_270 calibDqRise270 clocked_by(clk0) reset_by(rstn0);
 	method setCalibClk0Sel (v_calib_clk0_sel) enable((*inhigh*) en20) clocked_by(clk0) reset_by(rstn0);
 endinterface
-
+/*
 interface VPhyDebug vphyDebug;
 	//Debug signals
 	ifc_inout dbgCtrlIla(v_dbg_ctrl_ila) clocked_by(no_clock) reset_by(no_reset);
@@ -194,9 +195,8 @@ interface VPhyDebug vphyDebug;
 	method setDebug7 (v_ctrl_debug7) enable((*inhigh*)en37) clocked_by(clk0) reset_by(rstn0);
 	method setDebugVin (v_ctrl_debug_vin) enable((*inhigh*)en38) clocked_by(clk0) reset_by(rstn0);
 	method v_ctrl_debug_vout getDebugVout clocked_by(clk0) reset_by(rstn0);
-
 endinterface
-
+*/
 //NAND pins are CF
 schedule 
 (/*nandPins_wen_nclk, */nandPins_cle, nandPins_ale, nandPins_wrn, nandPins_wpn, nandPins_cen /*, nandPins_debug0, nandPins_debug1*/) 
@@ -210,18 +210,18 @@ vphyUser_calibDqRise0, vphyUser_calibDqRise90, vphyUser_calibDqRise180, vphyUser
 vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
 //vphyUser_setWEN, vphyUser_setWENSel,
 vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDataDQ, vphyUser_iddrRstDQ,
-vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
-vphyDebug_setDebug0, vphyDebug_setDebug1, vphyDebug_setDebug2, vphyDebug_setDebug3, vphyDebug_setDebug4, 
-vphyDebug_setDebug5, vphyDebug_setDebug6, vphyDebug_setDebug7, vphyDebug_setDebugVin, vphyDebug_getDebugVout)
+vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ)
+//vphyDebug_setDebug0, vphyDebug_setDebug1, vphyDebug_setDebug2, vphyDebug_setDebug3, vphyDebug_setDebug4, 
+//vphyDebug_setDebug5, vphyDebug_setDebug6, vphyDebug_setDebug7, vphyDebug_setDebugVin, vphyDebug_getDebugVout)
 CF
 (vphyUser_dlyValDQS, vphyUser_dlyLdDQS, vphyUser_dlyValOutDQS,
 vphyUser_calibDqRise0, vphyUser_calibDqRise90, vphyUser_calibDqRise180, vphyUser_calibDqRise270, vphyUser_setCalibClk0Sel,
 vphyUser_setCLE, vphyUser_setALE, vphyUser_setWRN, vphyUser_setWPN, vphyUser_setCEN,
 //vphyUser_setWEN, vphyUser_setWENSel,
 vphyUser_oenDQS, vphyUser_rstnDQS, vphyUser_oenDataDQ, vphyUser_iddrRstDQ,
-vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ,
-vphyDebug_setDebug0, vphyDebug_setDebug1, vphyDebug_setDebug2, vphyDebug_setDebug3, vphyDebug_setDebug4, 
-vphyDebug_setDebug5, vphyDebug_setDebug6, vphyDebug_setDebug7, vphyDebug_setDebugVin, vphyDebug_getDebugVout);
+vphyUser_rdDataRiseDQ, vphyUser_rdDataFallDQ, vphyUser_rdDataCombDQ, vphyUser_wrDataRiseDQ, vphyUser_wrDataFallDQ);
+//vphyDebug_setDebug0, vphyDebug_setDebug1, vphyDebug_setDebug2, vphyDebug_setDebug3, vphyDebug_setDebug4, 
+//vphyDebug_setDebug5, vphyDebug_setDebug6, vphyDebug_setDebug7, vphyDebug_setDebugVin, vphyDebug_getDebugVout);
 
 
 

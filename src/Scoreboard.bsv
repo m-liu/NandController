@@ -35,17 +35,17 @@ module mkScoreboard(SBIfc);
 
 	//For MLC. Estimates
 	Integer t_R = 3000; //75us MAX
-	Integer t_PROG = 50000; //1300us Typ; use 500us here
+	Integer t_PROG = 5000; //1300us Typ; use 500us here
 	Integer t_BERS = 50000; //3.8ms Typ; use 500us here
 	Integer t_R_PollWait = 500; //5us; Wait between status polls if busy
-	Integer t_PROG_PollWait = 5000; //50us; Wait between status polls if busy
+	Integer t_PROG_PollWait = 500; //50us; Wait between status polls if busy
 	Integer t_BERS_PollWait = 10000; //100us; Wait between status polls if busy
 
-	Vector#(ChipsPerBus, FIFOF#(SBElem)) chipQs <- replicateM(mkSizedFIFOF(16)); //TODO adjust size
+	Vector#(ChipsPerBus, FIFOF#(SBElem)) chipQs <- replicateM(mkSizedBRAMFIFOF(4)); //TODO adjust size
 	Vector#(ChipsPerBus, FIFO#(Bool)) chipBusy <- replicateM(mkFIFO());
-	Vector#(ChipsPerBus, Reg#(Bit#(64))) busyTimers <- replicateM(mkReg(0));
+	Vector#(ChipsPerBus, Reg#(Bit#(32))) busyTimers <- replicateM(mkReg(0));
 	Vector#(ChipsPerBus, Reg#(Stage)) chipStages <- replicateM(mkReg(INIT));
-	FIFO#(BusCmd) cmdOutQ <- mkSizedFIFO(16); //TODO what size here?
+	FIFO#(BusCmd) cmdOutQ <- mkFIFO(); //TODO what size here?
 	Reg#(ChipT) currChip <- mkReg(0);
 	Reg#(BusCmd) currCmdOut <- mkRegU();
 	Reg#(SBState) state <- mkReg(NEXT_REQ);

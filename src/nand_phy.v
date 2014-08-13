@@ -61,18 +61,18 @@ module nand_phy #
 		input v_calib_clk0_sel,
 		
 		//debug
-		inout [35:0] v_dbg_ctrl_ila,
-		inout [35:0] v_dbg_ctrl_vio,
-		input [15:0] v_ctrl_debug0,
-		input [15:0] v_ctrl_debug1,
-		input [15:0] v_ctrl_debug2,
-		input [15:0] v_ctrl_debug3,
-		input [15:0] v_ctrl_debug4,
-		input [15:0] v_ctrl_debug5,
-		input [15:0] v_ctrl_debug6,
-		input [15:0] v_ctrl_debug7,
-		input [63:0] v_ctrl_debug_vin,
-		output [63:0] v_ctrl_debug_vout,
+//		inout [35:0] v_dbg_ctrl_ila,
+//		inout [35:0] v_dbg_ctrl_vio,
+//		input [15:0] v_ctrl_debug0,
+//		input [15:0] v_ctrl_debug1,
+//		input [15:0] v_ctrl_debug2,
+//		input [15:0] v_ctrl_debug3,
+//		input [15:0] v_ctrl_debug4,
+//		input [15:0] v_ctrl_debug5,
+//		input [15:0] v_ctrl_debug6,
+//		input [15:0] v_ctrl_debug7,
+//		input [63:0] v_ctrl_debug_vin,
+//		output [63:0] v_ctrl_debug_vout,
 
 
 		//clocks and resets
@@ -238,25 +238,25 @@ nand_phy_ctl_io u_io_phy_ctl
 	//	.CONTROL1(dbg_ctrl_vio) // INOUT BUS [35:0]
 	//) /* synthesis syn_noprune=1 */;
 
-	chipscope_ila ila (
-		.CONTROL(v_dbg_ctrl_ila), // INOUT BUS [35:0]
-		.CLK(v_clk0), // IN
-		.TRIG0(v_ctrl_debug0), // IN BUS [15:0]
-		.TRIG1(v_ctrl_debug1), // IN BUS [15:0]
-		.TRIG2(v_ctrl_debug2), // IN BUS [15:0]
-		.TRIG3(v_ctrl_debug3), // IN BUS [15:0]
-		.TRIG4(v_ctrl_debug4) // IN BUS [15:0]
-		//.TRIG5(v_ctrl_debug5), // IN BUS [15:0]
-		//.TRIG6(v_ctrl_debug6), // IN BUS [15:0]
-		//.TRIG7(v_ctrl_debug7) // IN BUS [15:0]
-	) /* synthesis syn_noprune=1 */;
-
-	chipscope_vio vio (
-		.CONTROL(v_dbg_ctrl_vio),
-		.CLK(v_clk0),
-		.SYNC_IN(v_ctrl_debug_vin),
-		.SYNC_OUT(v_ctrl_debug_vout)
-	) /* synthesis syn_noprune=1 */;
+//	chipscope_ila_2k ila (
+//		.CONTROL(v_dbg_ctrl_ila), // INOUT BUS [35:0]
+//		.CLK(v_clk0), // IN
+//		.TRIG0(v_ctrl_debug0), // IN BUS [15:0]
+//		.TRIG1(v_ctrl_debug1), // IN BUS [15:0]
+//		.TRIG2(v_ctrl_debug2), // IN BUS [15:0]
+//		.TRIG3(v_ctrl_debug3), // IN BUS [15:0]
+//		.TRIG4(v_ctrl_debug4) // IN BUS [15:0]
+//		//.TRIG5(v_ctrl_debug5), // IN BUS [15:0]
+//		//.TRIG6(v_ctrl_debug6), // IN BUS [15:0]
+//		//.TRIG7(v_ctrl_debug7) // IN BUS [15:0]
+//	) /* synthesis syn_noprune=1 */;
+//
+//	chipscope_vio vio (
+//		.CONTROL(v_dbg_ctrl_vio),
+//		.CLK(v_clk0),
+//		.SYNC_IN(v_ctrl_debug_vin),
+//		.SYNC_OUT(v_ctrl_debug_vout)
+//	) /* synthesis syn_noprune=1 */;
 
 		
 

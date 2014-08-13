@@ -26,7 +26,7 @@ interface PhyUser;
 	method Bool isIdle();
 endinterface
 
-
+/*
 interface PhyDebugCtrl;
 	interface Inout#(Bit#(36)) dbgCtrlIla;
 	interface Inout#(Bit#(36)) dbgCtrlVio;
@@ -45,7 +45,7 @@ interface PhyDebug;
 	method Action setDebugVin (Bit#(64) d);
 	method Bit#(64) getDebugVout ();
 endinterface
-
+*/
 interface PhyWenNclkGet;
 	method Bit#(1) getWEN;
 	method Bit#(1) getWENSel;
@@ -54,8 +54,8 @@ endinterface
 interface NandPhyIfc;
 	interface NANDPins nandPins;
 	interface PhyUser phyUser;
-	interface PhyDebugCtrl phyDebugCtrl;
-	interface PhyDebug phyDebug;
+	//interface PhyDebugCtrl phyDebugCtrl;
+	//interface PhyDebug phyDebug;
 	interface PhyWenNclkGet phyWenNclkGet;
 endinterface
 
@@ -210,12 +210,12 @@ module mkNandPhy#(
 
 	//Debug registers
 	//Reg#(Bit#(8)) debugR90 <- mkReg(0, clocked_by clk90, reset_by rst90);
-	Vector#(8, Reg#(Bit#(16))) debugR <- replicateM(mkReg(0));
-	Reg#(Bit#(64)) debugVin <- mkReg(0);
+	//Vector#(8, Reg#(Bit#(16))) debugR <- replicateM(mkReg(0));
+	//Reg#(Bit#(64)) debugVin <- mkReg(0);
 
 	//Command and address FIFO
 	FIFOF#(PhyCmd) ctrlCmdQ <- mkFIFOF(); //TODO adjust size
-	FIFO#(Bit#(8)) addrQ <- mkSizedFIFO(32);
+	FIFO#(Bit#(8)) addrQ <- mkSizedFIFO(8);
 
 	//Counters
 	Reg#(Bit#(16)) numBurstCnt <- mkReg(0);
@@ -254,15 +254,15 @@ module mkNandPhy#(
 		vnandPhy.vphyUser.setCalibClk0Sel(calibClk0Sel);
 		vnandPhy.vphyUser.dlyValDQS(dlyValDQS);
 		vnandPhy.vphyUser.dlyLdDQS(dlyLdDQS);
-		vnandPhy.vphyDebug.setDebug0(debugR[0]);
-		vnandPhy.vphyDebug.setDebug1(debugR[1]);
-		vnandPhy.vphyDebug.setDebug2(debugR[2]);
-		vnandPhy.vphyDebug.setDebug3(debugR[3]);
-		vnandPhy.vphyDebug.setDebug4(debugR[4]);
-		vnandPhy.vphyDebug.setDebug5(debugR[5]);
-		vnandPhy.vphyDebug.setDebug6(debugR[6]);
-		vnandPhy.vphyDebug.setDebug7(debugR[7]);
-		vnandPhy.vphyDebug.setDebugVin(debugVin);
+//	vnandPhy.vphyDebug.setDebug0(debugR[0]);
+//	vnandPhy.vphyDebug.setDebug1(debugR[1]);
+//	vnandPhy.vphyDebug.setDebug2(debugR[2]);
+//	vnandPhy.vphyDebug.setDebug3(debugR[3]);
+//	vnandPhy.vphyDebug.setDebug4(debugR[4]);
+//	vnandPhy.vphyDebug.setDebug5(debugR[5]);
+//	vnandPhy.vphyDebug.setDebug6(debugR[6]);
+//	vnandPhy.vphyDebug.setDebug7(debugR[7]);
+//	vnandPhy.vphyDebug.setDebugVin(debugVin);
 	endrule
 
 	//wait rule. 
@@ -947,6 +947,7 @@ module mkNandPhy#(
 		endmethod
 	endinterface
 
+	/*
 	interface PhyDebugCtrl phyDebugCtrl;
 		interface dbgCtrlIla = vnandPhy.vphyDebug.dbgCtrlIla;
 		interface dbgCtrlVio = vnandPhy.vphyDebug.dbgCtrlVio;
@@ -992,6 +993,7 @@ module mkNandPhy#(
 			return vnandPhy.vphyDebug.getDebugVout();
 		endmethod
 	endinterface
+	*/
 
 	interface PhyWenNclkGet phyWenNclkGet;
 		method Bit#(1) getWEN ();

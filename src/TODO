@@ -1,13 +1,15 @@
 - Timing and FIFO size adjustments; ECC fifos sizes and timing too conservative
 - ECC can't correct flag handling
 - May need additional ECC decoders to max bandwidth
+- Possible issue: decodeInQ is full if there are too many errors. This could occur after many sequential reads as the buffer slowly fills due to slow ECC.
 
+- SB optimization: prioritize read command issuing
+- [in progress] Compile for 8 buses - does regfile have enough ports? No. We can either replicate for each bus or try to use arrays directly. Replicated.
+- [in progress] create separate block for chipscope ICON and ILA 
+- try reads on simultaneous buses jeez!!
 - Sim test erases, r/w/e mixed 
 - FIX LATENCY COUNTER (keep two 64bit counters, one for lat one for bytes read)
-- SB optimization: prioritize read command issuing
-- Possible issue: decodeInQ is full if there are too many errors. Not sure about this
 
-- [at 128] Increase number of tags
 
 
 /*** May not be needed ***/
@@ -25,6 +27,7 @@
 	- [ok] request for write data from flashcotnroller before a write
 	- [meh] need to wait for FIFO empty before starting a read. Either wait for it or do something else and come back to it
 
+- [at 128] Increase number of tags
 - Scoreboard and multibus
 - [good] try RegFile for tag table
 - [ok?] increase cmdoutQ in sb
