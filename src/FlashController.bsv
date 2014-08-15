@@ -72,7 +72,7 @@ function Bit#(64) getCurrVin(Bit#(64) vio_in);
 	Bit#(64) vin;
 	`ifdef NAND_SIM
 		//use fixed test inputs for sim
-		vin = 64'h00010000005a0000; //choose the first set of test inputs for sim
+		vin = 64'h04010000005a0000; //choose the first set of test inputs for sim
 	`else
 		vin = vio_in;
 	`endif
@@ -282,7 +282,8 @@ module mkFlashController#(
 	//Reg#(FlashCmd) tagTable[valueOf(NumTags)];
 	//Since the BSV library Regfile only has 5 read ports, we'll just replicate it for each bus
 	Vector#(NUM_BUSES, RegFile#(TagT, FlashCmd)) tagTable <- replicateM(mkRegFileFull(clocked_by nandInfra.clk0, reset_by nandInfra.rst0));
-	FIFO#(TagT) tagFreeList <- mkSizedFIFO(valueOf(NumTags), clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
+	FIFO#(TagT) tagFreeListShared <- mkSizedFIFO(valueOf(NumTags), clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
+	Vector#(NUM_BUSES, FIFO#(TagT)) tagFreeListBus <- replicateM( mkSizedFIFO(valueOf(NumTags), clocked_by nandInfra.clk0, reset_by nandInfra.rst0));
 	Reg#(Bit#(16)) tagFreeCnt <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 
 	//for (Integer i=0; i<valueOf(NumTags); i=i+1) begin
@@ -364,7 +365,7 @@ module mkFlashController#(
 	//setup tag free list
 	rule doSetupTagFreeList if (state==SETUP_TAG_FREE);
 		if (tagFreeCnt < fromInteger(valueOf(NumTags))) begin
-			tagFreeList.enq(truncate(tagFreeCnt));
+			tagFreeListShared.enq(truncate(tagFreeCnt));
 			tagFreeCnt <= tagFreeCnt + 1;
 		end
 		else begin
@@ -372,6 +373,18 @@ module mkFlashController#(
 			tagFreeCnt <= 0;
 		end
 	endrule
+
+	//return tags to shared tagFreeList from all buses
+	for (Integer i=0; i < valueOf(NUM_BUSES); i=i+1) begin
+		rule doReturnTags;
+			//if (tagFreeListBus[0].notEmpty) begin
+				tagFreeListShared.enq(tagFreeListBus[i].first);
+				tagFreeListBus[i].deq();
+				$display("@%t\t%m: controller returned to shared tag list from bus[%d] tag=%x", 
+							$time, i, tagFreeListBus[i].first);
+			//end
+		endrule
+	end
 
 	//Continuously send commands as fast as possible
 	rule doIdleAcceptCmd if (state==IDLE);
@@ -383,8 +396,8 @@ module mkFlashController#(
 		if (testSetSel == 0) begin //use VIO as cmd
 			if (vin != 0 && vin != vinPrev) begin
 				vinPrev <= vin;
-				TagT newTag = tagFreeList.first();
-				tagFreeList.deq();
+				TagT newTag = tagFreeListShared.first();
+				tagFreeListShared.deq();
 				let dec = decodeVin(vin, newTag);
 				let b = tpl_1(dec);
 				let cmd = tpl_2(dec);
@@ -436,8 +449,8 @@ module mkFlashController#(
 
 	rule doTestSuite if (state==TEST_SUITE);
 		//get a free tag
-		TagT newTag = tagFreeList.first();
-		tagFreeList.deq();
+		TagT newTag = tagFreeListShared.first();
+		tagFreeListShared.deq();
 
 		//get new command
 		Bit#(64) vin = getCurrVin(csDebug.vio.getDebugVout());
@@ -479,7 +492,7 @@ module mkFlashController#(
 	for (Integer i=0; i < valueOf(NUM_BUSES); i=i+1) begin
 		rule doEraseAck;
 			TagT t <- busCtrl[i].busIfc.ackErase();
-			tagFreeList.enq(t);
+			tagFreeListBus[i].enq(t);
 			$display("@%t\t%m: FlashController erase returned tag=%x", $time, t);
 		endrule
 
@@ -488,7 +501,7 @@ module mkFlashController#(
 			tagCmd[i] <= tagTable[i].sub(tag);
 			//tagCmd[i] <= tagTable[tag];
 			//Return free tag. May create conflicts, but its ok
-			tagFreeList.enq(tag); 
+			tagFreeListBus[i].enq(tag); 
 			$display("@%t\t%m: FlashController write returned tag=%x", $time, tag);
 			wdataCnt[i] <= 0;
 			wrState[i] <= 1;
@@ -540,7 +553,7 @@ module mkFlashController#(
 			end
 			else begin
 				//return tag. Again this may conflict, but it should be ok. We have enough buffering
-				tagFreeList.enq(cmd.tag);
+				tagFreeListBus[i].enq(cmd.tag);
 				$display("@%t\t%m: FlashController read returned tag=%x", $time, cmd.tag);
 				rdataCnt[i] <= 0;
 			end

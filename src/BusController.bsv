@@ -608,7 +608,7 @@ module mkBusController#(
 		$display("NandCtrl: GET status=%x", status);
 		debugR0 <= status; //debug
 
-		if (status[7:0]==8'hE0) begin 
+		if (status[7:0]==8'hE0 || status[7:0]==8'hE1) begin  //TODO FIXME XXX handle when erases return E1 (bad block)
 			sb.busyIn.put(tuple2(chipR, False)); //not busy
 			cmdCnt <= 0;
 			state <= rdyReturnState;
