@@ -43,9 +43,11 @@ interface BusIfc;
 	method ActionValue#(TagT) writeDataReq(); 
 	method Action writeWord (Bit#(16) data);
 	method ActionValue#(Tuple2#(Bit#(16), TagT)) readWord (); 
+	method ActionValue#(TagT) ackErase (); 
 	method Bool isInitIdle();
-	method Bit#(16) getDebugR0;
-	method Bit#(16) getDebugR1;
+	method Bit#(16) getDebugRawData;
+	method Bit#(16) getDebugBusState;
+	method Bit#(16) getDebugAddr;
 endinterface
 
 
@@ -83,7 +85,7 @@ module mkBusController#(
 	Integer t_ADL_SYNC = 7; //70ns
 	Integer t_RHW_SYNC = 10; //100ns
 	Integer t_WB_SYNC = 10; //100ns
-	Integer t_BERS = 20000; //3.8 to 10ms. But start polling earlier.
+	//Integer t_BERS = 20000; //3.8 to 10ms. But start polling earlier.
 
 	Integer nAddrBursts = 5; //5 addr bursts is standard
 	Integer nAddrBurstsErase = 3; //3 addr bursts for erase
@@ -107,6 +109,8 @@ module mkBusController#(
 
 	//Debug
 	Reg#(Bit#(16)) debugR0 <- mkReg(0);
+	Reg#(BusCmd) debugCmd <- mkRegU();
+	Reg#(Bit#(16)) debugAddr <- mkReg(0);
 	Reg#(Bit#(8)) debugFlagLo <- mkReg(0);
 	Reg#(Bit#(8)) debugFlagHi <- mkReg(0);
 //	Reg#(Bit#(16)) debugR2 <- mkReg(0);
@@ -117,6 +121,7 @@ module mkBusController#(
 	Reg#(ChipT) chipR <- mkReg(0);
 	Vector#(5, Reg#(Bit#(8))) addrDecoded <- replicateM(mkReg(0));
 	FIFO#(TagT) wrDataReqQ <- mkFIFO();
+	FIFO#(TagT) eraseAckQ <- mkFIFO();
 
 	//Tag management
 	FIFO#(TagT) readTagQ <- mkSizedFIFO(4); //each time we do a 8k read burst, we enq the tag in this fifo
@@ -236,6 +241,8 @@ module mkBusController#(
 		addrDecoded[3] <= truncate(cmd.block);
 		addrDecoded[4] <= truncateLSB(cmd.block);
 		cmdTagR <= cmd.tag;
+		debugCmd <= cmd;
+		debugAddr <= 0;
 		$display("BusController: Executing command=%x", cmd.busOp);
 	endrule	
 
@@ -285,6 +292,9 @@ module mkBusController#(
 
 	rule doReadPageCmd if (state==READ_PAGE_REQ && cmdCnt < fromInteger(nreadReqCmds));
 		phy.phyUser.sendCmd(readReqCmds[cmdCnt]);
+		Bit#(8) c = zeroExtend(debugCmd.chip);
+		Bit#(8) b = truncate(debugCmd.block);
+		debugAddr <= {c, b};
 		cmdCnt <= cmdCnt + 1;
 	endrule
 		
@@ -307,11 +317,17 @@ module mkBusController#(
 		cmdCnt <= 0;
 		addrCnt <= 0;
 		dataCnt <= 0;
+		Bit#(8) c = zeroExtend(debugCmd.chip);
+		Bit#(8) b = truncate(debugCmd.block);
+		debugAddr <= {c, b};
 	endrule
 
 	rule doReadDataCmd if (state==READ_DATA && cmdCnt < fromInteger(nreadDataCmds));
 		phy.phyUser.sendCmd(readDataCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
+		Bit#(8) c = zeroExtend(debugCmd.chip);
+		Bit#(8) b = truncate(debugCmd.block);
+		debugAddr <= {c, b};
 	endrule
 
 	//Sync DDR bursts
@@ -429,6 +445,9 @@ module mkBusController#(
 	rule doWritePageCmd if (state==WRITE_PAGE && cmdCnt < fromInteger(nwriteReqCmds));
 		phy.phyUser.sendCmd(writeReqCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
+		Bit#(8) c = zeroExtend(debugCmd.chip);
+		Bit#(8) b = truncate(debugCmd.block);
+		debugAddr <= {c, b};
 	endrule
 		
 	rule doWritePageAddr if (state==WRITE_PAGE && addrCnt < fromInteger(nAddrBursts));
@@ -495,7 +514,7 @@ module mkBusController#(
 			PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_ADDR, nandCmd: ?, 
 						numBurst: fromInteger(nAddrBurstsErase), postCmdWait: 0},
 			PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_CMD, nandCmd: tagged OnfiCmd N_ERASE_BLOCK_END, 
-		 				numBurst: 0, postCmdWait: fromInteger(t_BERS)},
+		 				numBurst: 0, postCmdWait: fromInteger(t_WB_SYNC)},
 			PhyCmd { inSyncMode: inSyncMode, phyCycle: PHY_DESELECT_ALL, nandCmd: ?, 
 						numBurst: 0, postCmdWait: 0}
 			};
@@ -503,6 +522,9 @@ module mkBusController#(
 	rule doEraseBlockCmd if (state==ERASE_BLOCK && cmdCnt < fromInteger(neraseCmds));
 		phy.phyUser.sendCmd(eraseCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
+		Bit#(8) c = zeroExtend(debugCmd.chip);
+		Bit#(8) b = truncate(debugCmd.block);
+		debugAddr <= {c, b};
 	endrule
 
 	rule doEraseBlockAddr if (state==ERASE_BLOCK && 
@@ -518,6 +540,7 @@ module mkBusController#(
 		//wait for write to finish
 		//state <= POLL_STATUS;
 		//rdyReturnState <= IDLE;
+		eraseAckQ.enq(cmdTagR); 
 		state <= IDLE;
 	endrule
 
@@ -575,6 +598,9 @@ module mkBusController#(
 	rule doGetStatusOnlyCmd if (state==GET_STATUS && cmdCnt < fromInteger(nstatusCmds));
 		phy.phyUser.sendCmd(statusCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
+		Bit#(8) c = zeroExtend(debugCmd.chip);
+		Bit#(8) b = truncate(debugCmd.block);
+		debugAddr <= {c, b};
 	endrule
 
 	rule doGetStatusData if (state==GET_STATUS && cmdCnt==fromInteger(nstatusCmds));
@@ -889,6 +915,11 @@ module mkBusController#(
 			Bit#(16) dataAll = {dataHi, dataLo};
 			return tuple2(dataAll, rtag);
 		endmethod
+	
+		method ActionValue#(TagT) ackErase (); 
+			eraseAckQ.deq();
+			return eraseAckQ.first();
+		endmethod
 
 		method Bool isInitIdle();
 			//This method only works to tell the flash controller that it can issue the next
@@ -897,12 +928,16 @@ module mkBusController#(
 			return ((state==UNINIT || state==IDLE) && (!flashCmdQ.notEmpty) && (phy.phyUser.isIdle));
 		endmethod
 	
-		method Bit#(16) getDebugR0;
+		method Bit#(16) getDebugRawData;
 			return debugR0;
 		endmethod
 
-		method Bit#(16) getDebugR1;
+		method Bit#(16) getDebugBusState;
 			return (zeroExtend(pack(state)));
+		endmethod
+
+		method Bit#(16) getDebugAddr;
+			return debugAddr;
 		endmethod
 	endinterface
 

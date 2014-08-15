@@ -23,7 +23,10 @@ typedef enum {
 	ERASE = 7,
 	ACT_SYNC = 8,
 	DONE = 9,
-	ERROR_READBACK = 10
+	SETUP_TAG_FREE = 10,
+	TEST_SUITE = 11,
+	TEST_SUITE_DONE = 12,
+	ERROR_READBACK = 13
 } TbState deriving (Bits, Eq);
 
 
@@ -35,7 +38,7 @@ interface FlashControllerIfc;
 endinterface
 
 //Create data by hashing the address
-function Bit#(16) getDataHash (Bit#(16) dataCnt, Bit#(8) page, Bit#(16) block, ChipT chip, Bit#(3) bus);
+function Bit#(16) getDataHash (Bit#(16) dataCnt, Bit#(8) page, Bit#(16) block, ChipT chip, BusT bus);
 		Bit#(8) dataCntTrim = truncate(dataCnt);
 		Bit#(8) blockTrim = truncate(block);
 		Bit#(8) chipTrim = zeroExtend(chip);
@@ -47,7 +50,8 @@ function Bit#(16) getDataHash (Bit#(16) dataCnt, Bit#(8) page, Bit#(16) block, C
 		return d;
 endfunction
 
-function FlashCmd decodeVin (Bit#(64) vinCmd);
+function Tuple2#(BusT, FlashCmd) decodeVin (Bit#(64) vinCmd, TagT tag);
+	BusT bus = truncate(vinCmd[47:40]);
 	FlashOp flashOp;
 	let cmdInOp = vinCmd[55:48];
 	case (cmdInOp)
@@ -56,11 +60,23 @@ function FlashCmd decodeVin (Bit#(64) vinCmd);
 		3: flashOp = ERASE_BLOCK;
 		default: flashOp = READ_PAGE;
 	endcase
-	return ( FlashCmd { 	tag: truncate(vinCmd[15:0]),
+	FlashCmd cmd = FlashCmd { 	tag: tag,
 								op: flashOp,
 								chip: truncate(vinCmd[39:32]),
 								block: truncate(vinCmd[31:16]),
-								page: 0 } );
+								page: truncate(vinCmd[15:0]) };
+	return tuple2(bus, cmd);
+endfunction
+
+function Bit#(64) getCurrVin(Bit#(64) vio_in);
+	Bit#(64) vin;
+	`ifdef NAND_SIM
+		//use fixed test inputs for sim
+		vin = 64'h00010000005a0000; //choose the first set of test inputs for sim
+	`else
+		vin = vio_in;
+	`endif
+	return vin;
 endfunction
 
 function Tuple2#(Bit#(16), Bit#(64)) getTestSetVin (Bit#(8) testSetSel, Bit#(16) cmdCnt);
@@ -122,16 +138,96 @@ function Tuple2#(Bit#(16), Bit#(64)) getTestSetVin (Bit#(8) testSetSel, Bit#(16)
 		64'h010101050005000B //wr blk 5, chip5, bus1, tag 1
 	};
 
+	Integer nTestCmds5 = 1;
+	Bit#(64) testSet5[nTestCmds5] = {
+		64'h0102010000050000 //wr blk 5, chip0, bus1, tag 0
+	};
+
 	Tuple2#(Bit#(16), Bit#(64)) vinRet;
 	case (testSetSel)
 		1: vinRet = tuple2(fromInteger(nTestCmds1), testSet1[cmdCnt]);
 		2: vinRet = tuple2(fromInteger(nTestCmds2), testSet2[cmdCnt]);
 		3: vinRet = tuple2(fromInteger(nTestCmds3), testSet3[cmdCnt]);
 		4: vinRet = tuple2(fromInteger(nTestCmds4), testSet4[cmdCnt]);
+		5: vinRet = tuple2(fromInteger(nTestCmds5), testSet5[cmdCnt]);
 		default:	vinRet = tuple2(0,0);
 	endcase
 	return vinRet;
 endfunction
+
+function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(16) cmdCnt);
+	FlashOp op = INVALID;
+	ChipT c = 0;
+	BusT bus = 0;
+	Bit#(16) blk = 0;
+	Integer seqNumBlks = 512;
+
+	//sequential read, same bus
+	if (testSetSel == 1) begin
+		if (cmdCnt < 1024) begin //issue 10k commands (~80MB)
+			bus = 0;
+			c = cmdCnt[2:0]; 
+			blk = zeroExtend(cmdCnt[15:3]);
+			op = READ_PAGE;
+		end
+	end
+	//sequential write, same bus
+	else if (testSetSel == 2) begin
+		if (cmdCnt < 1024) begin //issue 10k commands (~80MB)
+			bus = 0;
+			c = cmdCnt[2:0]; 
+			blk = zeroExtend(cmdCnt[15:3]);
+			op = WRITE_PAGE;
+		end
+	end
+
+	//sequential erase, same bus
+	else if (testSetSel == 3) begin
+		if (cmdCnt < 1024) begin //issue 10k commands (~80MB)
+			bus = 0;
+			c = cmdCnt[2:0]; 
+			blk = zeroExtend(cmdCnt[15:3]);
+			op = ERASE_BLOCK;
+		end
+	end
+
+	//sequential read, 2 buses
+	else if (testSetSel == 4) begin
+		if (cmdCnt < 1024) begin //issue 10k commands (~80MB)
+			bus = zeroExtend(cmdCnt[0]); 
+			c = cmdCnt[3:1]; 
+			blk = zeroExtend(cmdCnt[15:4]);
+			op = READ_PAGE;
+		end
+	end
+	//sequential write, 2 buses
+	else if (testSetSel == 5) begin
+		if (cmdCnt < 1024) begin //issue 10k commands (~80MB)
+			bus = zeroExtend(cmdCnt[0]); 
+			c = cmdCnt[3:1]; 
+			blk = zeroExtend(cmdCnt[15:4]);
+			op = WRITE_PAGE;
+		end
+	end
+	//sequential erase, different bus
+	else if (testSetSel == 6) begin
+		if (cmdCnt < 1024) begin //issue 10k commands (~80MB)
+			bus = zeroExtend(cmdCnt[0]); 
+			c = cmdCnt[3:1]; 
+			blk = zeroExtend(cmdCnt[15:4]);
+			op = ERASE_BLOCK;
+		end
+	end
+
+	FlashCmd cmd =	FlashCmd {	tag: tag,
+										op: op,
+										chip: c,
+										block: blk,
+										page: 0 };
+	return tuple2(bus, cmd);
+endfunction
+
+
 
 
 (* no_default_clock, no_default_reset *)
@@ -160,31 +256,16 @@ module mkFlashController#(
 		csDebugIla[2].setDebug2(0);
 		csDebugIla[2].setDebug3(0);
 		csDebugIla[2].setDebug4(0);
+		csDebugIla[2].setDebug5_64(0);
+		csDebugIla[2].setDebug6_64(0);
 		csDebugIla[3].setDebug0(0);
 		csDebugIla[3].setDebug1(0);
 		csDebugIla[3].setDebug2(0);
 		csDebugIla[3].setDebug3(0);
 		csDebugIla[3].setDebug4(0);
+		csDebugIla[3].setDebug5_64(0);
+		csDebugIla[3].setDebug6_64(0);
 	endrule
-
-	//Vectorize the debug control interfaces so we can use loops later
-//	Vector#(16, Inout#(Bit#(36))) dbgCtrlIfc = newVector();
-// dbgCtrlIfc[0] = nandInfra.dbgCtrl_0;
-// dbgCtrlIfc[1] = nandInfra.dbgCtrl_1;
-// dbgCtrlIfc[2] = nandInfra.dbgCtrl_2;
-// dbgCtrlIfc[3] = nandInfra.dbgCtrl_3;
-// dbgCtrlIfc[4] = nandInfra.dbgCtrl_4;
-// dbgCtrlIfc[5] = nandInfra.dbgCtrl_5;
-// dbgCtrlIfc[6] = nandInfra.dbgCtrl_6;
-// dbgCtrlIfc[7] = nandInfra.dbgCtrl_7;
-//	dbgCtrlIfc[8] = nandInfra.dbgCtrl_8;
-//	dbgCtrlIfc[9] = nandInfra.dbgCtrl_9;
-//	dbgCtrlIfc[10] = nandInfra.dbgCtrl_10;
-//	dbgCtrlIfc[11] = nandInfra.dbgCtrl_11;
-//	dbgCtrlIfc[12] = nandInfra.dbgCtrl_12;
-//	dbgCtrlIfc[13] = nandInfra.dbgCtrl_13;
-//	dbgCtrlIfc[14] = nandInfra.dbgCtrl_14;
-//	dbgCtrlIfc[15] = nandInfra.dbgCtrl_15;
 
 	//Nand WEN/NandClk (because of weird organization, this module is
 	// shared among half buses)
@@ -194,8 +275,6 @@ module mkFlashController#(
 	Vector#(NUM_BUSES, BusControllerIfc) busCtrl = newVector();
 	for (Integer i=0; i<valueOf(NUM_BUSES); i=i+1) begin
 		busCtrl[i] <- mkBusController(nandInfra.clk90, nandInfra.rst90, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
-		//mkConnection(busCtrl[i].phyDebugCtrl.dbgCtrlIla, dbgCtrlIfc[i*2]);
-		//mkConnection(busCtrl[i].phyDebugCtrl.dbgCtrlVio, dbgCtrlIfc[i*2+1]);
 	end
 
 	//Tag to command mapping table
@@ -203,6 +282,8 @@ module mkFlashController#(
 	//Reg#(FlashCmd) tagTable[valueOf(NumTags)];
 	//Since the BSV library Regfile only has 5 read ports, we'll just replicate it for each bus
 	Vector#(NUM_BUSES, RegFile#(TagT, FlashCmd)) tagTable <- replicateM(mkRegFileFull(clocked_by nandInfra.clk0, reset_by nandInfra.rst0));
+	FIFO#(TagT) tagFreeList <- mkSizedFIFO(valueOf(NumTags), clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
+	Reg#(Bit#(16)) tagFreeCnt <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 
 	//for (Integer i=0; i<valueOf(NumTags); i=i+1) begin
 	//	tagTable[i]	<- mkRegU(clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
@@ -214,7 +295,7 @@ module mkFlashController#(
 	Reg#(TbState) returnState <- mkReg(INIT, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 	Reg#(Bit#(64)) vinPrev <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 	//Reg#(ChipT) chip <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
-	Reg#(Bit#(3)) busInd <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
+	Reg#(BusT) busInd <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 	//Reg#(Bit#(16)) block <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 	//Note: random page programming NOT ALLOWED!! Must program sequentially within a block
 	//Reg#(Bit#(8)) page <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
@@ -223,7 +304,7 @@ module mkFlashController#(
 	Vector#(NUM_BUSES, Reg#(FlashCmd)) tagCmd <- replicateM(mkRegU(clocked_by nandInfra.clk0, reset_by nandInfra.rst0));
 	Vector#(NUM_BUSES, Reg#(Bit#(16))) rdataCnt <- replicateM(mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0));
 	Vector#(NUM_BUSES, Reg#(Bit#(16))) wdataCnt <- replicateM(mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0));
-	Vector#(NUM_BUSES, Reg#(Bit#(16))) errCnt <- replicateM(mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0));
+	Vector#(NUM_BUSES, Reg#(Bit#(64))) errCnt <- replicateM(mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0));
 	//Reg#(Bit#(16)) berrCnt <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 	Reg#(Bit#(16)) cmdCnt <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 	Vector#(NUM_BUSES, Reg#(Bit#(16))) rDataDebug <- replicateM(mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0));
@@ -274,40 +355,45 @@ module mkFlashController#(
 					state <= INIT;
 				end
 				else begin
-					state <= IDLE;
+					state <= SETUP_TAG_FREE;
 				end
 			end
 		end
 	endrule
 
+	//setup tag free list
+	rule doSetupTagFreeList if (state==SETUP_TAG_FREE);
+		if (tagFreeCnt < fromInteger(valueOf(NumTags))) begin
+			tagFreeList.enq(truncate(tagFreeCnt));
+			tagFreeCnt <= tagFreeCnt + 1;
+		end
+		else begin
+			state <= IDLE;
+			tagFreeCnt <= 0;
+		end
+	endrule
 
 	//Continuously send commands as fast as possible
 	rule doIdleAcceptCmd if (state==IDLE);
 		//VIO input command from Bus 0's PHY
-		Bit#(64) vin;
-		//Beware that VIO runs much slower than system clock.
-		`ifdef NAND_SIM
-			//use fixed test inputs for sim
-		   vin = 64'h0100000000000000; //choose the first set of test inputs for sim
-		`else
-			//vin = busCtrl[0].phyDebug.getDebugVout();
-			vin = csDebug.vio.getDebugVout();
-		`endif
+		Bit#(64) vin = getCurrVin(csDebug.vio.getDebugVout());
 
 		//select a test set
 		Bit#(8) testSetSel = vin[63:56];
 		if (testSetSel == 0) begin //use VIO as cmd
 			if (vin != 0 && vin != vinPrev) begin
 				vinPrev <= vin;
-				FlashCmd cmd = decodeVin(vin);
-				Bit#(3) b = truncate(vin[47:40]);
+				TagT newTag = tagFreeList.first();
+				tagFreeList.deq();
+				let dec = decodeVin(vin, newTag);
+				let b = tpl_1(dec);
+				let cmd = tpl_2(dec);
 				busCtrl[b].busIfc.sendCmd(cmd); //send cmd
 				for (Integer i=0; i < valueOf(NUM_BUSES); i=i+1) begin
-					tagTable[i].upd(cmd.tag, cmd);
+					tagTable[i].upd(newTag, cmd);
 				end
 				//tagTable[cmd.tag] <= cmd;
 				//tagTable.upd(cmd.tag, cmd); //insert in tag table
-				//dataCnt <= 0;
 				//errCnt <= 0;
 				//cmdCnt <= cmdCnt + 1;
 				$display("@%t\t%m: controller sent cmd: %x", $time, vin);
@@ -316,39 +402,94 @@ module mkFlashController#(
 			cmdCnt <= 0;
 		end
 		else begin //use predefined test set
-			let ts = getTestSetVin(testSetSel, cmdCnt);
-			Bit#(64) vinTest = tpl_2(ts);
-			FlashCmd cmd = decodeVin(vinTest);
-			Bit#(3) b = truncate(vinTest[47:40]);
-			
-			if (cmdCnt<tpl_1(ts)-1) begin //intentionally one less command
-
-				busCtrl[b].busIfc.sendCmd(cmd);
-				//tagTable[cmd.tag] <= cmd;
-				//tagTable.upd(cmd.tag, cmd); //insert in tag table
-				for (Integer i=0; i < valueOf(NUM_BUSES); i=i+1) begin
-					tagTable[i].upd(cmd.tag, cmd);
-				end
-				cmdCnt <= cmdCnt + 1;
-				$display("@%t\t%m: controller sent cmd: %x", $time, vinTest);
+			state <= TEST_SUITE;
+			cmdCnt <= 0;
+			latencyCnt <= 0;
+			for (Integer i=0; i < valueOf(NUM_BUSES); i=i+1) begin
+				errCnt[i] <= 0;
 			end
-			//else begin
-			//	latencyCnt <= 0; //latency counter
-			//	cmdCnt <= 0;
-			//end
+		end
+
+//			let ts = getTestSetVin(testSetSel, cmdCnt);
+//			Bit#(64) vinTest = tpl_2(ts);
+//			FlashCmd cmd = decodeVin(vinTest);
+//			Bit#(3) b = truncate(vinTest[47:40]);
+//			
+//			if (cmdCnt<tpl_1(ts)) begin //intentionally one less command //TODO
+//
+//				busCtrl[b].busIfc.sendCmd(cmd);
+//				//tagTable[cmd.tag] <= cmd;
+//				//tagTable.upd(cmd.tag, cmd); //insert in tag table
+//				for (Integer i=0; i < valueOf(NUM_BUSES); i=i+1) begin
+//					tagTable[i].upd(cmd.tag, cmd);
+//				end
+//				//cmdCnt <= cmdCnt + 1; //FIXME
+//				$display("@%t\t%m: controller sent cmd: %x", $time, vinTest);
+//			end
+//			//else begin
+//			//	latencyCnt <= 0; //latency counter
+//			//	cmdCnt <= 0;
+//			//end
+//		end
+	endrule
+
+
+	rule doTestSuite if (state==TEST_SUITE);
+		//get a free tag
+		TagT newTag = tagFreeList.first();
+		tagFreeList.deq();
+
+		//get new command
+		Bit#(64) vin = getCurrVin(csDebug.vio.getDebugVout());
+		Bit#(8) testSetSel = vin[63:56];
+		let busAndCmd = getNextCmd(newTag, testSetSel, cmdCnt);
+		let bus = tpl_1(busAndCmd);
+		let cmd = tpl_2(busAndCmd);
+
+		//check if done
+		if (cmd.op == INVALID) begin
+			state <= TEST_SUITE_DONE;
+		end
+		else begin
+			//upate tag table
+			for (Integer i=0; i < valueOf(NUM_BUSES); i=i+1) begin
+				tagTable[i].upd(newTag, cmd);
+			end
+			//issue command
+			busCtrl[bus].busIfc.sendCmd(cmd);
+			//increment count, check if done. 
+			cmdCnt <= cmdCnt + 1;
+			$display("@%t\t%m: controller sent cmd: tag=%x, bus=%d, op=%d, chip=%d, blk=%d", $time,
+	  						newTag, bus, cmd.op, cmd.chip, cmd.block);
+		end
+	endrule
+
+	rule doTestSuiteDone if (state==TEST_SUITE_DONE);
+		Bit#(64) vin = getCurrVin(csDebug.vio.getDebugVout());
+		if (vin[63:56] == 0) begin
+			state <= IDLE;
 		end
 	endrule
 
 	rule incLatencyCnt;
 		latencyCnt <= latencyCnt + 1;
 	endrule
-	//Handle write data requests from the BusController
 
+	//Handle write data requests from the BusController
 	for (Integer i=0; i < valueOf(NUM_BUSES); i=i+1) begin
+		rule doEraseAck;
+			TagT t <- busCtrl[i].busIfc.ackErase();
+			tagFreeList.enq(t);
+			$display("@%t\t%m: FlashController erase returned tag=%x", $time, t);
+		endrule
+
 		rule doWriteDataReq if (wrState[i] == 0);
 			TagT tag <- busCtrl[i].busIfc.writeDataReq();
 			tagCmd[i] <= tagTable[i].sub(tag);
 			//tagCmd[i] <= tagTable[tag];
+			//Return free tag. May create conflicts, but its ok
+			tagFreeList.enq(tag); 
+			$display("@%t\t%m: FlashController write returned tag=%x", $time, tag);
 			wdataCnt[i] <= 0;
 			wrState[i] <= 1;
 		endrule
@@ -398,6 +539,9 @@ module mkFlashController#(
 				rdataCnt[i] <= rdataCnt[i] + 1;
 			end
 			else begin
+				//return tag. Again this may conflict, but it should be ok. We have enough buffering
+				tagFreeList.enq(cmd.tag);
+				$display("@%t\t%m: FlashController read returned tag=%x", $time, cmd.tag);
 				rdataCnt[i] <= 0;
 			end
 		endrule
@@ -413,11 +557,14 @@ module mkFlashController#(
 			//busCtrl[i].phyDebug.setDebug4(cmdCnt);
 			//busCtrl[i].phyDebug.setDebug4(rDataDebug[i]); //Error corrected data
 			//busCtrl[i].phyDebug.setDebugVin(busCtrl[i].phyDebug.getDebugVout());
-			csDebugIla[i].setDebug0(busCtrl[i].busIfc.getDebugR0); 
-			csDebugIla[i].setDebug1(busCtrl[i].busIfc.getDebugR1); 
-			csDebugIla[i].setDebug2(latencyCnt[25:10]); //approximate to 1024 accuracy
-			csDebugIla[i].setDebug3(errCnt[i]);
-			csDebugIla[i].setDebug4(rDataDebug[i]); //Error corrected data
+			csDebugIla[i].setDebug0(busCtrl[i].busIfc.getDebugRawData); 
+			csDebugIla[i].setDebug1(busCtrl[i].busIfc.getDebugBusState); 
+			csDebugIla[i].setDebug2(busCtrl[i].busIfc.getDebugAddr); 
+			csDebugIla[i].setDebug3(rDataDebug[i]); //Error corrected data
+			csDebugIla[i].setDebug4(zeroExtend(pack(state)));
+			//latencyCnt[25:10]); //approximate to 1024 accuracy
+			csDebugIla[i].setDebug5_64(latencyCnt);
+			csDebugIla[i].setDebug6_64(errCnt[i]);
 		endrule
 	end
 

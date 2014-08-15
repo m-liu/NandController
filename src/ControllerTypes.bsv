@@ -27,6 +27,7 @@ Integer pageECCBlks = 17; //16 blocks of k=243; 1 block of k=208
 typedef 128 NumTags;
 typedef Bit#(TLog#(NumTags)) TagT;
 typedef Bit#(TLog#(ChipsPerBus)) ChipT;
+typedef Bit#(TLog#(NUM_BUSES)) BusT;
 
 //----------------------
 //Phy related types
@@ -108,7 +109,8 @@ typedef enum {
 	INIT_SYNC,
 	READ_PAGE,
 	WRITE_PAGE,
-	ERASE_BLOCK
+	ERASE_BLOCK,
+	INVALID
 } FlashOp deriving (Bits, Eq);
 
 typedef struct {
