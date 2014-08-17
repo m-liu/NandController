@@ -115,6 +115,19 @@ function Bit#(8) orderDQ (Bit#(8) dq_in, Bit#(8) cen);
 		return reverseBits(dq_in);
 endfunction
 
+function Bit#(3) ceTranslateSLC (ChipT cen);
+	Bit#(3) transCen;
+	case (cen) 
+		0: transCen = 2;
+		1: transCen = 3;
+		2: transCen = 6;
+		3: transCen = 7;
+		default: transCen = 0;
+	endcase
+	return transCen;
+endfunction
+
+
 //Default clock and resets are: clk0 and rst0
 (* synthesize *)
 module mkNandPhy#(
@@ -354,7 +367,11 @@ module mkNandPhy#(
 	//****************************************
 	rule doAsyncCmdBusIdle if (currState==ASYNC_CHIP_SEL);
 		//one hot encode CE#
-		ChipT ce_encoded = ctrlCmdQ.first().nandCmd.ChipSel;
+		`ifdef SLC_NAND
+			ChipT ce_encoded = ceTranslateSLC(ctrlCmdQ.first().nandCmd.ChipSel)
+		`else
+			ChipT ce_encoded = ctrlCmdQ.first().nandCmd.ChipSel;
+		`endif
 		Bit#(8) cen_one_hot = ~(1 << ce_encoded);
 		cen <= cen_one_hot; //CE# low
 		cle <= 0; //DC
@@ -571,7 +588,11 @@ module mkNandPhy#(
 	//******************************************************
 	rule doSyncBusIdle if (currState==SYNC_CHIP_SEL);
 		//one hot encode CE#
-		ChipT ce_encoded = ctrlCmdQ.first().nandCmd.ChipSel;
+		`ifdef SLC_NAND
+			ChipT ce_encoded = ceTranslateSLC(ctrlCmdQ.first().nandCmd.ChipSel);
+		`else
+			ChipT ce_encoded = ctrlCmdQ.first().nandCmd.ChipSel;
+		`endif
 		Bit#(8) cen_one_hot = ~(1 << ce_encoded);
 		cen <= cen_one_hot; //CE# low
 		ale <= 0;

@@ -25,8 +25,8 @@ typedef enum {
 	DONE = 9,
 	SETUP_TAG_FREE = 10,
 	TEST_SUITE = 11,
-	TEST_SUITE_DONE = 12,
-	ERROR_READBACK = 13
+	TEST_SUITE_WAIT_DONE = 12,
+	TEST_SUITE_DONE = 13
 } TbState deriving (Bits, Eq);
 
 
@@ -72,7 +72,7 @@ function Bit#(64) getCurrVin(Bit#(64) vio_in);
 	Bit#(64) vin;
 	`ifdef NAND_SIM
 		//use fixed test inputs for sim
-		vin = 64'h04010000005a0000; //choose the first set of test inputs for sim
+		vin = 64'h01010000005a0000; //choose the first set of test inputs for sim
 	`else
 		vin = vio_in;
 	`endif
@@ -160,11 +160,11 @@ function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(
 	ChipT c = 0;
 	BusT bus = 0;
 	Bit#(16) blk = 0;
-	Integer seqNumBlks = 512;
+	Integer numSeqBlks = 1024;
 
 	//sequential read, same bus
 	if (testSetSel == 1) begin
-		if (cmdCnt < 1024) begin //issue 10k commands (~80MB)
+		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
 			bus = 0;
 			c = cmdCnt[2:0]; 
 			blk = zeroExtend(cmdCnt[15:3]);
@@ -173,7 +173,7 @@ function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(
 	end
 	//sequential write, same bus
 	else if (testSetSel == 2) begin
-		if (cmdCnt < 1024) begin //issue 10k commands (~80MB)
+		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
 			bus = 0;
 			c = cmdCnt[2:0]; 
 			blk = zeroExtend(cmdCnt[15:3]);
@@ -183,7 +183,7 @@ function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(
 
 	//sequential erase, same bus
 	else if (testSetSel == 3) begin
-		if (cmdCnt < 1024) begin //issue 10k commands (~80MB)
+		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
 			bus = 0;
 			c = cmdCnt[2:0]; 
 			blk = zeroExtend(cmdCnt[15:3]);
@@ -193,7 +193,7 @@ function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(
 
 	//sequential read, 2 buses
 	else if (testSetSel == 4) begin
-		if (cmdCnt < 1024) begin //issue 10k commands (~80MB)
+		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
 			bus = zeroExtend(cmdCnt[0]); 
 			c = cmdCnt[3:1]; 
 			blk = zeroExtend(cmdCnt[15:4]);
@@ -202,7 +202,7 @@ function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(
 	end
 	//sequential write, 2 buses
 	else if (testSetSel == 5) begin
-		if (cmdCnt < 1024) begin //issue 10k commands (~80MB)
+		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
 			bus = zeroExtend(cmdCnt[0]); 
 			c = cmdCnt[3:1]; 
 			blk = zeroExtend(cmdCnt[15:4]);
@@ -211,7 +211,7 @@ function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(
 	end
 	//sequential erase, different bus
 	else if (testSetSel == 6) begin
-		if (cmdCnt < 1024) begin //issue 10k commands (~80MB)
+		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
 			bus = zeroExtend(cmdCnt[0]); 
 			c = cmdCnt[3:1]; 
 			blk = zeroExtend(cmdCnt[15:4]);
@@ -282,7 +282,7 @@ module mkFlashController#(
 	//Reg#(FlashCmd) tagTable[valueOf(NumTags)];
 	//Since the BSV library Regfile only has 5 read ports, we'll just replicate it for each bus
 	Vector#(NUM_BUSES, RegFile#(TagT, FlashCmd)) tagTable <- replicateM(mkRegFileFull(clocked_by nandInfra.clk0, reset_by nandInfra.rst0));
-	FIFO#(TagT) tagFreeListShared <- mkSizedFIFO(valueOf(NumTags), clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
+	FIFOF#(TagT) tagFreeListShared <- mkSizedFIFOF(valueOf(NumTags), clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 	Vector#(NUM_BUSES, FIFO#(TagT)) tagFreeListBus <- replicateM( mkSizedFIFO(valueOf(NumTags), clocked_by nandInfra.clk0, reset_by nandInfra.rst0));
 	Reg#(Bit#(16)) tagFreeCnt <- mkReg(0, clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 
@@ -450,7 +450,6 @@ module mkFlashController#(
 	rule doTestSuite if (state==TEST_SUITE);
 		//get a free tag
 		TagT newTag = tagFreeListShared.first();
-		tagFreeListShared.deq();
 
 		//get new command
 		Bit#(64) vin = getCurrVin(csDebug.vio.getDebugVout());
@@ -461,9 +460,10 @@ module mkFlashController#(
 
 		//check if done
 		if (cmd.op == INVALID) begin
-			state <= TEST_SUITE_DONE;
+			state <= TEST_SUITE_WAIT_DONE;
 		end
 		else begin
+			tagFreeListShared.deq(); //deq only when command is valid!!
 			//upate tag table
 			for (Integer i=0; i < valueOf(NUM_BUSES); i=i+1) begin
 				tagTable[i].upd(newTag, cmd);
@@ -477,8 +477,15 @@ module mkFlashController#(
 		end
 	endrule
 
+	rule doTestSuiteWaitDone if (state==TEST_SUITE_WAIT_DONE);
+		if (!tagFreeListShared.notFull) begin //wait until all tags are returned
+			state <= TEST_SUITE_DONE;
+		end
+	endrule
+
 	rule doTestSuiteDone if (state==TEST_SUITE_DONE);
 		Bit#(64) vin = getCurrVin(csDebug.vio.getDebugVout());
+		$display("@%t\t%m: controller test suite complete", $time);
 		if (vin[63:56] == 0) begin
 			state <= IDLE;
 		end
@@ -500,9 +507,6 @@ module mkFlashController#(
 			TagT tag <- busCtrl[i].busIfc.writeDataReq();
 			tagCmd[i] <= tagTable[i].sub(tag);
 			//tagCmd[i] <= tagTable[tag];
-			//Return free tag. May create conflicts, but its ok
-			tagFreeListBus[i].enq(tag); 
-			$display("@%t\t%m: FlashController write returned tag=%x", $time, tag);
 			wdataCnt[i] <= 0;
 			wrState[i] <= 1;
 		endrule
@@ -517,6 +521,9 @@ module mkFlashController#(
 			end
 			else begin
 				wrState[i] <= 0;
+				//Return free tag.
+				tagFreeListBus[i].enq(tagCmd[i].tag); 
+				$display("@%t\t%m: FlashController write returned tag=%x", $time, tagCmd[i].tag);
 			end
 		endrule
 		

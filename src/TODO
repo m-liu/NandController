@@ -2,14 +2,11 @@
 - ECC can't correct flag handling
 - May need additional ECC decoders to max bandwidth
 - Possible issue: decodeInQ is full if there are too many errors. This could occur after many sequential reads as the buffer slowly fills due to slow ECC.
+- Handle status returning E1 on block erases (failed)
 
 - SB optimization: prioritize read command issuing
-- [in progress] Compile for 8 buses - does regfile have enough ports? No. We can either replicate for each bus or try to use arrays directly. Replicated.
-- [in progress] create separate block for chipscope ICON and ILA 
-- try reads on simultaneous buses jeez!!
+- Adjust status polling freq
 - Sim test erases, r/w/e mixed 
-- Handle status returning E1 on block erases (failed)
-- FIX LATENCY COUNTER (keep two 64bit counters, one for lat one for bytes read)
 
 
 
@@ -22,6 +19,10 @@
 
 
 /*** DONE ***/
+- FIX LATENCY COUNTER (keep two 64bit counters, one for lat one for bytes read)
+- Compile for 8 buses - does regfile have enough ports? No. We can either replicate for each bus or try to use arrays directly. Replicated.
+- create separate block for chipscope ICON and ILA 
+- try reads on simultaneous buses jeez!!
 - Scoreboard: 
 	- [ok] ECC decoder in buffer resizing; 
 	- [ok] change POLL_STATUS to GET_STATUS and return status to sb
