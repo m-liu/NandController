@@ -9,7 +9,11 @@ typedef 1 NUM_CHIPBUSES; //TODO FIXME XXX
 typedef 2 BUSES_PER_CHIPBUS;
 typedef TMul#(NUM_CHIPBUSES, BUSES_PER_CHIPBUS) NUM_BUSES;
 
-typedef 8 ChipsPerBus;
+`ifdef SLC_NAND
+	typedef 4 ChipsPerBus;
+`else
+	typedef 8 ChipsPerBus;
+`endif
 
 //NAND geometry
 //Actual page size is 8640B, but we don't need the last 40B for ECC

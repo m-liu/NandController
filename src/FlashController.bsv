@@ -166,8 +166,13 @@ function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(
 	if (testSetSel == 1) begin
 		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
 			bus = 0;
-			c = cmdCnt[2:0]; 
-			blk = zeroExtend(cmdCnt[15:3]);
+			`ifdef SLC_NAND
+				c = cmdCnt[1:0]; 
+				blk = zeroExtend(cmdCnt[15:2]);
+			`else
+				c = cmdCnt[2:0]; 
+				blk = zeroExtend(cmdCnt[15:3]);
+			`endif
 			op = READ_PAGE;
 		end
 	end
@@ -175,8 +180,13 @@ function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(
 	else if (testSetSel == 2) begin
 		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
 			bus = 0;
-			c = cmdCnt[2:0]; 
-			blk = zeroExtend(cmdCnt[15:3]);
+			`ifdef SLC_NAND
+				c = cmdCnt[1:0]; 
+				blk = zeroExtend(cmdCnt[15:2]);
+			`else
+				c = cmdCnt[2:0]; 
+				blk = zeroExtend(cmdCnt[15:3]);
+			`endif
 			op = WRITE_PAGE;
 		end
 	end
@@ -185,8 +195,13 @@ function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(
 	else if (testSetSel == 3) begin
 		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
 			bus = 0;
-			c = cmdCnt[2:0]; 
-			blk = zeroExtend(cmdCnt[15:3]);
+			`ifdef SLC_NAND
+				c = cmdCnt[1:0]; 
+				blk = zeroExtend(cmdCnt[15:2]);
+			`else
+				c = cmdCnt[2:0]; 
+				blk = zeroExtend(cmdCnt[15:3]);
+			`endif
 			op = ERASE_BLOCK;
 		end
 	end
@@ -195,8 +210,13 @@ function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(
 	else if (testSetSel == 4) begin
 		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
 			bus = zeroExtend(cmdCnt[0]); 
-			c = cmdCnt[3:1]; 
-			blk = zeroExtend(cmdCnt[15:4]);
+			`ifdef SLC_NAND
+				c = cmdCnt[2:1]; 
+				blk = zeroExtend(cmdCnt[15:3]);
+			`else
+				c = cmdCnt[3:1]; 
+				blk = zeroExtend(cmdCnt[15:4]);
+			`endif
 			op = READ_PAGE;
 		end
 	end
@@ -204,8 +224,13 @@ function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(
 	else if (testSetSel == 5) begin
 		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
 			bus = zeroExtend(cmdCnt[0]); 
-			c = cmdCnt[3:1]; 
-			blk = zeroExtend(cmdCnt[15:4]);
+			`ifdef SLC_NAND
+				c = cmdCnt[2:1]; 
+				blk = zeroExtend(cmdCnt[15:3]);
+			`else
+				c = cmdCnt[3:1]; 
+				blk = zeroExtend(cmdCnt[15:4]);
+			`endif
 			op = WRITE_PAGE;
 		end
 	end
@@ -213,8 +238,13 @@ function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(
 	else if (testSetSel == 6) begin
 		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
 			bus = zeroExtend(cmdCnt[0]); 
-			c = cmdCnt[3:1]; 
-			blk = zeroExtend(cmdCnt[15:4]);
+			`ifdef SLC_NAND
+				c = cmdCnt[2:1]; 
+				blk = zeroExtend(cmdCnt[15:3]);
+			`else
+				c = cmdCnt[3:1]; 
+				blk = zeroExtend(cmdCnt[15:4]);
+			`endif
 			op = ERASE_BLOCK;
 		end
 	end

@@ -118,10 +118,10 @@ endfunction
 function Bit#(3) ceTranslateSLC (ChipT cen);
 	Bit#(3) transCen;
 	case (cen) 
-		0: transCen = 2;
-		1: transCen = 3;
-		2: transCen = 6;
-		3: transCen = 7;
+		0: transCen = 0;
+		1: transCen = 1;
+		2: transCen = 4;
+		3: transCen = 5;
 		default: transCen = 0;
 	endcase
 	return transCen;
@@ -368,9 +368,9 @@ module mkNandPhy#(
 	rule doAsyncCmdBusIdle if (currState==ASYNC_CHIP_SEL);
 		//one hot encode CE#
 		`ifdef SLC_NAND
-			ChipT ce_encoded = ceTranslateSLC(ctrlCmdQ.first().nandCmd.ChipSel)
+			Bit#(3) ce_encoded = ceTranslateSLC(ctrlCmdQ.first().nandCmd.ChipSel);
 		`else
-			ChipT ce_encoded = ctrlCmdQ.first().nandCmd.ChipSel;
+			Bit#(3) ce_encoded = ctrlCmdQ.first().nandCmd.ChipSel;
 		`endif
 		Bit#(8) cen_one_hot = ~(1 << ce_encoded);
 		cen <= cen_one_hot; //CE# low
@@ -589,9 +589,9 @@ module mkNandPhy#(
 	rule doSyncBusIdle if (currState==SYNC_CHIP_SEL);
 		//one hot encode CE#
 		`ifdef SLC_NAND
-			ChipT ce_encoded = ceTranslateSLC(ctrlCmdQ.first().nandCmd.ChipSel);
+			Bit#(3) ce_encoded = ceTranslateSLC(ctrlCmdQ.first().nandCmd.ChipSel);
 		`else
-			ChipT ce_encoded = ctrlCmdQ.first().nandCmd.ChipSel;
+			Bit#(3) ce_encoded = ctrlCmdQ.first().nandCmd.ChipSel;
 		`endif
 		Bit#(8) cen_one_hot = ~(1 << ce_encoded);
 		cen <= cen_one_hot; //CE# low
