@@ -5,6 +5,7 @@
 - Handle status returning E1 on block erases (failed)
 
 - SB optimization: prioritize read command issuing
+- SB resource reduction: get rid of BRAM FIFO on chipQs
 - Adjust status polling freq
 - Sim test erases, r/w/e mixed 
 

@@ -79,88 +79,12 @@ function Bit#(64) getCurrVin(Bit#(64) vio_in);
 	return vin;
 endfunction
 
-function Tuple2#(Bit#(16), Bit#(64)) getTestSetVin (Bit#(8) testSetSel, Bit#(16) cmdCnt);
-	//Mapping: cmd = [63:48], bus = [47:40], chip = [39:32], block = [31:16], tag = [15:0]
-	//Vector#(nTestCmds, Bit#(64)) vinTest = newVector();
-	Integer nTestCmds1 = 12;
-	Bit#(64) testSet1[nTestCmds1] = {
-		64'h0102010000050000, //wr blk 5, chip0, bus1, tag 0
-		64'h0102010100050001, //wr blk 5, chip1, bus1, tag 1
-		64'h0102010200050002, //wr blk 5, chip2, bus1, tag 1
-		64'h0102010300050003, //wr blk 5, chip3, bus1, tag 1
-		64'h0102010400050004, //wr blk 5, chip4, bus1, tag 1
-		64'h0102010500050005, //wr blk 5, chip5, bus1, tag 1
-		64'h0101010000050006, //rd blk 5, chip0, bus1, tag 1
-		64'h0101010100050007, //rd blk 5, chip1, bus1, tag 1
-		64'h0101010200050008, //rd blk 5, chip2, bus1
-		64'h0101010300050009, //rd blk 5, chip3, bus1
-		64'h010101040005000A, //wr blk 5, chip4, bus1, tag 1
-		64'h010101050005000B //wr blk 5, chip5, bus1, tag 1
-	};
-	Integer nTestCmds2 = 12;
-	Bit#(64) testSet2[nTestCmds2] = {
-		64'h0201010000050000, //rd blk 0, chip0, bus1, tag 0
-		64'h0201010100050001, //rd blk 0, chip1, bus1, tag 1
-		64'h0201010200050002, //rd blk 0, chip2, bus1, tag 1
-		64'h0201010300050003, //rd blk 0, chip3, bus1, tag 1
-		64'h0201010400050004, //rd blk 0, chip4, bus1, tag 1
-		64'h0201010500050005, //rd blk 0, chip5, bus1, tag 1
-		64'h0201010600050006, //rd blk 0, chip6, bus1, tag 1
-		64'h0201010700050007, //rd blk 0, chip7, bus1, tag 1
-		64'h0201010000050008, //rd blk 0, chip0, bus1
-		64'h0201010100050009, //rd blk 0, chip1, bus1
-		64'h020101020005000A, //rd blk 0, chip2, bus1, tag 1
-		64'h020101030005000B	 //rd blk 0, chip3, bus1, tag 1
-	};
-	Integer nTestCmds3 = 6;
-	Bit#(64) testSet3[nTestCmds3] = {
-		64'h0102010000050000, //wr blk 5, chip0, bus1, tag 0
-		64'h0102010100050001, //wr blk 5, chip1, bus1, tag 1
-		64'h0102010200050002, //wr blk 5, chip2, bus1, tag 1
-		64'h0102010300050003, //wr blk 5, chip3, bus1, tag 1
-		64'h0102010400050004, //wr blk 5, chip4, bus1, tag 1
-		64'h0102010500050005 //wr blk 5, chip5, bus1, tag 1
-	};
-	
-	Integer nTestCmds4 = 12;
-	Bit#(64) testSet4[nTestCmds4] = {
-		64'h0101010000050006, //rd blk 5, chip0, bus1, tag 1
-		64'h0101010100050007, //rd blk 5, chip1, bus1, tag 1
-		64'h0101020200050008, //rd blk 5, chip2, bus1
-		64'h0101010300050009, //rd blk 5, chip3, bus1
-		64'h010102040005000A, //wr blk 5, chip4, bus1, tag 1
-		64'h010101050005000B, //wr blk 5, chip5, bus1, tag 1
-		64'h0101020000050006, //rd blk 5, chip0, bus1, tag 1
-		64'h0101010100050007, //rd blk 5, chip1, bus1, tag 1
-		64'h0101020200050008, //rd blk 5, chip2, bus1
-		64'h0101010300050009, //rd blk 5, chip3, bus1
-		64'h010102040005000A, //wr blk 5, chip4, bus1, tag 1
-		64'h010101050005000B //wr blk 5, chip5, bus1, tag 1
-	};
-
-	Integer nTestCmds5 = 1;
-	Bit#(64) testSet5[nTestCmds5] = {
-		64'h0102010000050000 //wr blk 5, chip0, bus1, tag 0
-	};
-
-	Tuple2#(Bit#(16), Bit#(64)) vinRet;
-	case (testSetSel)
-		1: vinRet = tuple2(fromInteger(nTestCmds1), testSet1[cmdCnt]);
-		2: vinRet = tuple2(fromInteger(nTestCmds2), testSet2[cmdCnt]);
-		3: vinRet = tuple2(fromInteger(nTestCmds3), testSet3[cmdCnt]);
-		4: vinRet = tuple2(fromInteger(nTestCmds4), testSet4[cmdCnt]);
-		5: vinRet = tuple2(fromInteger(nTestCmds5), testSet5[cmdCnt]);
-		default:	vinRet = tuple2(0,0);
-	endcase
-	return vinRet;
-endfunction
-
 function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(16) cmdCnt);
 	FlashOp op = INVALID;
 	ChipT c = 0;
 	BusT bus = 0;
 	Bit#(16) blk = 0;
-	Integer numSeqBlks = 1024;
+	Integer numSeqBlks = 16384;
 
 	//sequential read, same bus
 	if (testSetSel == 1) begin
@@ -234,7 +158,7 @@ function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(
 			op = WRITE_PAGE;
 		end
 	end
-	//sequential erase, different bus
+	//sequential erase, 2 buses
 	else if (testSetSel == 6) begin
 		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
 			bus = zeroExtend(cmdCnt[0]); 
@@ -245,6 +169,178 @@ function Tuple2#(BusT, FlashCmd) getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(
 				c = cmdCnt[3:1]; 
 				blk = zeroExtend(cmdCnt[15:4]);
 			`endif
+			op = ERASE_BLOCK;
+		end
+	end
+
+	//sequential read, 4 buses
+	else if (testSetSel == 7) begin
+		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
+			bus = zeroExtend(cmdCnt[1:0]); 
+			c = cmdCnt[4:2]; 
+			blk = zeroExtend(cmdCnt[15:5]);
+			op = READ_PAGE;
+		end
+	end
+	//sequential write, 4 buses
+	else if (testSetSel == 8) begin
+		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
+			bus = zeroExtend(cmdCnt[1:0]); 
+			c = cmdCnt[4:2]; 
+			blk = zeroExtend(cmdCnt[15:5]);
+			op = WRITE_PAGE;
+		end
+	end
+	//sequential erase, 4 buses
+	else if (testSetSel == 9) begin
+		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
+			bus = zeroExtend(cmdCnt[1:0]); 
+			c = cmdCnt[4:2]; 
+			blk = zeroExtend(cmdCnt[15:5]);
+			op = ERASE_BLOCK;
+		end
+	end
+
+	//sequential read, 8 buses
+	else if (testSetSel == 10) begin
+		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
+			bus = zeroExtend(cmdCnt[2:0]); 
+			c = cmdCnt[5:3]; 
+			blk = zeroExtend(cmdCnt[15:6]);
+			op = READ_PAGE;
+		end
+	end
+	//sequential write, 8 buses
+	else if (testSetSel == 11) begin
+		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
+			bus = zeroExtend(cmdCnt[2:0]); 
+			c = cmdCnt[5:3]; 
+			blk = zeroExtend(cmdCnt[15:6]);
+			op = WRITE_PAGE;
+		end
+	end
+	//sequential erase, 8 buses
+	else if (testSetSel == 12) begin
+		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
+			bus = zeroExtend(cmdCnt[2:0]); 
+			c = cmdCnt[5:3]; 
+			blk = zeroExtend(cmdCnt[15:6]);
+			op = ERASE_BLOCK;
+		end
+	end
+	//----------------------------------------------------------
+	//sequential read, same bus, one chip
+	else if (testSetSel == 13) begin
+		if (cmdCnt < fromInteger(numSeqBlks/8)) begin //issue 10k commands (~80MB)
+			bus = 0;
+			c = 0; 
+			blk = zeroExtend(cmdCnt[15:0]);
+			op = READ_PAGE;
+		end
+	end
+	//sequential write, same bus, one chip
+	else if (testSetSel == 14) begin
+		if (cmdCnt < fromInteger(numSeqBlks/8)) begin //issue 10k commands (~80MB)
+			bus = 0;
+			c = 0; 
+			blk = zeroExtend(cmdCnt[15:0]);
+			op = WRITE_PAGE;
+		end
+	end
+
+	//sequential erase, same bus, one chip
+	else if (testSetSel == 15) begin
+		if (cmdCnt < fromInteger(numSeqBlks/8)) begin //issue 10k commands (~80MB)
+			bus = 0;
+			c = 0; 
+			blk = zeroExtend(cmdCnt[15:0]);
+			op = ERASE_BLOCK;
+		end
+	end
+
+	//sequential read, same bus, 2 chips
+	else if (testSetSel == 16) begin
+		if (cmdCnt < fromInteger(numSeqBlks/8)) begin //issue 10k commands (~80MB)
+			bus = 0;
+			c = zeroExtend(cmdCnt[0]); 
+			blk = zeroExtend(cmdCnt[15:1]);
+			op = READ_PAGE;
+		end
+	end
+	//sequential write, same bus, 2 chip
+	else if (testSetSel == 17) begin
+		if (cmdCnt < fromInteger(numSeqBlks/8)) begin //issue 10k commands (~80MB)
+			bus = 0;
+			c = zeroExtend(cmdCnt[0]); 
+			blk = zeroExtend(cmdCnt[15:1]);
+			op = WRITE_PAGE;
+		end
+	end
+
+	//sequential erase, same bus, 2 chips
+	else if (testSetSel == 18) begin
+		if (cmdCnt < fromInteger(numSeqBlks/8)) begin //issue 10k commands (~80MB)
+			bus = 0;
+			c = zeroExtend(cmdCnt[0]); 
+			blk = zeroExtend(cmdCnt[15:1]);
+			op = ERASE_BLOCK;
+		end
+	end
+
+	//sequential read, same bus, 4 chip
+	else if (testSetSel == 19) begin
+		if (cmdCnt < fromInteger(numSeqBlks/8)) begin //issue 10k commands (~80MB)
+			bus = 0;
+			c = zeroExtend(cmdCnt[1:0]); 
+			blk = zeroExtend(cmdCnt[15:2]);
+			op = READ_PAGE;
+		end
+	end
+	//sequential write, same bus, 4 chip
+	else if (testSetSel == 20) begin
+		if (cmdCnt < fromInteger(numSeqBlks/8)) begin //issue 10k commands (~80MB)
+			bus = 0;
+			c = zeroExtend(cmdCnt[1:0]); 
+			blk = zeroExtend(cmdCnt[15:2]);
+			op = WRITE_PAGE;
+		end
+	end
+
+	//sequential erase, same bus, 4 chips
+	else if (testSetSel == 21) begin
+		if (cmdCnt < fromInteger(numSeqBlks/8)) begin //issue 10k commands (~80MB)
+			bus = 0;
+			c = zeroExtend(cmdCnt[1:0]); 
+			blk = zeroExtend(cmdCnt[15:2]);
+			op = ERASE_BLOCK;
+		end
+	end
+
+	//sequential read, same bus, 8 chip
+	else if (testSetSel == 22) begin
+		if (cmdCnt < fromInteger(numSeqBlks/8)) begin //issue 10k commands (~80MB)
+			bus = 0;
+			c = cmdCnt[2:0]; 
+			blk = zeroExtend(cmdCnt[15:3]);
+			op = READ_PAGE;
+		end
+	end
+	//sequential write, same bus, 8 chip
+	else if (testSetSel == 23) begin
+		if (cmdCnt < fromInteger(numSeqBlks/8)) begin //issue 10k commands (~80MB)
+			bus = 0;
+			c = cmdCnt[2:0]; 
+			blk = zeroExtend(cmdCnt[15:3]);
+			op = WRITE_PAGE;
+		end
+	end
+
+	//sequential erase, same bus, 8 chips
+	else if (testSetSel == 24) begin
+		if (cmdCnt < fromInteger(numSeqBlks/8)) begin //issue 10k commands (~80MB)
+			bus = 0;
+			c = cmdCnt[2:0]; 
+			blk = zeroExtend(cmdCnt[15:3]);
 			op = ERASE_BLOCK;
 		end
 	end
@@ -274,12 +370,17 @@ module mkFlashController#(
 	//chipscope debug
 	CSDebugIfc csDebug <- mkChipscopeDebug(clocked_by nandInfra.clk0, reset_by nandInfra.rst0);
 	//Vectorize
-	Vector#(4, DebugILA) csDebugIla = newVector();
+	Vector#(NUM_DEBUG_ILAS, DebugILA) csDebugIla = newVector(); //8
 	csDebugIla[0] = csDebug.ila0;
 	csDebugIla[1] = csDebug.ila1;
 	csDebugIla[2] = csDebug.ila2;
 	csDebugIla[3] = csDebug.ila3;
+	csDebugIla[4] = csDebug.ila4;
+	csDebugIla[5] = csDebug.ila5;
+	csDebugIla[6] = csDebug.ila6;
+	csDebugIla[7] = csDebug.ila7;
 
+	/*
 	rule setILAZero;
 		csDebugIla[2].setDebug0(0);
 		csDebugIla[2].setDebug1(0);
@@ -296,6 +397,7 @@ module mkFlashController#(
 		csDebugIla[3].setDebug5_64(0);
 		csDebugIla[3].setDebug6_64(0);
 	endrule
+	*/
 
 	//Nand WEN/NandClk (because of weird organization, this module is
 	// shared among half buses)
@@ -452,28 +554,6 @@ module mkFlashController#(
 				errCnt[i] <= 0;
 			end
 		end
-
-//			let ts = getTestSetVin(testSetSel, cmdCnt);
-//			Bit#(64) vinTest = tpl_2(ts);
-//			FlashCmd cmd = decodeVin(vinTest);
-//			Bit#(3) b = truncate(vinTest[47:40]);
-//			
-//			if (cmdCnt<tpl_1(ts)) begin //intentionally one less command //TODO
-//
-//				busCtrl[b].busIfc.sendCmd(cmd);
-//				//tagTable[cmd.tag] <= cmd;
-//				//tagTable.upd(cmd.tag, cmd); //insert in tag table
-//				for (Integer i=0; i < valueOf(NUM_BUSES); i=i+1) begin
-//					tagTable[i].upd(cmd.tag, cmd);
-//				end
-//				//cmdCnt <= cmdCnt + 1; //FIXME
-//				$display("@%t\t%m: controller sent cmd: %x", $time, vinTest);
-//			end
-//			//else begin
-//			//	latencyCnt <= 0; //latency counter
-//			//	cmdCnt <= 0;
-//			//end
-//		end
 	endrule
 
 
@@ -600,19 +680,11 @@ module mkFlashController#(
 
 	for (Integer i=0; i < valueOf(NUM_BUSES); i=i+1) begin
 		rule debugSet;
-			//busCtrl[i].phyDebug.setDebug2(zeroExtend(pack(state)));
-			//busCtrl[i].phyDebug.setDebug2(rdataCnt[i]);
-			//busCtrl[i].phyDebug.setDebug2(latencyCnt[25:10]); //approximate to 1024 accuracy
-			//busCtrl[i].phyDebug.setDebug3(errCnt[i]);
-			//busCtrl[i].phyDebug.setDebug4(cmdCnt);
-			//busCtrl[i].phyDebug.setDebug4(rDataDebug[i]); //Error corrected data
-			//busCtrl[i].phyDebug.setDebugVin(busCtrl[i].phyDebug.getDebugVout());
 			csDebugIla[i].setDebug0(busCtrl[i].busIfc.getDebugRawData); 
 			csDebugIla[i].setDebug1(busCtrl[i].busIfc.getDebugBusState); 
 			csDebugIla[i].setDebug2(busCtrl[i].busIfc.getDebugAddr); 
 			csDebugIla[i].setDebug3(rDataDebug[i]); //Error corrected data
 			csDebugIla[i].setDebug4(zeroExtend(pack(state)));
-			//latencyCnt[25:10]); //approximate to 1024 accuracy
 			csDebugIla[i].setDebug5_64(latencyCnt);
 			csDebugIla[i].setDebug6_64(errCnt[i]);
 		endrule
