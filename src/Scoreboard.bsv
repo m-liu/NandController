@@ -14,6 +14,7 @@ typedef enum {
 	INIT,
 	RD_ISSUED,
 	RD_DATA,
+	WR_BUF_REQ_ISSUED,
 	WR_ISSUED,
 	ER_ISSUED, 
 	WAIT_STATUS
@@ -27,7 +28,8 @@ interface SBIfc;
 	interface Put#(FlashCmd) cmdIn;
 	interface Get#(BusCmd) cmdOut;
 	interface Put#(Tuple2#(ChipT, Bool)) busyIn;
-	method Action setWdataRdy(Bit#(ChipsPerBus) rdys);
+	(* always_enabled *)
+	method Action setWdataRdy(Bool rdy, TagT tag);
 	//method Bool isSBIdle();
 endinterface
 
@@ -50,7 +52,8 @@ module mkScoreboard(SBIfc);
 	Reg#(ChipT) currChip <- mkReg(0);
 	Reg#(BusCmd) currCmdOut <- mkRegU();
 	Reg#(SBState) state <- mkReg(NEXT_REQ);
-	Reg#(Bit#(ChipsPerBus)) wdataRdys <- mkReg(0);
+	Reg#(Bool) wdataRdy <- mkReg(False);
+	Reg#(TagT) wdataRdyTag <- mkRegU();
 
 	SBElem currReq = chipQs[currChip].first();
 
@@ -96,8 +99,14 @@ module mkScoreboard(SBIfc);
 			end
 			WRITE_PAGE: begin
 				if (chipStages[currChip] == INIT) begin
-					//check if write page data is ready
-					if (wdataRdys[currChip]==1) begin
+					//issue req to buffer data
+					busOp = WRITE_DATA_BUF_REQ;
+					chipStages[currChip] <= WR_BUF_REQ_ISSUED;
+					busyTimers[currChip] <= 0;
+				end
+				else if (chipStages[currChip] == WR_BUF_REQ_ISSUED) begin
+					//check if write page data is ready & tag match
+					if (wdataRdy==True && wdataRdyTag==currReq.cmd.tag) begin
 						busOp = WRITE_CMD_DATA;
 						chipStages[currChip] <= WR_ISSUED;
 						busyTimers[currChip] <= fromInteger(t_PROG);
@@ -206,8 +215,9 @@ module mkScoreboard(SBIfc);
 		endmethod
 	endinterface
 
-	method Action setWdataRdy(Bit#(ChipsPerBus) rdys);
-		wdataRdys <= rdys;
+	method Action setWdataRdy(Bool rdy, TagT tag);
+		wdataRdy <= rdy;
+		wdataRdyTag <= tag;
 	endmethod
 //	method isSBIdle();
 //		return ( state==NEXT_REQ &&

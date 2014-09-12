@@ -180,8 +180,7 @@ function FlashCmd getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(16) cmdCnt);
 			op = ERASE_BLOCK;
 		end
 	end
-
-	/*
+/*
 	//sequential read, 4 buses
 	else if (testSetSel == 8'h07) begin
 		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
@@ -361,8 +360,7 @@ function FlashCmd getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(16) cmdCnt);
 		blk = zeroExtend(cmdCnt[13:6]); //16k blocks is 14-bit cmdCnt
 		op = READ_PAGE;
 	end
-	*/
-
+*/
    //Sim: 2 writes, 2 reads same chip/bus
 	else if (testSetSel == 8'hFF) begin
 		bus = 0;
@@ -376,13 +374,13 @@ function FlashCmd getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(16) cmdCnt);
 		end
 	end
 
-	//Sim: 4 writes, 4 reads, 2 buses, 2 chips
+	//Sim: 8 writes, 8 reads, 2 buses, 4 chips
 	else if (testSetSel == 8'hFE) begin
-		if (cmdCnt < 8) begin
+		if (cmdCnt < 16) begin
 			bus = zeroExtend(cmdCnt[0]);
-			c = zeroExtend(cmdCnt[1]); 
+			c = zeroExtend(cmdCnt[2:1]); 
 			blk = 0; //doesnt matter
-			op = (cmdCnt < 4) ? WRITE_PAGE : READ_PAGE; 
+			op = (cmdCnt < 8) ? WRITE_PAGE : READ_PAGE; 
 		end
 	end
 

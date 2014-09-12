@@ -135,11 +135,16 @@ module mkFlashController#(
 	Vector#(NUM_BUSES, FIFO#(Tuple2#(Bit#(128), TagT))) taggedRDataBusQ <- replicateM(mkSizedFIFO(valueOf(NUM_BUSES)*2, clocked_by clk0, reset_by rst0));
 	FIFO#(TagT) wrDataReqQ <- mkFIFO(clocked_by clk0, reset_by rst0);
 
-	//Write Page Buffers (one per chip, 64 total)
+	//Write Page buffers, 2 per bus
 	Integer writePageBufDepth = pageSizeUser/(128/8); //8KB page using 128-bit wide fifo
-	Vector#(NUM_BUSES, Vector#(ChipsPerBus, FIFOF#(Bit#(128)))) writePageBuf <- replicateM(replicateM(mkSizedBRAMFIFOF(writePageBufDepth, clocked_by clk0, reset_by rst0)));
-	Vector#(NUM_BUSES, Vector#(ChipsPerBus, FIFO#(TagT))) writeCmdTagQ <- replicateM(replicateM(mkSizedFIFO(sbChipQDepth, clocked_by clk0, reset_by rst0)));
-	Vector#(NUM_BUSES, Vector#(ChipsPerBus, Reg#(Bit#(1)))) writePrefetchSt <- replicateM(replicateM(mkReg(0, clocked_by clk0, reset_by rst0)));
+	Vector#(NUM_BUSES, FIFOF#(Tuple2#(Bit#(128), TagT))) writePageBufFront <- replicateM(mkSizedBRAMFIFOF(writePageBufDepth, clocked_by clk0, reset_by rst0));
+	Vector#(NUM_BUSES, FIFOF#(Tuple2#(Bit#(128), TagT))) writePageBufBack <- replicateM(mkSizedBRAMFIFOF(writePageBufDepth, clocked_by clk0, reset_by rst0));
+	Vector#(NUM_BUSES, Reg#(Bit#(16))) writeWordCnt <- replicateM(mkReg(0, clocked_by clk0, reset_by rst0));
+	Vector#(NUM_BUSES, Reg#(Bit#(1))) writeFetchSt <- replicateM(mkReg(0, clocked_by clk0, reset_by rst0));
+	Vector#(NUM_BUSES, Reg#(Bool)) wdataRdyR <- replicateM(mkReg(False, clocked_by clk0, reset_by rst0));
+	Vector#(NUM_BUSES, Reg#(TagT)) wdataRdyTag <- replicateM(mkRegU(clocked_by clk0, reset_by rst0));
+
+
 
 
 	//rule for WEN/NCLK; Shared per chipbus
@@ -194,58 +199,59 @@ module mkFlashController#(
 		tagTable.upd(cmd.tag, cmd);
 		busCtrl[cmd.bus].busIfc.sendCmd(cmd);
 		//keep track of the write requests for each chip so we can prefetch
-		if (cmd.op == WRITE_PAGE) begin
-			writeCmdTagQ[cmd.bus][cmd.chip].enq(cmd.tag);
-		end
+		//if (cmd.op == WRITE_PAGE) begin
+		//	writeCmdTagQ[cmd.bus][cmd.chip].enq(cmd.tag);
+		//end
 		$display("@%t\t%m: flash ctrl accepted cmd: tag=%x, bus=%d, op=%d, chip=%d, blk=%d", $time,
 	  						cmd.tag, cmd.bus, cmd.op, cmd.chip, cmd.block);
 	endrule
 
-
 	for (Integer bus=0; bus < valueOf(NUM_BUSES); bus=bus+1) begin
-		for (Integer ch=0; ch < valueOf(ChipsPerBus); ch=ch+1) begin
-			rule doPrefetchNextWrite if (!writePageBuf[bus][ch].notEmpty && writePrefetchSt[bus][ch]==0); //when buff empty
-				//if there's a pending write req for that chip, request for next write page
-				writeCmdTagQ[bus][ch].deq();
-				wrDataReqQ.enq(writeCmdTagQ[bus][ch].first());
-				writePrefetchSt[bus][ch] <= 1;
-				$display("@%t\t%m: flash ctrl write prefetch req on bus=%x, chip=%x, tag=%x", $time, 
-							bus, ch, writeCmdTagQ[bus][ch].first);
-			endrule
-
-			rule doPrefetchWriteWait if (!writePageBuf[bus][ch].notFull && writePrefetchSt[bus][ch]==1);
-				writePrefetchSt[bus][ch] <= 0;
-				$display("@%t\t%m: flash ctrl write prefetch req done bus=%x, chip=%x", $time, bus, ch);
-			endrule
-		end
-
-		//Let bus controllers know if the write data has been fetched
-		rule setWriteDataRdy;
-			Bit#(ChipsPerBus) wdataRdy = 0;
-			for (Integer ch=0; ch < valueOf(ChipsPerBus); ch=ch+1) begin
-				wdataRdy[ch] = pack(!writePageBuf[bus][ch].notFull);
-			end
-			busCtrl[bus].busIfc.setWdataRdy(wdataRdy);
+		//handles write data BUFFERING requests from each bus controller
+		rule doHandleWriteDataReqFromBus if (!writePageBufBack[bus].notEmpty && writeWordCnt[bus]==0 && writeFetchSt[bus]==0);
+			TagT tag <- busCtrl[bus].busIfc.writeDataBufReq();
+			wrDataReqQ.enq(tag);
+			writeFetchSt[bus] <= 1;
 		endrule
-	end
-		
 
-	for (Integer bus=0; bus < valueOf(NUM_BUSES); bus=bus+1) begin
-		//handles write data requests from each bus controller
-		rule doHandleWriteDataReqFromBus if (wrState[bus] == 0);
-			//get chip index (bus*chipsperbus + chip)
-			ChipT chip <- busCtrl[bus].busIfc.writeDataReq();
-			wdataChip[bus] <= chip;
+		rule doWriteFetchWait if (writeWordCnt[bus]==fromInteger(writePageBufDepth-1) && writeFetchSt[bus]==1);
+			writeFetchSt[bus] <= 0;
+		endrule
+
+		//trnasfer from back buffer to front buffer
+		rule doWriteBufTransfer;
+			writePageBufFront[bus].enq(writePageBufBack[bus].first);
+			writePageBufBack[bus].deq();
+		endrule
+		
+		//Let bus controllers know if the write data has been fetched, and the tag
+		rule setWriteDataRdy;
+			if (!writePageBufFront[bus].notFull) begin
+				TagT t = tpl_2(writePageBufFront[bus].first);
+				wdataRdyTag[bus] <= t;
+				wdataRdyR[bus] <= True;
+			end
+			else begin
+				wdataRdyTag[bus] <= ?;
+				wdataRdyR[bus] <= False;
+			end
+		endrule
+
+		rule setWriteDataReg;
+			busCtrl[bus].busIfc.setWdataRdy(wdataRdyR[bus],wdataRdyTag[bus]);
+		endrule
+
+		rule doWriteDataTransferReq if (!writePageBufFront[bus].notFull && wrState[bus]==0);
+			Bit#(1) token <- busCtrl[bus].busIfc.writeDataTransferReq();
 			wdataCnt[bus] <= 0;
 			wdataCntSub[bus] <= 0;
 			wrState[bus] <= 1;
 		endrule
 
-		rule doWriteDataSendToBus if (wrState[bus] == 1);
+		rule doWriteDataTransferToBus if (wrState[bus] == 1);
 			//break down each 128-bits into 16-bit bursts
 			if (wdataCnt[bus] < fromInteger(writePageBufDepth)) begin
-				ChipT chipInd = wdataChip[bus];
-				Bit#(128) wDataBuf = writePageBuf[bus][chipInd].first();
+				Bit#(128) wDataBuf = tpl_1(writePageBufFront[bus].first());
 				Bit#(16) wData = truncateLSB(wDataBuf << (16*wdataCntSub[bus])); //take MSB 16 bits
 				busCtrl[bus].busIfc.writeWord(wData);
 				$display("@%t\t%m: flash ctrl sent write data bus=%x, [%d_%d]: %x", $time, 
@@ -253,7 +259,7 @@ module mkFlashController#(
 				
 				if(wdataCntSub[bus] == (128/16 - 1)) begin //TODO type these constants
 					wdataCntSub[bus] <= 0;
-					writePageBuf[bus][chipInd].deq();
+					writePageBufFront[bus].deq();
 					wdataCnt[bus] <= wdataCnt[bus] + 1;
 				end
 				else begin
@@ -370,7 +376,13 @@ module mkFlashController#(
 			//look up cmd in tag table
 			FlashCmd wCmd = tagTable.sub(tag);
 			//send data to the correct write page buffer for the chip
-			writePageBuf[wCmd.bus][wCmd.chip].enq(data);
+			writePageBufBack[wCmd.bus].enq(tuple2(data, tag));
+			if (writeWordCnt[wCmd.bus]==fromInteger(writePageBufDepth-1)) begin
+				writeWordCnt[wCmd.bus] <= 0;
+			end
+			else begin
+				writeWordCnt[wCmd.bus] <= writeWordCnt[wCmd.bus] + 1;
+			end
 		endmethod
 		method ActionValue#(Tuple2#(Bit#(128), TagT)) readWord (); 
 			taggedRDataOutQ.deq();

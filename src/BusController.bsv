@@ -42,12 +42,14 @@ typedef enum {
 
 interface BusIfc;
 	method Action sendCmd (FlashCmd cmd);
-	method ActionValue#(ChipT) writeDataReq(); 
+	method ActionValue#(TagT) writeDataBufReq(); 
+	method ActionValue#(Bit#(1)) writeDataTransferReq(); 
 	method Action writeWord (Bit#(16) data);
 	method ActionValue#(Tuple2#(Bit#(16), TagT)) readWord (); 
 	method ActionValue#(Tuple2#(TagT, StatusT)) ackStatus (); 
 	method Bool isInitIdle();
-	method Action setWdataRdy(Bit#(ChipsPerBus) rdys);
+	(* always_enabled *)
+	method Action setWdataRdy(Bool rdy, TagT tag);
 	method Bit#(16) getDebugRawData;
 	method Bit#(16) getDebugBusState;
 	method Bit#(16) getDebugAddr;
@@ -123,7 +125,8 @@ module mkBusController#(
 	FIFOF#(FlashCmd) flashCmdQ <- mkFIFOF(); //TODO adjust
 	Reg#(ChipT) chipR <- mkReg(0);
 	Vector#(5, Reg#(Bit#(8))) addrDecoded <- replicateM(mkReg(0));
-	FIFO#(ChipT) wrDataReqQ <- mkFIFO();
+	FIFO#(TagT) wrDataBufReqQ <- mkSizedFIFO(valueOf(ChipsPerBus));
+	FIFO#(Bit#(1)) wrDataTransReqQ <- mkSizedFIFO(valueOf(ChipsPerBus));
 	FIFO#(Tuple2#(TagT, StatusT)) ackQ <- mkSizedFIFO(16);
 
 	//Tag management
@@ -227,9 +230,10 @@ module mkBusController#(
 		case(cmd.busOp)
 			READ_CMD: state <= READ_PAGE_REQ;
 			GET_STATUS_READ_DATA: state <= READ_PAGE_WAIT;
+			WRITE_DATA_BUF_REQ: wrDataBufReqQ.enq(cmd.tag);
 			WRITE_CMD_DATA: begin
 			  	state <= WRITE_PAGE_WAIT;
-				wrDataReqQ.enq(cmd.chip); //request for write data ASAP
+				wrDataTransReqQ.enq(1); 
 			end
 			ERASE_CMD: state <= ERASE_BLOCK;
 			WRITE_GET_STATUS: state <= WRITE_GET_STATUS;
@@ -875,10 +879,16 @@ module mkBusController#(
 			flashCmdQ.enq( cmd );
 		endmethod
 
-		//Requests for the write data of a particular tagged request
-		method ActionValue#(ChipT) writeDataReq(); 
-			wrDataReqQ.deq();
-			return wrDataReqQ.first();
+		//Requests for the write data to be buffered for a request
+		method ActionValue#(TagT) writeDataBufReq(); 
+			wrDataBufReqQ.deq();
+			return wrDataBufReqQ.first();
+		endmethod
+
+		//Requests for the write data to be transferred
+		method ActionValue#(Bit#(1)) writeDataTransferReq(); 
+			wrDataTransReqQ.deq();
+			return wrDataTransReqQ.first();
 		endmethod
 
 		method Action writeWord (Bit#(16) data);
@@ -945,8 +955,8 @@ module mkBusController#(
 			return ((state==UNINIT || state==IDLE) && (!flashCmdQ.notEmpty) && (phy.phyUser.isIdle));
 		endmethod
 	
-		method Action setWdataRdy(Bit#(ChipsPerBus) rdys);
-			sb.setWdataRdy(rdys);
+		method Action setWdataRdy(Bool rdy, TagT tag);
+			sb.setWdataRdy(rdy, tag);
 		endmethod
 
 		method Bit#(16) getDebugRawData;

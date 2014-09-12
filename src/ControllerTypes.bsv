@@ -104,6 +104,7 @@ typedef enum {
 	//READ_DATA,
 	READ_CMD,
 	GET_STATUS_READ_DATA,
+	WRITE_DATA_BUF_REQ,
 	WRITE_CMD_DATA,
 	WRITE_GET_STATUS, 
 	ERASE_CMD,
@@ -152,6 +153,7 @@ instance FShow#(BusOp);
 			WRITE_CMD_DATA: return fshow("BUSOP WRITE_CMD_DATA");
 			ERASE_CMD: return fshow("BUSOP ERASE_CMD");
 			WRITE_GET_STATUS: return fshow("BUSOP WRITE_GET_STATUS");
+			WRITE_DATA_BUF_REQ: return fshow("BUSOP WRITE_DATA_BUF_REQ");
 			ERASE_GET_STATUS: return fshow("BUSOP ERASE_GET_STATUS");
 			INVALID: return fshow("BUSOP INVALID");
 		endcase
