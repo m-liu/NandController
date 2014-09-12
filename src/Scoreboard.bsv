@@ -27,6 +27,7 @@ interface SBIfc;
 	interface Put#(FlashCmd) cmdIn;
 	interface Get#(BusCmd) cmdOut;
 	interface Put#(Tuple2#(ChipT, Bool)) busyIn;
+	method Action setWdataRdy(Bit#(ChipsPerBus) rdys);
 	//method Bool isSBIdle();
 endinterface
 
@@ -41,7 +42,7 @@ module mkScoreboard(SBIfc);
 	Integer t_PROG_PollWait = 500; //50us; Wait between status polls if busy
 	Integer t_BERS_PollWait = 10000; //100us; Wait between status polls if busy
 
-	Vector#(ChipsPerBus, FIFOF#(SBElem)) chipQs <- replicateM(mkSizedBRAMFIFOF(4)); //TODO adjust size
+	Vector#(ChipsPerBus, FIFOF#(SBElem)) chipQs <- replicateM(mkSizedFIFOF(sbChipQDepth));
 	Vector#(ChipsPerBus, FIFO#(Bool)) chipBusy <- replicateM(mkFIFO());
 	Vector#(ChipsPerBus, Reg#(Bit#(32))) busyTimers <- replicateM(mkReg(0));
 	Vector#(ChipsPerBus, Reg#(Stage)) chipStages <- replicateM(mkReg(INIT));
@@ -49,6 +50,7 @@ module mkScoreboard(SBIfc);
 	Reg#(ChipT) currChip <- mkReg(0);
 	Reg#(BusCmd) currCmdOut <- mkRegU();
 	Reg#(SBState) state <- mkReg(NEXT_REQ);
+	Reg#(Bit#(ChipsPerBus)) wdataRdys <- mkReg(0);
 
 	SBElem currReq = chipQs[currChip].first();
 
@@ -56,7 +58,7 @@ module mkScoreboard(SBIfc);
 		if (chipQs[currChip].notEmpty && busyTimers[currChip]==0) begin
 			//service request
 			state <= SERVICE_REQ;
-			$display("Servicing chip: %d", currChip);
+			$display("@%t\t%m: Servicing chip: %d", $time, currChip);
 		end
 		else begin
 			currChip <= currChip + 1;
@@ -94,12 +96,18 @@ module mkScoreboard(SBIfc);
 			end
 			WRITE_PAGE: begin
 				if (chipStages[currChip] == INIT) begin
-					busOp = WRITE_CMD_DATA;
-					chipStages[currChip] <= WR_ISSUED;
-					busyTimers[currChip] <= fromInteger(t_PROG);
+					//check if write page data is ready
+					if (wdataRdys[currChip]==1) begin
+						busOp = WRITE_CMD_DATA;
+						chipStages[currChip] <= WR_ISSUED;
+						busyTimers[currChip] <= fromInteger(t_PROG);
+					end
+					else begin
+						busOp = INVALID;
+					end
 				end
 				else if (chipStages[currChip] == WR_ISSUED) begin
-					busOp = GET_STATUS; 
+					busOp = WRITE_GET_STATUS; 
 					chipStages[currChip] <= WAIT_STATUS;
 				end
 				else begin //chipStages[currChip] == WAIT_STATUS
@@ -124,7 +132,7 @@ module mkScoreboard(SBIfc);
 					busyTimers[currChip] <= fromInteger(t_BERS);
 				end
 				else if (chipStages[currChip] == ER_ISSUED) begin
-					busOp = GET_STATUS; 
+					busOp = ERASE_GET_STATUS; 
 					chipStages[currChip] <= WAIT_STATUS;
 				end
 				else begin //chipStages[currChip] == WAIT_STATUS
@@ -198,6 +206,9 @@ module mkScoreboard(SBIfc);
 		endmethod
 	endinterface
 
+	method Action setWdataRdy(Bit#(ChipsPerBus) rdys);
+		wdataRdys <= rdys;
+	endmethod
 //	method isSBIdle();
 //		return ( state==NEXT_REQ &&
 

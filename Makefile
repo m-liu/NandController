@@ -7,6 +7,8 @@ NAND_FLAGS =
 FPGA_FLAGS = 
 SIM_FLAGS = -D NAND_SIM
 BSC_FLAGS = -keep-fires -aggressive-conditions
+TOP_MODULE = mkTopTB
+TOP_PATH = src/TopTB.bsv
 
 default: full_clean compile
 
@@ -15,13 +17,13 @@ sim: full_clean compile_sim
 .PHONY: compile
 compile:
 	@echo Compiling...
-	bsc -u -verilog -elab -vdir verilog -bdir bscOut -info-dir bscOut $(BSC_FLAGS) $(FPGA_FLAGS) $(NAND_FLAGS) -p .:%/Prelude:%/Libraries:%/Libraries/BlueNoC:%/BSVSource/Xilinx:./src:./src/ECC/src_bsv -g mkFlashController  src/FlashController.bsv 
+	bsc -u -verilog -elab -vdir verilog -bdir bscOut -info-dir bscOut $(BSC_FLAGS) $(FPGA_FLAGS) $(NAND_FLAGS) -p .:%/Prelude:%/Libraries:%/Libraries/BlueNoC:%/BSVSource/Xilinx:./src:./src/ECC/src_bsv -g $(TOP_MODULE)  $(TOP_PATH)
 	@echo Compilation finished
 
 .PHONY: compile_sim
 compile_sim:
 	@echo Compiling SIMULATION ONLY...
-	bsc -u -verilog -elab -vdir verilog -bdir bscOut -info-dir bscOut $(BSC_FLAGS) $(SIM_FLAGS) $(NAND_FLAGS) -p .:%/Prelude:%/Libraries:%/Libraries/BlueNoC:%/BSVSource/Xilinx:./src:./src/ECC/src_bsv -g mkFlashController  src/FlashController.bsv 
+	bsc -u -verilog -elab -vdir verilog -bdir bscOut -info-dir bscOut $(BSC_FLAGS) $(SIM_FLAGS) $(NAND_FLAGS) -p .:%/Prelude:%/Libraries:%/Libraries/BlueNoC:%/BSVSource/Xilinx:./src:./src/ECC/src_bsv -g $(TOP_MODULE)  $(TOP_PATH)
 	@echo Compilation SIMULATION ONLY finished
 
 .PHONY: clean

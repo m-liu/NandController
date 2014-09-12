@@ -4,8 +4,12 @@ import FShow::*;
 // Type definitions of the flash controller and submodules
 //**********************************************************
 
-
-typedef 4 NUM_CHIPBUSES; //TODO FIXME XXX
+`ifdef NAND_SIM
+	typedef 1 NUM_CHIPBUSES;
+`else
+	typedef 4 NUM_CHIPBUSES;
+`endif
+	
 typedef 2 BUSES_PER_CHIPBUS;
 typedef TMul#(NUM_CHIPBUSES, BUSES_PER_CHIPBUS) NUM_BUSES;
 
@@ -17,6 +21,8 @@ typedef 8 NUM_DEBUG_ILAS;
 	typedef 8 ChipsPerBus;
 `endif
 
+typedef TMul#(NUM_BUSES, ChipsPerBus) NUM_TOTAL_CHIPS;
+
 //NAND geometry
 //Actual page size is 8640B, but we don't need the last 40B for ECC
 //Valid Data: 2 x (243B x 16 + 208B) = 8192B; 
@@ -24,6 +30,8 @@ typedef 8 NUM_DEBUG_ILAS;
 Integer pageSize = 8600; //bytes
 Integer pageSizeUser = 8192; //usable page size is 8k
 Integer pageECCBlks = 17; //16 blocks of k=243; 1 block of k=208
+
+Integer sbChipQDepth = 8;
 
 //Integer pagesPerBlock = 256;
 //Integer blocksPerPlane = 2048;
@@ -34,6 +42,12 @@ typedef 128 NumTags;
 typedef Bit#(TLog#(NumTags)) TagT;
 typedef Bit#(TLog#(ChipsPerBus)) ChipT;
 typedef Bit#(TLog#(NUM_BUSES)) BusT;
+
+typedef enum {
+	ERASE_ERROR, 
+   ERASE_DONE, 
+	WRITE_DONE
+} StatusT deriving (Bits, Eq);
 
 //----------------------
 //Phy related types
@@ -91,8 +105,9 @@ typedef enum {
 	READ_CMD,
 	GET_STATUS_READ_DATA,
 	WRITE_CMD_DATA,
+	WRITE_GET_STATUS, 
 	ERASE_CMD,
-	GET_STATUS, 
+	ERASE_GET_STATUS,
 	INVALID
 } BusOp deriving (Bits, Eq);
 
@@ -122,6 +137,7 @@ typedef enum {
 typedef struct {
 	TagT tag;
 	FlashOp op;
+	BusT bus;
 	ChipT chip;
 	Bit#(16) block;
 	Bit#(8) page;
@@ -135,7 +151,8 @@ instance FShow#(BusOp);
 			GET_STATUS_READ_DATA: return fshow("BUSOP GET_STATUS_READ_DATA");
 			WRITE_CMD_DATA: return fshow("BUSOP WRITE_CMD_DATA");
 			ERASE_CMD: return fshow("BUSOP ERASE_CMD");
-			GET_STATUS: return fshow("BUSOP GET_STATUS");
+			WRITE_GET_STATUS: return fshow("BUSOP WRITE_GET_STATUS");
+			ERASE_GET_STATUS: return fshow("BUSOP ERASE_GET_STATUS");
 			INVALID: return fshow("BUSOP INVALID");
 		endcase
 	endfunction

@@ -1,3 +1,6 @@
+- Opt: If write data has not been received for the particular chip, SB should move onto next chip
+- One read data buffer per bus, if no space, don't start read transfer
+
 - Timing and FIFO size adjustments; ECC fifos sizes and timing too conservative
 - ECC can't correct flag handling
 - May need additional ECC decoders to max bandwidth

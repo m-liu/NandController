@@ -34,17 +34,20 @@ typedef enum {
 	POLL_STATUS,		//14
 	POLL_STATUS_POLL,	//15
 	GET_STATUS,			//16
-	WRITE_ERROR,		//17
-	READ_ERROR			//18
+	ERASE_GET_STATUS,			//17
+	WRITE_GET_STATUS,			//18
+	WRITE_ERROR,		//19
+	READ_ERROR			//20
 } CtrlState deriving (Bits, Eq);
 
 interface BusIfc;
 	method Action sendCmd (FlashCmd cmd);
-	method ActionValue#(TagT) writeDataReq(); 
+	method ActionValue#(ChipT) writeDataReq(); 
 	method Action writeWord (Bit#(16) data);
 	method ActionValue#(Tuple2#(Bit#(16), TagT)) readWord (); 
-	method ActionValue#(TagT) ackErase (); 
+	method ActionValue#(Tuple2#(TagT, StatusT)) ackStatus (); 
 	method Bool isInitIdle();
+	method Action setWdataRdy(Bit#(ChipsPerBus) rdys);
 	method Bit#(16) getDebugRawData;
 	method Bit#(16) getDebugBusState;
 	method Bit#(16) getDebugAddr;
@@ -120,8 +123,8 @@ module mkBusController#(
 	FIFOF#(FlashCmd) flashCmdQ <- mkFIFOF(); //TODO adjust
 	Reg#(ChipT) chipR <- mkReg(0);
 	Vector#(5, Reg#(Bit#(8))) addrDecoded <- replicateM(mkReg(0));
-	FIFO#(TagT) wrDataReqQ <- mkFIFO();
-	FIFO#(TagT) eraseAckQ <- mkFIFO();
+	FIFO#(ChipT) wrDataReqQ <- mkFIFO();
+	FIFO#(Tuple2#(TagT, StatusT)) ackQ <- mkSizedFIFO(16);
 
 	//Tag management
 	FIFO#(TagT) readTagQ <- mkSizedFIFO(4); //each time we do a 8k read burst, we enq the tag in this fifo
@@ -226,10 +229,11 @@ module mkBusController#(
 			GET_STATUS_READ_DATA: state <= READ_PAGE_WAIT;
 			WRITE_CMD_DATA: begin
 			  	state <= WRITE_PAGE_WAIT;
-				wrDataReqQ.enq(cmd.tag); //request for write data ASAP
+				wrDataReqQ.enq(cmd.chip); //request for write data ASAP
 			end
 			ERASE_CMD: state <= ERASE_BLOCK;
-			GET_STATUS: state <= GET_STATUS;
+			WRITE_GET_STATUS: state <= WRITE_GET_STATUS;
+			ERASE_GET_STATUS: state <= ERASE_GET_STATUS;
 			default: state <= IDLE;
 		endcase
 		rdyReturnState <= IDLE;
@@ -540,7 +544,6 @@ module mkBusController#(
 		//wait for write to finish
 		//state <= POLL_STATUS;
 		//rdyReturnState <= IDLE;
-		eraseAckQ.enq(cmdTagR); 
 		state <= IDLE;
 	endrule
 
@@ -595,7 +598,8 @@ module mkBusController#(
 	endrule
 
 	//Get status; does not poll
-	rule doGetStatusOnlyCmd if (state==GET_STATUS && cmdCnt < fromInteger(nstatusCmds));
+	rule doGetStatusOnlyCmd if ( (state==GET_STATUS || state==ERASE_GET_STATUS || state==WRITE_GET_STATUS)
+	  											&& cmdCnt < fromInteger(nstatusCmds));
 		phy.phyUser.sendCmd(statusCmds[cmdCnt]);
 		cmdCnt <= cmdCnt + 1;
 		Bit#(8) c = zeroExtend(debugCmd.chip);
@@ -603,15 +607,28 @@ module mkBusController#(
 		debugAddr <= {c, b};
 	endrule
 
-	rule doGetStatusData if (state==GET_STATUS && cmdCnt==fromInteger(nstatusCmds));
+	rule doGetStatusData if ( (state==GET_STATUS || state==ERASE_GET_STATUS || state==WRITE_GET_STATUS)
+										&& cmdCnt==fromInteger(nstatusCmds));
 		Bit#(16) status <- phy.phyUser.rdWord();
 		$display("NandCtrl: GET status=%x", status);
 		debugR0 <= status; //debug
 
-		if (status[7:0]==8'hE0 || status[7:0]==8'hE1) begin  //TODO FIXME XXX handle when erases return E1 (bad block)
+		if (status[7:0]==8'hE0 || status[7:0]==8'hE1) begin 
 			sb.busyIn.put(tuple2(chipR, False)); //not busy
 			cmdCnt <= 0;
 			state <= rdyReturnState;
+			//If erase or write get status, send ack
+			if (state==WRITE_GET_STATUS) begin
+				ackQ.enq(tuple2(cmdTagR, WRITE_DONE));
+			end
+			else if (state==ERASE_GET_STATUS) begin
+				if (status[7:0]==8'hE0) begin
+					ackQ.enq(tuple2(cmdTagR, ERASE_DONE));
+				end
+				else begin //status 8'hE1, bad block
+					ackQ.enq(tuple2(cmdTagR, ERASE_ERROR));
+				end
+			end
 		end
 		else begin
 			sb.busyIn.put(tuple2(chipR, True)); //still busy
@@ -859,7 +876,7 @@ module mkBusController#(
 		endmethod
 
 		//Requests for the write data of a particular tagged request
-		method ActionValue#(TagT) writeDataReq(); 
+		method ActionValue#(ChipT) writeDataReq(); 
 			wrDataReqQ.deq();
 			return wrDataReqQ.first();
 		endmethod
@@ -916,9 +933,9 @@ module mkBusController#(
 			return tuple2(dataAll, rtag);
 		endmethod
 	
-		method ActionValue#(TagT) ackErase (); 
-			eraseAckQ.deq();
-			return eraseAckQ.first();
+		method ActionValue#(Tuple2#(TagT, StatusT)) ackStatus (); 
+			ackQ.deq();
+			return ackQ.first();
 		endmethod
 
 		method Bool isInitIdle();
@@ -928,6 +945,10 @@ module mkBusController#(
 			return ((state==UNINIT || state==IDLE) && (!flashCmdQ.notEmpty) && (phy.phyUser.isIdle));
 		endmethod
 	
+		method Action setWdataRdy(Bit#(ChipsPerBus) rdys);
+			sb.setWdataRdy(rdys);
+		endmethod
+
 		method Bit#(16) getDebugRawData;
 			return debugR0;
 		endmethod

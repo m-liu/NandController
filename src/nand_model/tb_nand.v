@@ -342,7 +342,8 @@ nand_model nand_b1_3 (
 //---------------------------------------------
 // Flash controller
 //---------------------------------------------
-mkFlashController u_flash_controller(
+//mkFlashController u_flash_controller(
+mkTopTB u_top_tb(
 		.CLK_sysClkP(clk_in_p),
 		.CLK_sysClkN(clk_in_n),
 		.RST_N_sysRstn(sys_resetn),
