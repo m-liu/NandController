@@ -49,6 +49,7 @@ typedef enum {
 	WRITE_DONE
 } StatusT deriving (Bits, Eq);
 
+
 //----------------------
 //Phy related types
 //----------------------
@@ -143,6 +144,15 @@ typedef struct {
 	Bit#(16) block;
 	Bit#(8) page;
 } FlashCmd deriving (Bits, Eq);
+
+// Flash Controller User Ifc
+interface FlashCtrlUser;
+	method Action sendCmd (FlashCmd cmd);
+	method Action writeWord (Tuple2#(Bit#(128), TagT) taggedData);
+	method ActionValue#(Tuple2#(Bit#(128), TagT)) readWord (); 
+	method ActionValue#(TagT) writeDataReq(); 
+	method ActionValue#(Tuple2#(TagT, StatusT)) ackStatus (); 
+endinterface
 
 
 instance FShow#(BusOp);

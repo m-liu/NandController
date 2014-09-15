@@ -27,6 +27,8 @@ interface FlashCtrlPins;
 	interface Vector#(NUM_CHIPBUSES, Vector#(BUSES_PER_CHIPBUS, NANDPins)) nandBus;
 endinterface
 
+//Defined in ControllerTypes.bsv
+/*
 interface FlashCtrlUser;
 	method Action sendCmd (FlashCmd cmd);
 	method Action writeWord (Bit#(128) data, TagT tag);
@@ -34,6 +36,7 @@ interface FlashCtrlUser;
 	method ActionValue#(TagT) writeDataReq(); 
 	method ActionValue#(Tuple2#(TagT, StatusT)) ackStatus (); 
 endinterface
+*/
 
 interface FlashCtrlInfra;
 	interface Clock sysclk0;
@@ -372,7 +375,9 @@ module mkFlashController#(
 		method Action sendCmd (FlashCmd cmd);
 			flashCmdQ.enq(cmd);
 		endmethod
-		method Action writeWord (Bit#(128) data, TagT tag); //host sending write data to flash
+		method Action writeWord (Tuple2#(Bit#(128), TagT) taggedData); //host sending write data to flash
+			Bit#(128) data = tpl_1(taggedData);
+			TagT tag = tpl_2(taggedData);
 			//look up cmd in tag table
 			FlashCmd wCmd = tagTable.sub(tag);
 			//send data to the correct write page buffer for the chip
