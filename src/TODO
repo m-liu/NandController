@@ -1,5 +1,7 @@
-- Opt: If write data has not been received for the particular chip, SB should move onto next chip
-- One read data buffer per bus, if no space, don't start read transfer
+- Repackage data over Serial links
+
+- One read data buffer per bus, if no space, don't start read transfer (read may err out if not drained fast enough)
+
 
 - Timing and FIFO size adjustments; ECC fifos sizes and timing too conservative
 - ECC can't correct flag handling
@@ -23,6 +25,7 @@
 
 
 /*** DONE ***/
+- [irrelevant] Opt: If write data has not been received for the particular chip, SB should move onto next chip
 - FIX LATENCY COUNTER (keep two 64bit counters, one for lat one for bytes read)
 - Compile for 8 buses - does regfile have enough ports? No. We can either replicate for each bus or try to use arrays directly. Replicated.
 - create separate block for chipscope ICON and ILA 

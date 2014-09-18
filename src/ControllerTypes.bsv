@@ -7,7 +7,7 @@ import FShow::*;
 `ifdef NAND_SIM
 	typedef 1 NUM_CHIPBUSES;
 `else
-	typedef 4 NUM_CHIPBUSES;
+	typedef 4 NUM_CHIPBUSES; //TODO, FIXME
 `endif
 	
 typedef 2 BUSES_PER_CHIPBUS;
@@ -48,6 +48,18 @@ typedef enum {
    ERASE_DONE, 
 	WRITE_DONE
 } StatusT deriving (Bits, Eq);
+
+
+
+//----------------------
+//Aurora related types
+//----------------------
+typedef enum {
+	F_CMD,
+	F_DATA,
+	F_ACK,
+	F_WR_REQ
+} PacketClass deriving (Bits, Eq);
 
 
 //----------------------

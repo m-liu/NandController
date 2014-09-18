@@ -25,10 +25,10 @@ set_property PACKAGE_PIN D5 [get_ports CLK_sysClkN]
 # /home/mingliu/NandController/src/nand_phy.ucf:13
 # The conversion of 'IOSTANDARD' constraint on 'net' object 'CLK_sysClkN' has been applied to the port object 'CLK_sysClkN'.
 set_property IOSTANDARD LVDS_25 [get_ports CLK_sysClkN]
-set_property PACKAGE_PIN P14 [get_ports RST_N_sysRstn]
+#set_property PACKAGE_PIN P14 [get_ports RST_N_sysRstn]
 # /home/mingliu/NandController/src/nand_phy.ucf:15
 # The conversion of 'IOSTANDARD' constraint on 'net' object 'RST_N_sysRstn' has been applied to the port object 'RST_N_sysRstn'.
-set_property IOSTANDARD LVCMOS18 [get_ports RST_N_sysRstn]
+#set_property IOSTANDARD LVCMOS18 [get_ports RST_N_sysRstn]
 
 
 #Clock constraint

@@ -346,7 +346,7 @@ nand_model nand_b1_3 (
 mkTopTB u_top_tb(
 		.CLK_sysClkP(clk_in_p),
 		.CLK_sysClkN(clk_in_n),
-		.RST_N_sysRstn(sys_resetn),
+		//.RST_N_sysRstn(sys_resetn),
 
 		.B_SHARED_0_WEN_NCLK(b0_shared_wen_nclk),
 		.B_0_0_DQ(b0_0_dq),

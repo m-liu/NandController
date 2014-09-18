@@ -7,6 +7,7 @@ import RegFile::*;
 import ChipscopeWrapper::*;
 import ControllerTypes::*;
 import FlashController::*;
+import NullResetN::*;
 
 typedef enum {
 	INIT = 0,
@@ -180,7 +181,7 @@ function FlashCmd getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(16) cmdCnt);
 			op = ERASE_BLOCK;
 		end
 	end
-
+/*
 	//sequential read, 4 buses
 	else if (testSetSel == 8'h07) begin
 		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
@@ -360,7 +361,7 @@ function FlashCmd getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(16) cmdCnt);
 		blk = zeroExtend(cmdCnt[13:6]); //16k blocks is 14-bit cmdCnt
 		op = READ_PAGE;
 	end
-
+*/
    //Sim: 2 writes, 2 reads same chip/bus
 	else if (testSetSel == 8'hFF) begin
 		bus = 0;
@@ -402,13 +403,14 @@ endinterface
 (*synthesize*)
 module mkTopTB#(
 		Clock sysClkP, 
-		Clock sysClkN,
-		Reset sysRstn
+		Clock sysClkN
+		//Reset sysRstn
 	) (TbIfc);
 
-	//instantiate flash controller
-	FlashControllerIfc flashCtrl <- mkFlashController(sysClkP, sysClkN, sysRstn);
+	NullResetNIfc nullResetN <- mkNullResetN();
 
+	//instantiate flash controller
+	FlashControllerIfc flashCtrl <- mkFlashController(sysClkP, sysClkN, nullResetN.rst_n/*sysRstn*/);
 	Clock clk0 = flashCtrl.infra.sysclk0;
 	Reset rst0 = flashCtrl.infra.sysrst0;
 
@@ -527,7 +529,6 @@ module mkTopTB#(
 		$display("@%t\t%m: FlashController ack returned tag=%x", $time, t);
 	endrule
 
-	//TODO: insert some delays to simulate PCIe delay
 	rule doWriteDataReq if (wrState == 0);
 		TagT tag <- flashCtrl.user.writeDataReq();
 		tagCmd <= tagTable.sub(tag);
@@ -535,12 +536,27 @@ module mkTopTB#(
 		wrState <= 1;
 	endrule
 
-	rule doWriteDataSend if (wrState ==1);
+	//TODO: insert some delays to simulate PCIe delay
+	Reg#(Bit#(32)) wrDelayCnt <- mkReg(50, clocked_by clk0, reset_by rst0);
+
+	rule doWriteDataReqDelay if (wrState == 1);
+		if (wrDelayCnt==0) begin
+			wrState <= 2;
+			wrDelayCnt <= 5;
+		end
+		else begin
+			wrDelayCnt<=wrDelayCnt - 1;
+		end
+	endrule
+
+	//Send write data slowly
+	rule doWriteDataSend if (wrState ==2);
 		if (wdataCnt < fromInteger(pageSizeUser/16)) begin
 			Bit#(128) wData = getDataHash(wdataCnt, tagCmd.page, 
 											tagCmd.block, tagCmd.chip, tagCmd.bus);
-			flashCtrl.user.writeWord(wData, tagCmd.tag);
+			flashCtrl.user.writeWord(tuple2(wData, tagCmd.tag));
 			wdataCnt <= wdataCnt + 1;
+			wrState <= 1;
 			$display("@%t\t%m: tb sent write data [%d]: %x", $time, wdataCnt, wData);
 		end
 		else begin

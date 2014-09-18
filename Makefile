@@ -7,24 +7,42 @@ NAND_FLAGS =
 FPGA_FLAGS = 
 SIM_FLAGS = -D NAND_SIM
 BSC_FLAGS = -keep-fires -aggressive-conditions
-TOP_MODULE = mkTopTB
-TOP_PATH = src/TopTB.bsv
+TOP_MODULE = mkTopArtix
+TOP_PATH = src/TopArtix.bsv
+TOP_TB_MODULE = mkTopTB
+TOP_TB_PATH = src/TopTB.bsv
 
 default: full_clean compile
-
 sim: full_clean compile_sim
+tb: full_clean compile_tb
+tb_sim: full_clean compile_tb_sim
 
 .PHONY: compile
 compile:
-	@echo Compiling...
-	bsc -u -verilog -elab -vdir verilog -bdir bscOut -info-dir bscOut $(BSC_FLAGS) $(FPGA_FLAGS) $(NAND_FLAGS) -p .:%/Prelude:%/Libraries:%/Libraries/BlueNoC:%/BSVSource/Xilinx:./src:./src/ECC/src_bsv -g $(TOP_MODULE)  $(TOP_PATH)
-	@echo Compilation finished
+	@echo Compiling $(TOP_MODULE)...
+	bsc -u -verilog -elab -vdir verilog -bdir bscOut -info-dir bscOut $(BSC_FLAGS) $(FPGA_FLAGS) $(NAND_FLAGS) -p .:%/Prelude:%/Libraries:./src:./src/ECC/src_bsv -g $(TOP_MODULE)  $(TOP_PATH)
+	@echo Compilation finished $(TOP_MODULE)
 
 .PHONY: compile_sim
 compile_sim:
-	@echo Compiling SIMULATION ONLY...
-	bsc -u -verilog -elab -vdir verilog -bdir bscOut -info-dir bscOut $(BSC_FLAGS) $(SIM_FLAGS) $(NAND_FLAGS) -p .:%/Prelude:%/Libraries:%/Libraries/BlueNoC:%/BSVSource/Xilinx:./src:./src/ECC/src_bsv -g $(TOP_MODULE)  $(TOP_PATH)
-	@echo Compilation SIMULATION ONLY finished
+	@echo Compiling SIMULATION ONLY $(TOP_MODULE)... 
+	bsc -u -verilog -elab -vdir verilog -bdir bscOut -info-dir bscOut $(BSC_FLAGS) $(SIM_FLAGS) $(NAND_FLAGS) -p .:%/Prelude:%/Libraries:./src:./src/ECC/src_bsv -g $(TOP_MODULE)  $(TOP_PATH)
+	@echo Compilation SIMULATION ONLY finished $(TOP_MODULE)
+
+.PHONY: compile_tb
+compile_tb:
+	@echo Compiling $(TOP_TB_MODULE) ...
+	bsc -u -verilog -elab -vdir verilog -bdir bscOut -info-dir bscOut $(BSC_FLAGS) $(FPGA_FLAGS) $(NAND_FLAGS) -p .:%/Prelude:%/Libraries:./src:./src/ECC/src_bsv -g $(TOP_TB_MODULE)  $(TOP_TB_PATH)
+	@echo Compilation finished for $(TOP_TB_MODULE)
+
+.PHONY: compile_tb_sim
+compile_tb_sim:
+	@echo Compiling SIMULATION ONLY $(TOP_TB_MODULE)...
+	bsc -u -verilog -elab -vdir verilog -bdir bscOut -info-dir bscOut $(BSC_FLAGS) $(SIM_FLAGS) $(NAND_FLAGS) -p .:%/Prelude:%/Libraries:./src:./src/ECC/src_bsv -g $(TOP_TB_MODULE)  $(TOP_TB_PATH)
+	@echo Compilation SIMULATION ONLY finished for $(TOP_TB_MODULE)
+
+
+
 
 .PHONY: clean
 clean:

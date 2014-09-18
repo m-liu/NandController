@@ -1,0 +1,1 @@
+/home/mingliu/bluedbm/controller/xilinx/aurora_8b10b/AuroraImportArtix7.bsv
