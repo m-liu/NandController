@@ -28,16 +28,17 @@ typedef enum {
 	READ_PAGE_REQ,		//8
 	READ_DATA,			//9
 	READ_PAGE_WAIT,	//10
-	WRITE_PAGE,			//11
-	WRITE_PAGE_WAIT,	//12
-	ERASE_BLOCK,		//13
-	POLL_STATUS,		//14
-	POLL_STATUS_POLL,	//15
-	GET_STATUS,			//16
-	ERASE_GET_STATUS,			//17
-	WRITE_GET_STATUS,			//18
-	WRITE_ERROR,		//19
-	READ_ERROR			//20
+	READ_DATA_WAIT_BUF, //11
+	WRITE_PAGE,			//12
+	WRITE_PAGE_WAIT,	//13
+	ERASE_BLOCK,		//14
+	POLL_STATUS,		//15
+	POLL_STATUS_POLL,	//16
+	GET_STATUS,			//17
+	ERASE_GET_STATUS,			//18
+	WRITE_GET_STATUS,			//19
+	WRITE_ERROR,		//20
+	READ_ERROR			//21
 } CtrlState deriving (Bits, Eq);
 
 interface BusIfc;
@@ -103,7 +104,7 @@ module mkBusController#(
 	//Counters
 	Reg#(Bit#(32)) waitCnt <- mkReg(0);
 	Reg#(Bit#(8)) addrCnt <- mkReg(0);
-	Reg#(Bit#(8)) cmdCnt <- mkReg(0);
+	Reg#(Bit#(4)) cmdCnt <- mkReg(0);
 	Reg#(Bit#(16)) dataCnt <- mkReg(0);
 	Reg#(Bit#(16)) wrEnqWordCnt <- mkReg(0);
 	Reg#(Bit#(16)) wrEnqBlkCnt <- mkReg(0);
@@ -122,7 +123,7 @@ module mkBusController#(
 //	Reg#(Bit#(16)) debugR3 <- mkReg(0);
 
 	//Command/Data FIFOs
-	FIFOF#(FlashCmd) flashCmdQ <- mkFIFOF(); //TODO adjust
+	FIFOF#(FlashCmd) flashCmdQ <- mkSizedFIFOF(4); //TODO adjust
 	Reg#(ChipT) chipR <- mkReg(0);
 	Vector#(5, Reg#(Bit#(8))) addrDecoded <- replicateM(mkReg(0));
 	FIFO#(TagT) wrDataBufReqQ <- mkSizedFIFO(valueOf(ChipsPerBus));
@@ -130,7 +131,7 @@ module mkBusController#(
 	FIFO#(Tuple2#(TagT, StatusT)) ackQ <- mkSizedFIFO(16);
 
 	//Tag management
-	FIFO#(TagT) readTagQ <- mkSizedFIFO(4); //each time we do a 8k read burst, we enq the tag in this fifo
+	FIFO#(TagT) readTagQ <- mkSizedFIFO(8); //each time we do a 8k read burst, we enq the tag in this fifo
 	Reg#(Bit#(16)) rdWdCnt <- mkReg(0);
 	Reg#(TagT) cmdTagR <- mkReg(0);
 
@@ -150,23 +151,24 @@ module mkBusController#(
 	//Nand PHY instantiation
 	NandPhyIfc phy <- mkNandPhy(clk90, rst90);
 	//ECC decoder and encoder
-	FIFO#(Bit#(16)) encodeInQ <- mkSizedBRAMFIFO(64); //TODO adjust
+	FIFO#(Bit#(16)) encodeInQ <- mkSizedFIFO(64); //TODO adjust
 	//Note: the size of this FIFO is very important because during write
 	//bursts, we must make sure this FIFO always has data. 
 	//Size this to be: K-K_LAST=35 + any rs encoder delays between blocks
 	//(should be none)
 	//Don't size it too large. We fill the buffer to start with. More delay. 
-	FIFOF#(Bit#(16)) encodeOutQ <- mkSizedBRAMFIFOF(40); 
+	FIFOF#(Bit#(16)) encodeOutQ <- mkSizedFIFOF(40); 
 	RSEncoderIfc rsEncoderHi <- mkRSEncoder();
 	RSEncoderIfc rsEncoderLo <- mkRSEncoder();
 
 	//On reads, must make sure all FIFOs into decoder always has space to accept
 	//data When starting a read, ensure this FIFO is empty as a precaution
 	FIFOF#(Bit#(16)) decodeInQ <- mkSizedBRAMFIFOF(pageSize/2 + 1);
+	FIFOF#(Bit#(16)) decodeInBufQ <- mkSizedBRAMFIFOF(pageSize/4 + 1);
 	//FIFO#(Bit#(8)) decodeOutHiQ <- mkSizedFIFO(4); //doesn't matter here
 	//FIFO#(Bit#(8)) decodeOutLoQ <- mkSizedFIFO(4); //doesn't matter here
-	FIFO#(Byte) decodeKQ <- mkSizedFIFO(pageECCBlks + 1);
-	FIFO#(Byte) decodeTQ <- mkSizedFIFO(pageECCBlks + 1);
+	FIFO#(Byte) decodeKQ <- mkSizedFIFO(pageECCBlks*3 + 1);
+	FIFO#(Byte) decodeTQ <- mkSizedFIFO(pageECCBlks*3 + 1);
 	IReedSolomon rsDecoderHi <- mkReedSolomon();
 	IReedSolomon rsDecoderLo <- mkReedSolomon();
 
@@ -321,13 +323,20 @@ module mkBusController#(
 	rule doReadPageWait if (state==READ_PAGE_WAIT);
 		//state <= POLL_STATUS;
 		state <= GET_STATUS;
-		rdyReturnState <= READ_DATA;
+		rdyReturnState <= READ_DATA_WAIT_BUF;
 		cmdCnt <= 0;
 		addrCnt <= 0;
 		dataCnt <= 0;
 		Bit#(8) c = zeroExtend(debugCmd.chip);
 		Bit#(8) b = truncate(debugCmd.block);
 		debugAddr <= {c, b};
+	endrule
+
+	//wait until we have enough buffer space for read data
+	//TODO: OPTIMIZE 
+	rule doReadDataWaitBuf if (state==READ_DATA_WAIT_BUF && !decodeInQ.notEmpty);
+		state <= READ_DATA;
+		$display("@%t\t%m: Bus waiting for read buffer space", $time);
 	endrule
 
 	rule doReadDataCmd if (state==READ_DATA && cmdCnt < fromInteger(nreadDataCmds));
@@ -822,10 +831,15 @@ module mkBusController#(
 		encodeOutQ.enq({encDataHi, encDataLo});
 	endrule
 
-	rule doDecoderDataIn;
-		rsDecoderHi.rs_input.put( truncateLSB(decodeInQ.first()) );
-		rsDecoderLo.rs_input.put( truncate(decodeInQ.first()) );
+	rule doDecoderDataBuf;
 		decodeInQ.deq();
+		decodeInBufQ.enq(decodeInQ.first);
+	endrule
+
+	rule doDecoderDataIn;
+		rsDecoderHi.rs_input.put( truncateLSB(decodeInBufQ.first()) );
+		rsDecoderLo.rs_input.put( truncate(decodeInBufQ.first()) );
+		decodeInBufQ.deq();
 	endrule
 
 	rule doDecoderKIn;

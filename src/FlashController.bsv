@@ -126,8 +126,8 @@ module mkFlashController#(
 
 	Vector#(NUM_BUSES, Reg#(ChipT)) wdataChip <- replicateM(mkReg(0, clocked_by clk0, reset_by rst0));
 	Vector#(NUM_BUSES, Reg#(Bit#(16))) wdataCnt <- replicateM(mkReg(0, clocked_by clk0, reset_by rst0));
-	Vector#(NUM_BUSES, Reg#(Bit#(16))) wdataCntSub <- replicateM(mkReg(0, clocked_by clk0, reset_by rst0));
-	Vector#(NUM_BUSES, Reg#(Bit#(16))) rdataCntSub <- replicateM(mkReg(0, clocked_by clk0, reset_by rst0));
+	Vector#(NUM_BUSES, Reg#(Bit#(8))) wdataCntSub <- replicateM(mkReg(0, clocked_by clk0, reset_by rst0));
+	Vector#(NUM_BUSES, Reg#(Bit#(8))) rdataCntSub <- replicateM(mkReg(0, clocked_by clk0, reset_by rst0));
 	Vector#(NUM_BUSES, Reg#(Bit#(128))) rdataAggrReg <- replicateM(mkReg(0, clocked_by clk0, reset_by rst0));
 	FIFO#(Tuple2#(TagT, StatusT)) ackStatusQ <- mkSizedFIFO(16, clocked_by clk0, reset_by rst0);
 
