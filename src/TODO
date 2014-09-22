@@ -1,30 +1,29 @@
-- Repackage data over Serial links
 
-- One read data buffer per bus, if no space, don't start read transfer (read may err out if not drained fast enough)
-
-
-- Timing and FIFO size adjustments; ECC fifos sizes and timing too conservative
-- ECC can't correct flag handling
-- May need additional ECC decoders to max bandwidth
-- Possible issue: decodeInQ is full if there are too many errors. This could occur after many sequential reads as the buffer slowly fills due to slow ECC.
+/*** Pending Testing ***/
 - Handle status returning E1 on block erases (failed)
 
+
+
+/*** To Do Features ***/
+- Repackage data over Serial links
+- Increase usable page size for metadata 
+- ECC can't correct flag handling
+
+
+/*** Optimizations ***/
+- Optimization: Scheduler should not scheudle readback if no space is available in the read buffer (or decodeInQ)
+- Timing and FIFO size adjustments; ECC fifos sizes and timing too conservative
+- May need additional ECC decoders to max bandwidth
 - SB optimization: prioritize read command issuing
-- SB resource reduction: get rid of BRAM FIFO on chipQs
 - Adjust status polling freq
 - Sim test erases, r/w/e mixed 
 
 
-
-/*** May not be needed ***/
-- Read calibration for each chip. For now calibrate a single chip and use that calib value for the entire bus [ok here?]
-- DQ-DQS skew calibration [ok here?]
-- Remove DQS simulation delay in post implementation sim
-- IDELAY tap currently fixed in parameter. Need to make adjustable [don't need?]
-- delay adjustment for DQ line [don't need?]
-
-
 /*** DONE ***/
+- Artix only TopTB pipelined checker [bitstream generated in TB PROJECT]
+- Bug fix: read-related data fifos (KQ, TQin) full and blocking reads causing bad data to be read
+- SB resource reduction: get rid of BRAM FIFO on chipQs
+- Possible issue: decodeInQ is full if there are too many errors. This could occur after many sequential reads as the buffer slowly fills due to slow ECC.
 - [irrelevant] Opt: If write data has not been received for the particular chip, SB should move onto next chip
 - FIX LATENCY COUNTER (keep two 64bit counters, one for lat one for bytes read)
 - Compile for 8 buses - does regfile have enough ports? No. We can either replicate for each bus or try to use arrays directly. Replicated.
@@ -62,6 +61,13 @@
 - Remap CE#'s *PINS* to half buses
 - UCF verification: double check wen_nclk pins
 - Output drive strength, slew rate (FPGA and NAND)? <- doesn't seem to be a problem
+
+//Didn't need
+- Read calibration for each chip. For now calibrate a single chip and use that calib value for the entire bus [ok here?]
+- DQ-DQS skew calibration [ok here?]
+- Remove DQS simulation delay in post implementation sim
+- IDELAY tap currently fixed in parameter. Need to make adjustable [don't need?]
+- delay adjustment for DQ line [don't need?]
 
 /*** Testing ***/
 - [OK] All buses

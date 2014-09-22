@@ -181,7 +181,8 @@ function FlashCmd getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(16) cmdCnt);
 			op = ERASE_BLOCK;
 		end
 	end
-/*
+
+`ifndef NAND_SIM //if not simulating, then include tb for all buses
 	//sequential read, 4 buses
 	else if (testSetSel == 8'h07) begin
 		if (cmdCnt < fromInteger(numSeqBlks)) begin //issue 10k commands (~80MB)
@@ -361,7 +362,10 @@ function FlashCmd getNextCmd (TagT tag, Bit#(8) testSetSel, Bit#(16) cmdCnt);
 		blk = zeroExtend(cmdCnt[13:6]); //16k blocks is 14-bit cmdCnt
 		op = READ_PAGE;
 	end
-*/
+
+`endif //ifndef NAND_SIM
+
+
    //Sim: 2 writes, 2 reads same chip/bus
 	else if (testSetSel == 8'hFF) begin
 		bus = 0;
@@ -426,9 +430,6 @@ module mkTopTB#(
 	Reg#(Bit#(16)) wdataCnt <- mkReg(0, clocked_by clk0, reset_by rst0);
 	Reg#(Bit#(2)) wrState <- mkReg(0, clocked_by clk0, reset_by rst0);
 	
-	FIFO#(Bit#(128)) rdata2check <- mkFIFO(clocked_by clk0, reset_by rst0);
-	FIFO#(FlashCmd) rcmd2check <- mkFIFO(clocked_by clk0, reset_by rst0);
-
 	Reg#(Bit#(64)) latencyCnt <- mkReg(0, clocked_by clk0, reset_by rst0);
 	Vector#(NUM_BUSES, Reg#(Bit#(64))) errCnt <- replicateM(mkReg(0, clocked_by clk0, reset_by rst0));
 	Reg#(Bit#(16)) cmdCnt <- mkReg(0, clocked_by clk0, reset_by rst0);
@@ -536,7 +537,7 @@ module mkTopTB#(
 		wrState <= 1;
 	endrule
 
-	//TODO: insert some delays to simulate PCIe delay
+	/*
 	Reg#(Bit#(32)) wrDelayCnt <- mkReg(50, clocked_by clk0, reset_by rst0);
 
 	rule doWriteDataReqDelay if (wrState == 1);
@@ -548,15 +549,15 @@ module mkTopTB#(
 			wrDelayCnt<=wrDelayCnt - 1;
 		end
 	endrule
+	*/
 
 	//Send write data slowly
-	rule doWriteDataSend if (wrState ==2);
+	rule doWriteDataSend if (wrState ==1);
 		if (wdataCnt < fromInteger(pageSizeUser/16)) begin
 			Bit#(128) wData = getDataHash(wdataCnt, tagCmd.page, 
 											tagCmd.block, tagCmd.chip, tagCmd.bus);
 			flashCtrl.user.writeWord(tuple2(wData, tagCmd.tag));
 			wdataCnt <= wdataCnt + 1;
-			wrState <= 1;
 			$display("@%t\t%m: tb sent write data [%d]: %x", $time, wdataCnt, wData);
 		end
 		else begin
@@ -568,8 +569,30 @@ module mkTopTB#(
 	endrule
 	
 	//Pipelined to reduce critical path
-	rule doReadData;
+	/*
+	//FIXME: testing read slowly
+	Reg#(Tuple2#(Bit#(128), TagT)) taggedRDataR <- mkRegU(clocked_by clk0, reset_by rst0);
+	Reg#(Bit#(4)) readState <- mkReg(0, clocked_by clk0, reset_by rst0);
+	Reg#(Bit#(32)) readWait <- mkReg(10000, clocked_by clk0, reset_by rst0);
+	rule doReadDataAccept if (readState==0);
 		let taggedRData <- flashCtrl.user.readWord();
+		taggedRDataR <= taggedRData;
+		readState <= 1;
+	endrule
+
+	rule doReadWait if (readState==1);
+		if (readWait ==  0) begin
+			readState <= 2;
+			readWait <= 16;
+		end
+		else begin
+			readWait <= readWait - 1;
+		end
+	endrule
+
+
+	rule doReadDecode if (readState == 2);
+		let taggedRData = taggedRDataR;
 		Bit#(128) rdata = tpl_1(taggedRData);
 		//rDataDebug[i] <= rdata;
 		TagT rTag = tpl_2(taggedRData);
@@ -577,14 +600,46 @@ module mkTopTB#(
 		//FlashCmd cmd = tagTable[rTag];
 		rdata2check.enq(rdata);
 		rcmd2check.enq(cmd);
+		readState <= 0;
 	endrule
+	*/
+
+	FIFO#(Bit#(128)) rdata2gold <- mkFIFO(clocked_by clk0, reset_by rst0);
+	FIFO#(Bit#(128)) rdata2check <- mkFIFO(clocked_by clk0, reset_by rst0);
+	FIFO#(Bit#(128)) wdata2check <- mkFIFO(clocked_by clk0, reset_by rst0);
+	FIFO#(FlashCmd) rcmd2gold <- mkFIFO(clocked_by clk0, reset_by rst0);
+	FIFO#(FlashCmd) rcmd2check <- mkFIFO(clocked_by clk0, reset_by rst0);
+	
+	rule doReadData;
+		let taggedRData <- flashCtrl.user.readWord();
+		Bit#(128) rdata = tpl_1(taggedRData);
+		//rDataDebug[i] <= rdata;
+		TagT rTag = tpl_2(taggedRData);
+		FlashCmd cmd = tagTable.sub(rTag);
+		//FlashCmd cmd = tagTable[rTag];
+		rdata2gold.enq(rdata);
+		rcmd2gold.enq(cmd);
+	endrule
+	
+	rule doReadDataGold;
+		FlashCmd cmd = rcmd2gold.first;
+		Bit#(128) rdata = rdata2gold.first;
+		rcmd2gold.deq();
+		rdata2gold.deq();
+		Bit#(128) wData = getDataHash(rdataCnt[cmd.tag], cmd.page, cmd.block, cmd.chip, cmd.bus);
+		rdata2check.enq(rdata);
+		wdata2check.enq(wData);
+		rcmd2check.enq(cmd);
+	endrule
+
 
 	rule doReadDataCheck;
 		FlashCmd cmd = rcmd2check.first;
 		Bit#(128) rdata = rdata2check.first;
-		rcmd2check.deq();
-		rdata2check.deq();
-		Bit#(128) wData = getDataHash(rdataCnt[cmd.tag], cmd.page, cmd.block, cmd.chip, cmd.bus);
+		Bit#(128) wData = wdata2check.first;
+		wdata2check.deq;
+		rdata2check.deq;
+		rcmd2check.deq;
 
 		//check
 		if (rdata != wData) begin
