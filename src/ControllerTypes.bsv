@@ -4,10 +4,53 @@ import FShow::*;
 // Type definitions of the flash controller and submodules
 //**********************************************************
 
+//NAND geometry
+//Actual page size is 8640B, but we don't need the last 40B for ECC
+//Valid Data: 2 x (243B x 16 + 208B) = 8192B; 
+//With ECC: 2 x (255B x 16 + 220B) = 8600
+typedef 8600 			PageSize;
+typedef 8192 			PageSizeUser;
+typedef 17 				PageECCBlks; //16 blocks of k=243; 1 block of k=208
+`ifdef BSIM
+	typedef 16 			PagesPerBlock;
+	typedef 128			BlocksPerCE;
+	typedef 8 			ChipsPerBus;
+`elsif SLC
+	typedef 128 		PagesPerBlock;
+	typedef 8192 		BlocksPerCE;
+	typedef 4 			ChipsPerBus;
+`else //MLC
+	typedef 256		 	PagesPerBlock;
+	typedef 4096 		BlocksPerCE;
+	typedef 8 			ChipsPerBus;
+`endif 
+
+typedef 2											BusWordBytes;
+typedef TMul#(8, BusWordBytes) 				BusWordSz;
+typedef 16 											WordBytes;
+typedef TMul#(8,WordBytes) 					WordSz;
+//Each burst is 128 bits via the controller interface
+typedef TDiv#(PageSizeUser, WordBytes) 	PageWords;
+typedef TMul#(TMul#(BlocksPerCE, PagesPerBlock), PageWords) WordsPerChip;
+
+
+Integer pageSize 			= valueOf(PageSize); //bytes
+Integer pageSizeUser 	= valueOf(PageSizeUser); //usable page size is 8k
+Integer pageECCBlks 		= valueOf(PageECCBlks); //16 blocks of k=243; 1 block of k=208
+Integer pagesPerBlock 	= valueOf(PagesPerBlock);
+Integer blocksPerCE 		= valueOf(BlocksPerCE);
+Integer chipsPerBus		= valueOf(ChipsPerBus);
+Integer wordBytes 		= valueOf(WordBytes);
+Integer pageWords 		= valueOf(PageWords);
+//Integer blocksPerPlane = 2048;
+//Integer planesPerLun = 2;
+//Integer lunsPerTarget = 1; //1 for SLC, 2 for MLC
+
+
 `ifdef NAND_SIM
 	typedef 1 NUM_CHIPBUSES;
 `else
-	typedef 4 NUM_CHIPBUSES; //TODO, FIXME
+	typedef 4 NUM_CHIPBUSES; 
 `endif
 	
 typedef 2 BUSES_PER_CHIPBUS;
@@ -15,30 +58,11 @@ typedef TMul#(NUM_CHIPBUSES, BUSES_PER_CHIPBUS) NUM_BUSES;
 
 typedef 8 NUM_DEBUG_ILAS;
 
-`ifdef SLC_NAND
-	typedef 4 ChipsPerBus;
-`else
-	typedef 8 ChipsPerBus;
-`endif
-
 typedef TMul#(NUM_BUSES, ChipsPerBus) NUM_TOTAL_CHIPS;
 
-//NAND geometry
-//Actual page size is 8640B, but we don't need the last 40B for ECC
-//Valid Data: 2 x (243B x 16 + 208B) = 8192B; 
-//With ECC: 2 x (255B x 16 + 220B) = 8600
-Integer pageSize = 8600; //bytes
-Integer pageSizeUser = 8192; //usable page size is 8k
-Integer pageECCBlks = 17; //16 blocks of k=243; 1 block of k=208
-
-Integer sbChipQDepth = 8;
-
-//Integer pagesPerBlock = 256;
-//Integer blocksPerPlane = 2048;
-//Integer planesPerLun = 2;
-//Integer lunsPerTarget = 1; //1 for SLC, 2 for MLC
 
 typedef 128 NumTags;
+//typedef Bit#(TLog#(TDiv#(NumTags, NUM_BUSES))) BusTagT;
 typedef Bit#(TLog#(NumTags)) TagT;
 typedef Bit#(TLog#(ChipsPerBus)) ChipT;
 typedef Bit#(TLog#(NUM_BUSES)) BusT;
